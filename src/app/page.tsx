@@ -1,103 +1,88 @@
-import Image from "next/image";
+import { supabase } from '@/lib/supabaseClient';
 
-export default function Home() {
+// Define simple types for our data (optional but good practice with TypeScript)
+interface Category {
+  id: number;
+  created_at: string;
+  name: string;
+}
+interface MenuItem {
+  id: number;
+  created_at: string;
+  name: string;
+  description: string | null;
+  price: number | null;
+  image_url: string | null;
+  category_id: number | null;
+}
+
+export default async function Home() {
+  // Fetch categories
+  const { data: categories, error: categoriesError } = await supabase
+    .from('menu_categories')
+    .select('*')
+    .order('name'); // Optional: Order categories alphabetically by name
+
+  // Fetch items
+  const { data: items, error: itemsError } = await supabase
+    .from('menu_items')
+    .select('*');
+
+  // Log data to server terminal
+  console.log('Fetched categories:', categories);
+  console.log('Fetched items:', items);
+
+  // --- Group items by category_id ---
+  const itemsByCategory: { [key: number]: MenuItem[] } = {};
+  if (items) {
+    items.forEach((item) => {
+      if (item.category_id) { // Check if category_id exists
+        if (!itemsByCategory[item.category_id]) {
+          itemsByCategory[item.category_id] = []; // Initialize array if not present
+        }
+        itemsByCategory[item.category_id].push(item);
+      }
+      // Optional: Handle items with null category_id if needed
+    });
+  }
+  console.log('Items grouped by category:', itemsByCategory); // Log the grouped structure
+  // --- End grouping logic ---
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="flex min-h-screen flex-col items-center p-12 md:p-24"> {/* Adjusted padding */}
+      <h1 className="text-4xl font-bold mb-12">Menu</h1>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      {/* Display Errors if any */}
+      {categoriesError && <p className="text-red-500 mb-4">Error loading categories: {categoriesError.message}</p>}
+      {itemsError && <p className="text-red-500 mb-4">Error loading items: {itemsError.message}</p>}
+
+      {/* Display Menu by Category */}
+      {!categoriesError && categories && categories.length > 0 ? (
+        <div className="w-full max-w-4xl"> {/* Added container for better layout */}
+          {categories.map((category) => (
+            <section key={category.id} className="mb-12">
+              <h2 className="text-3xl font-semibold mb-6 border-b pb-2">{category.name}</h2>
+              {/* Get items for this category from the grouped object */}
+              {itemsByCategory[category.id] && itemsByCategory[category.id].length > 0 ? (
+                <ul className="space-y-4"> {/* Added spacing between items */}
+                  {itemsByCategory[category.id].map((item) => (
+                    <li key={item.id} className="border p-4 rounded-md shadow-sm"> {/* Added some basic styling */}
+                      <h3 className="text-xl font-medium">{item.name}</h3>
+                      {item.description && <p className="text-sm text-gray-600 my-1">{item.description}</p>}
+                      {item.price !== null && <p className="font-semibold">${item.price.toFixed(2)}</p>}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No items found in this category.</p>
+              )}
+            </section>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      ) : (
+        <p>No categories found.</p>
+      )}
+
+    </main>
   );
 }
