@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import MenuItemForm from "./MenuItemForm";
+import Image from "next/image";
 
 // Type definitions remain the same
 type Category = { id: number; name: string };
@@ -117,9 +118,11 @@ export default function MenuManager({
               {/* Column 1: Image */}
               <div className="flex-shrink-0">
                 {item.image_url ? (
-                  <img
+                  <Image
                     src={item.image_url}
                     alt={item.name}
+                    width={96}
+                    height={96}
                     className="w-24 h-24 object-cover rounded-md bg-gray-200"
                   />
                 ) : (

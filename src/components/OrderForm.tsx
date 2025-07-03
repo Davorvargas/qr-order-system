@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
@@ -193,9 +194,11 @@ export default function OrderForm({
                     {/* Image Column */}
                     <div className="flex-shrink-0">
                       {item.image_url ? (
-                        <img
+                        <Image
                           src={item.image_url}
                           alt={item.name}
+                          width={80}
+                          height={80}
                           className="w-20 h-20 object-cover rounded-md bg-gray-200"
                         />
                       ) : (
