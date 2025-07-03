@@ -7,7 +7,6 @@ interface OrderItem {
   id: number;
   quantity: number;
   price_at_order: number | null;
-  // --- THIS IS THE FIRST FIX: menu_items is an ARRAY of objects ---
   menu_items: { name: string }[] | null;
 }
 
@@ -18,7 +17,13 @@ interface Order {
   total_price: number | null;
   order_items: OrderItem[];
 }
-// --- End Types ---
+
+// --- NEW, CLEARER TYPE FOR THE PAGE PROPS ---
+interface ConfirmationPageProps {
+  params: {
+    orderId: string;
+  };
+}
 
 async function getOrderDetails(orderId: number): Promise<Order> {
   const supabase = await createClient();
@@ -43,12 +48,11 @@ async function getOrderDetails(orderId: number): Promise<Order> {
   return order;
 }
 
+// --- UPDATED, SIMPLER COMPONENT SIGNATURE ---
 export default async function OrderConfirmationPage({
-  params: { orderId: orderIdString },
-}: {
-  params: { orderId: string };
-}) {
-  const orderId = parseInt(orderIdString, 10);
+  params,
+}: ConfirmationPageProps) {
+  const orderId = parseInt(params.orderId, 10);
 
   if (isNaN(orderId)) {
     notFound();
@@ -82,7 +86,6 @@ export default async function OrderConfirmationPage({
           <ul className="space-y-1 text-gray-700">
             {order.order_items.map((item: OrderItem) => (
               <li key={item.id} className="flex justify-between items-baseline">
-                {/* --- THIS IS THE SECOND FIX: Access the first element of the array --- */}
                 <span>
                   {item.quantity} x {item.menu_items?.[0]?.name || "Item"}
                 </span>
