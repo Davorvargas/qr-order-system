@@ -1,38 +1,52 @@
 // src/app/page.tsx
-// --- UPDATED VERSION ---
 import { createClient } from "@/utils/supabase/server";
+import Image from "next/image"; // Import the Next.js Image component
 
-// Define a simplified type for a menu item for use in our grouping logic
-interface MenuItem {
+// Define our types clearly at the top
+interface Category {
+  id: number;
+  name: string;
+}
+
+// This type represents a menu item with its category info joined
+interface MenuItemWithCategory {
   id: number;
   name: string;
   description: string | null;
   price: number | null;
+  is_available: boolean;
+  image_url: string | null;
   category_id: number | null;
+  menu_categories: { name: string } | null;
+}
+
+async function getMenuData() {
+  const supabase = await createClient();
+  const { data: categories, error: catError } = await supabase
+    .from("menu_categories")
+    .select("id, name")
+    .order("name");
+  const { data: menuItems, error: itemError } = await supabase
+    .from("menu_items")
+    .select("*, menu_categories(name)")
+    .order("id");
+
+  if (catError) console.error("Error fetching categories:", catError.message);
+  if (itemError) console.error("Error fetching items:", itemError.message);
+
+  return {
+    categories: categories || [],
+    menuItems: menuItems || [],
+  };
 }
 
 export default async function Home() {
-  // Initialize the new server client
-  const supabase = await createClient();
+  const { categories, menuItems } = await getMenuData();
 
-  // Fetch categories
-  const { data: categories, error: categoriesError } = await supabase
-    .from("menu_categories")
-    .select("id, name") // More efficient to select only needed columns
-    .order("name");
-
-  // Fetch items
-  const { data: items, error: itemsError } = await supabase
-    .from("menu_items")
-    .select("id, name, description, price, category_id, is_available") // More efficient
-    .order("name");
-
-  // --- Group items by category_id ---
-  const itemsByCategory: { [key: number]: MenuItem[] } = {};
-  if (items) {
-    // We cast 'items' to 'any' here temporarily to avoid a deep type issue
-    // with Supabase's inferred types vs our simple interface.
-    (items as any[]).forEach((item: MenuItem) => {
+  const itemsByCategory: { [key: number]: MenuItemWithCategory[] } = {};
+  if (menuItems) {
+    // We use the consistent variable name 'menuItems' here
+    menuItems.forEach((item) => {
       if (item.category_id) {
         if (!itemsByCategory[item.category_id]) {
           itemsByCategory[item.category_id] = [];
@@ -41,64 +55,58 @@ export default async function Home() {
       }
     });
   }
-  // --- End grouping logic ---
 
   return (
     <main className="flex min-h-screen flex-col items-center p-12 md:p-24">
       <h1 className="text-4xl font-bold mb-12">Menu</h1>
 
-      {categoriesError && (
-        <p className="text-red-500 mb-4">
-          Error loading categories: {categoriesError.message}
-        </p>
-      )}
-      {itemsError && (
-        <p className="text-red-500 mb-4">
-          Error loading items: {itemsError.message}
-        </p>
-      )}
-
       {categories && categories.length > 0 ? (
         <div className="w-full max-w-4xl">
-          {categories.map((category) => (
+          {categories.map((category: Category) => (
             <section key={category.id} className="mb-12">
               <h2 className="text-3xl font-semibold mb-6 border-b pb-2 text-gray-900">
                 {category.name}
               </h2>
-              {itemsByCategory[category.id] &&
-              itemsByCategory[category.id].length > 0 ? (
-                <ul className="space-y-4">
-                  {itemsByCategory[category.id].map((item) => (
-                    <li
+              <div className="space-y-4">
+                {(itemsByCategory[category.id] || []).map(
+                  (item: MenuItemWithCategory) => (
+                    <div
                       key={item.id}
-                      className="border p-4 rounded-md shadow-sm"
+                      className={`p-4 border rounded-md flex items-start gap-4 transition-all ${
+                        !item.is_available
+                          ? "bg-gray-100 opacity-50 pointer-events-none"
+                          : ""
+                      }`}
                     >
-                      <h3 className="text-xl font-medium text-gray-900">
-                        {item.name}
-                      </h3>
-                      {item.description && (
-                        <p className="text-sm text-gray-700 my-1">
+                      {/* Displaying the image using next/image */}
+                      {item.image_url && (
+                        <Image
+                          src={item.image_url}
+                          alt={item.name}
+                          width={96} // Provide a width
+                          height={96} // Provide a height
+                          className="w-24 h-24 object-cover rounded-md bg-gray-200 flex-shrink-0"
+                        />
+                      )}
+
+                      <div className="flex-grow">
+                        <h3 className="font-bold text-lg">{item.name}</h3>
+                        <p className="text-sm text-gray-500">
                           {item.description}
                         </p>
-                      )}
-                      {item.price !== null && (
-                        <p className="font-semibold text-gray-800">
-                          ${item.price.toFixed(2)}
+                        <p className="font-semibold text-lg text-gray-800">
+                          ${item.price?.toFixed(2)}
                         </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-500">
-                  No items found in this category.
-                </p>
-              )}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
             </section>
           ))}
         </div>
       ) : (
-        <p>No categories found.</p>
+        <p className="text-gray-500">No menu items found.</p>
       )}
     </main>
   );

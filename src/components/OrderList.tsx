@@ -13,9 +13,8 @@ type Order = {
   total_price: number | null;
 };
 
-function formatTimeAgo(dateString: string) {
+function formatTimeAgo(dateString: string, now: Date) {
   const date = new Date(dateString);
-  const now = new Date();
   const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
   const minutes = Math.round(seconds / 60);
   const hours = Math.round(minutes / 60);
@@ -131,7 +130,7 @@ export default function OrderList({
               <p className="text-sm text-gray-600">
                 Time: {new Date(order.created_at).toLocaleTimeString()}
                 <span className="ml-2 font-medium text-gray-800">
-                  ({formatTimeAgo(order.created_at)})
+                  ({formatTimeAgo(order.created_at, currentTime)})
                 </span>
               </p>
               <p className="font-semibold mt-2">

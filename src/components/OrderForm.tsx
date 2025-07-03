@@ -141,11 +141,13 @@ export default function OrderForm({
       console.log("Order placed successfully! Order ID:", newOrderId);
 
       router.push(`/order/confirmation/${newOrderId}`);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error placing order:", error);
-      setSubmitError(error.message || "An unknown error occurred.");
-    } finally {
-      setIsLoading(false);
+      if (error instanceof Error) {
+        setSubmitError(error.message); // <-- Access message safely
+      } else {
+        setSubmitError("An unknown error occurred.");
+      }
     }
   };
   // --- END HELPER FUNCTIONS ---
