@@ -1,53 +1,54 @@
 // src/app/table/[tableId]/page.tsx
+// --- UPDATED VERSION ---
 
-// Define props type to receive route parameters
+import { createClient } from "@/utils/supabase/server"; // <-- Use the new SERVER client
+import OrderForm from "@/components/OrderForm";
+
 interface TablePageProps {
-    params: {
-      tableId: string; // Matches the folder name [tableId]
-    };
-    // We can also get searchParams if needed: searchParams: { [key: string]: string | string[] | undefined };
-  }
-  
-  // This page is also a Server Component by default
-  export default function TablePage({ params }: TablePageProps) {
-    const { tableId } = params; // Extract the tableId from the params prop
-  
-    return (
-      <main className="flex min-h-screen flex-col items-center p-12 md:p-24">
-        {/* Display the dynamic table ID */}
-        <h1 className="text-4xl font-bold mb-8">Welcome to Table {tableId}</h1>
-  
-        <div className="w-full max-w-4xl space-y-8"> {/* Added space-y for gaps */}
-          {/* Placeholder for Customer Name Input */}
-          <section className="p-4 border rounded bg-gray-50 shadow-sm">
-            <h2 className="text-xl font-semibold mb-2">Your Name</h2>
-            {/* We'll add an input field here later */}
-            <p className="text-gray-600">(Input field coming soon)</p>
-          </section>
-  
-          {/* Placeholder for Menu */}
-          <section className="p-4 border rounded bg-gray-50 shadow-sm">
-            <h2 className="text-xl font-semibold mb-2">Menu</h2>
-            {/* We'll fetch and display the menu here later */}
-            <p className="text-gray-600">(Menu display and selection coming soon)</p>
-          </section>
-  
-          {/* Placeholder for Order Summary */}
-          <section className="p-4 border rounded bg-gray-50 shadow-sm">
-            <h2 className="text-xl font-semibold mb-2">Your Order</h2>
-            <p className="text-gray-600">(Order summary coming soon)</p>
-          </section>
-  
-          {/* Placeholder for Place Order Button */}
-          <section className="text-center">
-            <button
-              disabled // Disabled for now
-              className="bg-blue-500 text-white font-bold py-2 px-6 rounded opacity-50 cursor-not-allowed"
-            >
-              Place Order
-            </button>
-          </section>
-        </div>
-      </main>
-    );
-  }
+  params: {
+    tableId: string;
+  };
+}
+
+// Update the data fetching function to use the new server client
+async function getMenuData() {
+  const supabase = await createClient(); // <-- Initialize and await the client
+
+  const { data: categories, error: categoriesError } = await supabase
+    .from("menu_categories")
+    .select("id, name")
+    .order("name");
+
+  const { data: items, error: itemsError } = await supabase
+    .from("menu_items")
+    .select(
+      "id, name, description, price, category_id, is_available, image_url"
+    )
+    .order("name");
+
+  if (categoriesError)
+    console.error("Error fetching categories:", categoriesError.message);
+  if (itemsError) console.error("Error fetching items:", itemsError.message);
+
+  return {
+    categories: categories || [],
+    items: items || [],
+  };
+}
+
+// The rest of the component remains largely the same
+export default async function TablePage({ params }: TablePageProps) {
+  const { tableId } = params;
+  const { categories, items } = await getMenuData(); // This now uses the updated function
+
+  return (
+    <main className="flex min-h-screen flex-col items-center p-6 md:p-12">
+      <h1 className="text-3xl md:text-4xl font-bold mb-8">
+        Order for Table {tableId}
+      </h1>
+
+      {/* Render the Client Component and pass down data */}
+      <OrderForm categories={categories} items={items} tableId={tableId} />
+    </main>
+  );
+}
