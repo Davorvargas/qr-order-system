@@ -49,9 +49,7 @@ async function getOrderDetails(orderId: number): Promise<Order> {
 }
 
 // --- UPDATED, SIMPLER COMPONENT SIGNATURE ---
-export default async function OrderConfirmationPage({
-  params,
-}: ConfirmationPageProps) {
+export default async function OrderConfirmationPage({ params }: any) {
   const orderId = parseInt(params.orderId, 10);
 
   if (isNaN(orderId)) {
