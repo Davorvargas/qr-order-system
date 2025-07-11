@@ -96,7 +96,7 @@ export default function CreateOrderModal({
       const newQuantity = (existing?.quantity || 0) + change;
 
       if (newQuantity <= 0) {
-        const { [item.id]: _, ...rest } = prev;
+        const { [item.id]: _removed, ...rest } = prev;
         return rest;
       }
 
