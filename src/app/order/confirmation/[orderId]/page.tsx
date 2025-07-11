@@ -3,9 +3,9 @@ import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
 interface ConfirmationPageProps {
-  params: {
+  params: Promise<{
     orderId: string;
-  };
+  }>;
 }
 
 // Type definitions for our data
@@ -81,8 +81,9 @@ async function getOrderDetails(orderId: number): Promise<Order> {
 // --- FINAL FIX ---
 // Esta función ya no usa 'any' en menu_items, así que se puede eliminar el eslint-disable.
 export default async function OrderConfirmationPage({
-  params: { orderId: orderIdString },
+  params,
 }: ConfirmationPageProps) {
+  const { orderId: orderIdString } = await params;
   const orderId = parseInt(orderIdString, 10);
 
   if (isNaN(orderId)) {
