@@ -96,7 +96,8 @@ export default function CreateOrderModal({
       const newQuantity = (existing?.quantity || 0) + change;
 
       if (newQuantity <= 0) {
-        const { [item.id]: _removed, ...rest } = prev;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { [item.id]: _, ...rest } = prev;
         return rest;
       }
 
