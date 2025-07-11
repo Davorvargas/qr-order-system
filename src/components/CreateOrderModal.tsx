@@ -194,9 +194,9 @@ export default function CreateOrderModal({
         <h3 className="font-semibold mb-2">Menú</h3>
         <div className="space-y-2">
           {categories.map((category) => (
-            <div key={category.id} className="border rounded-md">
+            <div key={category.id}>
               <div
-                className="p-3 cursor-pointer flex justify-between items-center"
+                className="p-3 cursor-pointer flex justify-between items-center border-b border-black"
                 onClick={() =>
                   setOpenCategoryId(
                     openCategoryId === category.id ? null : category.id
@@ -211,45 +211,49 @@ export default function CreateOrderModal({
                 )}
               </div>
               {openCategoryId === category.id && (
-                <div className="border-t">
-                  {(itemsByCategory[category.id] || []).map((item) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-center gap-4 p-3 ${
-                        !item.is_available ? "opacity-50" : ""
-                      }`}
-                    >
-                      <div className="flex-grow">
-                        <p className="font-semibold">{item.name}</p>
-                        <p className="text-sm text-gray-500">
-                          ${item.price?.toFixed(2)}
-                        </p>
-                      </div>
-                      {item.is_available ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleUpdateQuantity(item, -1)}
-                            className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <span className="font-bold w-6 text-center">
-                            {orderItems[item.id]?.quantity || 0}
-                          </span>
-                          <button
-                            onClick={() => handleUpdateQuantity(item, 1)}
-                            className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"
-                          >
-                            <Plus size={14} />
-                          </button>
+                <div>
+                  {(itemsByCategory[category.id] || []).map(
+                    (item, idx, arr) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center gap-4 p-3 ${
+                          !item.is_available ? "opacity-50" : ""
+                        } ${
+                          idx !== arr.length - 1 ? "border-b border-black" : ""
+                        }`}
+                      >
+                        <div className="flex-grow">
+                          <p className="font-semibold">{item.name}</p>
+                          <p className="text-sm text-gray-500">
+                            ${item.price?.toFixed(2)}
+                          </p>
                         </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-red-600">
-                          Unavailable
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                        {item.is_available ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleUpdateQuantity(item, -1)}
+                              className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <span className="font-bold w-6 text-center">
+                              {orderItems[item.id]?.quantity || 0}
+                            </span>
+                            <button
+                              onClick={() => handleUpdateQuantity(item, 1)}
+                              className="p-1 rounded-full bg-gray-200 hover:bg-gray-300"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-semibold text-red-600">
+                            Unavailable
+                          </span>
+                        )}
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>
