@@ -1,12 +1,13 @@
 // src/components/MenuManager.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import MenuItemForm from "./MenuItemForm";
 import Image from "next/image";
+import { ChevronDown, PlusCircle, Settings, Trash2 } from "lucide-react";
+import MenuItemFormModal from "./MenuItemFormModal";
 
-// Type definitions remain the same
+// --- TYPE DEFINITIONS ---
 type Category = { id: number; name: string };
 type MenuItem = {
   id: number;
@@ -16,56 +17,40 @@ type MenuItem = {
   category_id: number | null;
   is_available: boolean;
   image_url: string | null;
-  menu_categories: { name: string } | null;
 };
 interface MenuManagerProps {
   initialItems: MenuItem[];
   categories: Category[];
 }
 
+// --- MAIN COMPONENT ---
 export default function MenuManager({
   initialItems,
   categories,
 }: MenuManagerProps) {
   const supabase = createClient();
   const [menuItems, setMenuItems] = useState(initialItems);
-  // This state will hold the item being edited. If it's null, the form is for adding a new item.
-  const [itemToEdit, setItemToEdit] = useState<MenuItem | null>(null);
+  const [menuCategories, setMenuCategories] = useState(categories);
+  const [openCategoryId, setOpenCategoryId] = useState<number | null>(
+    categories[0]?.id ?? null
+  );
+
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
-  // This function now just sets the item to be edited
-  const handleEditClick = (item: MenuItem) => {
-    setItemToEdit(item);
-    // Scroll to the top of the page to see the form
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // This function will be called from the form when an item is added or updated
-  const handleFormComplete = () => {
-    alert(
-      "Menu updated successfully! The page will now refresh to show changes."
-    );
-    window.location.reload();
-  };
-
-  const handleDelete = async (itemId: number) => {
-    if (!window.confirm("Are you sure you want to delete this menu item?"))
-      return;
-
-    const { error } = await supabase
-      .from("menu_items")
-      .delete()
-      .eq("id", itemId);
-
-    if (error) {
-      alert(`Error: ${error.message}`);
-    } else {
-      setMenuItems((currentItems) =>
-        currentItems.filter((item) => item.id !== itemId)
-      );
-      alert("Menu item deleted successfully.");
-    }
-  };
+  // Group items by category for easy rendering
+  const itemsByCategory = useMemo(() => {
+    return menuItems.reduce((acc, item) => {
+      const categoryId = item.category_id ?? -1;
+      if (!acc[categoryId]) {
+        acc[categoryId] = [];
+      }
+      acc[categoryId].push(item);
+      return acc;
+    }, {} as Record<number, MenuItem[]>);
+  }, [menuItems]);
 
   const handleToggleAvailability = async (item: MenuItem) => {
     setUpdatingId(item.id);
@@ -76,9 +61,10 @@ export default function MenuManager({
       .eq("id", item.id);
     if (error) {
       alert(`Error: ${error.message}`);
+      // Revert optimistic update on error if needed
     } else {
-      setMenuItems((currentItems) =>
-        currentItems.map((i) =>
+      setMenuItems((current) =>
+        current.map((i) =>
           i.id === item.id ? { ...i, is_available: newStatus } : i
         )
       );
@@ -86,107 +72,205 @@ export default function MenuManager({
     setUpdatingId(null);
   };
 
+  const handleAddCategory = async () => {
+    const name = prompt("Ingrese el nombre de la nueva categoría:");
+    if (!name) return;
+
+    const { data, error } = await supabase
+      .from("menu_categories")
+      .insert({ name })
+      .select()
+      .single();
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+    } else if (data) {
+      setMenuCategories((current) => [...current, data]);
+      alert("¡Categoría agregada!");
+    }
+  };
+
+  const handleDeleteItem = async (itemId: number) => {
+    if (
+      !window.confirm("¿Está seguro de que desea eliminar este plato del menú?")
+    ) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("menu_items")
+      .delete()
+      .eq("id", itemId);
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+    } else {
+      setMenuItems((current) => current.filter((item) => item.id !== itemId));
+      alert("Plato eliminado exitosamente.");
+    }
+  };
+
+  const handleAddItemClick = (categoryId: number) => {
+    setEditingCategory({ id: categoryId, name: "" }); // We just need the ID here
+    setEditingItem(null);
+    setIsItemModalOpen(true);
+  };
+
+  const handleEditItemClick = (item: MenuItem) => {
+    setEditingItem(item);
+    setEditingCategory(null);
+    setIsItemModalOpen(true);
+  };
+
+  const handleSaveItem = (savedItem: MenuItem) => {
+    if (editingItem) {
+      // We were editing, so replace the old item
+      setMenuItems((current) =>
+        current.map((item) => (item.id === savedItem.id ? savedItem : item))
+      );
+    } else {
+      // We were adding, so add the new item
+      setMenuItems((current) => [...current, savedItem]);
+    }
+  };
+
   return (
-    <>
-      {/* Section to ADD or EDIT an item. The form is now always visible. */}
-      <section className="mt-8 p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">
-          {itemToEdit ? `Editing: ${itemToEdit.name}` : "Add a New Menu Item"}
-        </h2>
-        <MenuItemForm
-          categories={categories}
-          itemToEdit={itemToEdit}
-          // We pass a function to the form so it can tell us when it's done
-          onComplete={handleFormComplete}
-          // We also pass a function to clear the form for editing
-          onCancelEdit={() => setItemToEdit(null)}
-        />
-      </section>
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Gestión del Menú</h1>
+        {/* Add button can go here if needed */}
+      </div>
 
-      {/* Section to DISPLAY existing items */}
-      <section className="mt-12 p-6 bg-white rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4">Existing Menu Items</h2>
-        <div className="space-y-4">
-          {menuItems.map((item) => (
-            // Replace the existing item-mapping div with this one:
+      <div className="space-y-4">
+        {menuCategories.map((category) => {
+          const items = itemsByCategory[category.id] || [];
+          const isOpen = openCategoryId === category.id;
+
+          return (
             <div
-              key={item.id}
-              className={`p-4 border rounded-md flex items-center gap-4 transition-all ${
-                !item.is_available ? "bg-gray-100 opacity-70" : ""
-              }`}
+              key={category.id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200"
             >
-              {/* Column 1: Image */}
-              <div className="flex-shrink-0">
-                {item.image_url ? (
-                  <Image
-                    src={item.image_url}
-                    alt={item.name}
-                    width={96}
-                    height={96}
-                    className="w-24 h-24 object-cover rounded-md bg-gray-200"
-                  />
-                ) : (
-                  // Placeholder if no image exists
-                  <div className="w-24 h-24 bg-gray-200 rounded-md flex items-center justify-center">
-                    <span className="text-xs text-gray-500">No Image</span>
+              {/* Category Header */}
+              <div
+                className="flex items-center p-4 cursor-pointer"
+                onClick={() => setOpenCategoryId(isOpen ? null : category.id)}
+              >
+                <ChevronDown
+                  size={20}
+                  className={`transition-transform mr-3 ${
+                    isOpen ? "" : "-rotate-90"
+                  }`}
+                />
+                <h2 className="font-semibold text-lg flex-grow">
+                  {category.name}
+                </h2>
+                <span className="text-gray-500 text-sm mr-4">
+                  {items.length} items
+                </span>
+                <button className="text-gray-400 hover:text-gray-600">
+                  <Settings size={18} />
+                </button>
+              </div>
+
+              {/* Collapsible Content */}
+              {isOpen && (
+                <div className="border-t border-gray-200">
+                  {items.length > 0 ? (
+                    <ul className="divide-y divide-gray-200">
+                      {items.map((item) => (
+                        <li
+                          key={item.id}
+                          className="flex items-center gap-4 p-4"
+                        >
+                          <div className="flex-grow flex items-center gap-4">
+                            {item.image_url ? (
+                              <Image
+                                src={item.image_url}
+                                alt={item.name}
+                                width={48}
+                                height={48}
+                                className="w-12 h-12 object-cover rounded-md bg-gray-200"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 rounded-md flex-shrink-0" />
+                            )}
+                            <div>
+                              <h3 className="font-semibold">{item.name}</h3>
+                              <p className="text-sm text-gray-500">
+                                Bs {item.price?.toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={item.is_available}
+                                onChange={() => handleToggleAvailability(item)}
+                                disabled={updatingId === item.id}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                              <span className="ml-3 text-sm font-medium text-gray-500 w-20">
+                                {item.is_available
+                                  ? "Available"
+                                  : "Unavailable"}
+                              </span>
+                            </label>
+                            <button
+                              onClick={() => handleEditItemClick(item)}
+                              className="text-gray-400 hover:text-blue-600"
+                            >
+                              <Settings size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="text-gray-400 hover:text-red-600"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="p-4 text-center text-gray-500">
+                      No items in this category yet.
+                    </p>
+                  )}
+                  <div className="p-4 border-t bg-gray-50">
+                    <button
+                      onClick={() => handleAddItemClick(category.id)}
+                      className="w-full text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center justify-center py-2"
+                    >
+                      <PlusCircle size={16} className="mr-2" />
+                      Add item to {category.name}
+                    </button>
                   </div>
-                )}
-              </div>
-
-              {/* Column 2: Item Details (this part grows to fill space) */}
-              <div className="flex-grow">
-                <h3 className="font-bold text-lg">{item.name}</h3>
-                <p className="text-sm text-gray-500">{item.description}</p>
-                <p className="text-sm font-medium text-indigo-600">
-                  Category: {item.menu_categories?.name || "N/A"}
-                </p>
-                <p className="font-semibold text-lg text-gray-800">
-                  ${item.price?.toFixed(2)}
-                </p>
-              </div>
-
-              {/* Column 3: Controls */}
-              <div className="flex flex-col items-end gap-2">
-                <div className="flex items-center">
-                  <label
-                    htmlFor={`available-${item.id}`}
-                    className={`mr-2 text-sm font-medium ${
-                      item.is_available ? "text-green-700" : "text-gray-500"
-                    }`}
-                  >
-                    {item.is_available ? "Available" : "Unavailable"}
-                  </label>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      id={`available-${item.id}`}
-                      checked={item.is_available}
-                      onChange={() => handleToggleAvailability(item)}
-                      disabled={updatingId === item.id}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-                  </label>
                 </div>
-                <div className="flex-shrink-0 space-x-2 mt-2">
-                  <button
-                    onClick={() => handleEditClick(item)}
-                    className="text-sm bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-1 px-3 rounded-md"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(item.id)}
-                    className="text-sm bg-red-500 hover:bg-red-600 text-white font-semibold py-1 px-3 rounded-md"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
-          ))}
-        </div>
-      </section>
-    </>
+          );
+        })}
+      </div>
+      <div className="mt-6">
+        <button
+          onClick={handleAddCategory}
+          className="w-full flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:bg-gray-50 hover:border-gray-400 transition-colors"
+        >
+          <PlusCircle size={20} className="mr-2" />
+          Add menu group
+        </button>
+      </div>
+      <MenuItemFormModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        onSave={handleSaveItem}
+        categories={menuCategories}
+        itemToEdit={editingItem}
+        categoryId={editingCategory?.id ?? null}
+      />
+    </div>
   );
 }

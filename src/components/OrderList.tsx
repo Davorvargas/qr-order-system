@@ -1,34 +1,83 @@
 // src/components/OrderList.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { Order, OrderItem } from "@/app/staff/dashboard/page"; // <-- Import types
+import ConfirmCompletionModal from "./ConfirmCompletionModal";
+import ConfirmCancelModal from "./ConfirmCancelModal"; // <-- Import Cancel Modal
+import {
+  Clock,
+  Printer,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  XCircle, // <-- Import Cancel Icon
+  ClipboardEdit, // <-- Import Manual Entry Icon
+} from "lucide-react";
 
-type Order = {
-  id: number;
-  created_at: string;
-  customer_name: string;
-  status: string;
-  table_id: string;
-  total_price: number | null;
-};
+type OrderStatus =
+  | "order_placed"
+  | "receipt_printed"
+  | "completed"
+  | "cancelled";
 
+const STATUS_TABS: OrderStatus[] = [
+  "order_placed",
+  "receipt_printed",
+  "completed",
+  "cancelled",
+];
+
+const ITEMS_BEFORE_TRUNCATE = 4; // Max items to show before truncating
+
+// Re-usable function to format time
 function formatTimeAgo(dateString: string, now: Date) {
   const date = new Date(dateString);
   const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
   const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minutos atrás`;
   const hours = Math.round(minutes / 60);
-
-  if (seconds < 60) {
-    return `${seconds}s ago`;
-  } else if (minutes < 60) {
-    return `${minutes}m ago`;
-  } else if (hours < 24) {
-    return `${hours}h ago`;
-  } else {
-    return date.toLocaleDateString();
-  }
+  return `${hours} horas atrás`;
 }
+
+const getTimeAgoColor = (dateString: string, now: Date): string => {
+  const date = new Date(dateString);
+  const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes >= 25) {
+    return "text-red-600 font-semibold"; // Red for 25+ minutes
+  } else if (minutes >= 15) {
+    return "text-yellow-600 font-semibold"; // Yellow for 15+ minutes
+  } else {
+    return "text-gray-500"; // Default color for recent orders
+  }
+};
+
+// Re-usable component for status pills
+const StatusPill = ({ status }: { status: OrderStatus }) => (
+  <span
+    className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
+      {
+        order_placed: "bg-blue-100 text-blue-800",
+        receipt_printed: "bg-yellow-100 text-yellow-800",
+        completed: "bg-green-100 text-green-800",
+        cancelled: "bg-red-100 text-red-800",
+      }[status]
+    }`}
+  >
+    {status === "order_placed"
+      ? "Pedido realizado"
+      : status === "receipt_printed"
+      ? "Recibo impreso"
+      : status === "completed"
+      ? "Completado"
+      : status === "cancelled"
+      ? "Cancelado"
+      : status.replace("_", " ")}
+  </span>
+);
 
 export default function OrderList({
   initialOrders,
@@ -39,27 +88,42 @@ export default function OrderList({
   const [orders, setOrders] = useState(initialOrders);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeStatus, setActiveStatus] = useState<OrderStatus>("order_placed");
+  const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
+  // Timer to update "time ago"
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 30000);
-    return () => {
-      clearInterval(timer);
-    };
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
+    return () => clearInterval(timer);
   }, []);
 
+  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("realtime orders")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
-        (payload) => {
-          setOrders((currentOrders) => [
-            payload.new as Order,
-            ...currentOrders,
-          ]);
+        async (payload) => {
+          // Add a small delay to ensure order_items are committed
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Fetch full order details for the new order
+          const { data: newOrderDetails } = await supabase
+            .from("orders")
+            .select("*, order_items(*, menu_items(name))")
+            .eq("id", payload.new.id)
+            .single();
+
+          if (newOrderDetails) {
+            setOrders((currentOrders) => [
+              newOrderDetails as Order,
+              ...currentOrders,
+            ]);
+          }
         }
       )
       .on(
@@ -82,112 +146,273 @@ export default function OrderList({
     };
   }, [supabase]);
 
-  // --- THIS FUNCTION NOW HAS THE CORRECT LOGIC ---
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     setUpdatingOrderId(orderId);
-    const { error } = await supabase
+    await supabase
       .from("orders")
       .update({ status: newStatus })
       .eq("id", orderId);
-
-    if (error) {
-      console.error("Error updating status:", error);
-      alert("Could not update order status. Check RLS policies.");
-    }
-    // The realtime listener will handle the UI update automatically.
-    setUpdatingOrderId(null);
+    setUpdatingOrderId(null); // RLS will trigger UI update
   };
 
-  // ADDED THIS LOG TO HELP DEBUG
-  console.log("Data for the order list:", orders);
+  const toggleCardExpansion = (orderId: number) => {
+    setExpandedCardIds((prev) =>
+      prev.includes(orderId)
+        ? prev.filter((id) => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleOpenConfirmModal = (order: Order) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseConfirmModal = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleConfirmCompletion = async () => {
+    if (!selectedOrder) return;
+    await handleUpdateStatus(selectedOrder.id, "completed");
+    handleCloseConfirmModal();
+  };
+
+  const handleOpenCancelModal = (order: Order) => {
+    setSelectedOrder(order);
+    setIsCancelModalOpen(true);
+  };
+
+  const handleCloseCancelModal = () => {
+    setIsCancelModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleConfirmCancellation = async () => {
+    if (!selectedOrder) return;
+    await handleUpdateStatus(selectedOrder.id, "cancelled");
+    handleCloseCancelModal();
+  };
+
+  // Memoize counts and filtered orders for performance
+  const orderCounts = useMemo(() => {
+    return STATUS_TABS.reduce((acc, status) => {
+      acc[status] = orders.filter((o) => o.status === status).length;
+      return acc;
+    }, {} as Record<OrderStatus, number>);
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => order.status === activeStatus);
+  }, [orders, activeStatus]);
 
   return (
-    <section className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4 border-b pb-2">
-        Incoming Orders
-      </h2>
-      {orders.length > 0 ? (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div key={order.id} className="border p-4 rounded-md">
-              <div className="flex justify-between items-center">
-                <h3 className="font-bold">Order for {order.customer_name}</h3>
-                <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                    order.status === "order_placed"
-                      ? "bg-blue-100 text-blue-800"
-                      : order.status === "receipt_printed"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : order.status === "cancelled"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-green-100 text-green-800" // This will be for 'completed'
-                  }`}
-                >
-                  {order.status.replace("_", " ")}
-                </span>
-              </div>
-              <p className="text-sm text-gray-600">Table: {order.table_id}</p>
-              <p className="text-sm text-gray-600">
-                Time: {new Date(order.created_at).toLocaleTimeString()}
-                <span className="ml-2 font-medium text-gray-800">
-                  ({formatTimeAgo(order.created_at, currentTime)})
-                </span>
-              </p>
-              <p className="font-semibold mt-2">
-                Total: ${order.total_price?.toFixed(2)}
-              </p>
-
-              {/* --- THIS IS THE MISSING BUTTONS LOGIC --- */}
-              <div className="mt-4 pt-4 border-t flex items-center flex-wrap gap-2">
-                {order.status === "order_placed" && (
-                  <button
-                    onClick={() =>
-                      handleUpdateStatus(order.id, "receipt_printed")
-                    }
-                    disabled={updatingOrderId === order.id}
-                    className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1 px-3 rounded disabled:opacity-50"
-                  >
-                    {updatingOrderId === order.id ? "..." : "Print Receipt"}
-                  </button>
-                )}
-                {order.status === "receipt_printed" && (
-                  <button
-                    onClick={() => handleUpdateStatus(order.id, "completed")}
-                    disabled={updatingOrderId === order.id}
-                    className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-1 px-3 rounded disabled:opacity-50"
-                  >
-                    {updatingOrderId === order.id ? "..." : "Mark as Completed"}
-                  </button>
-                )}
-                {/* Show a cancel button for any active order */}
-                {(order.status === "order_placed" ||
-                  order.status === "receipt_printed") && (
-                  <button
-                    onClick={() => handleUpdateStatus(order.id, "cancelled")}
-                    disabled={updatingOrderId === order.id}
-                    className="bg-gray-500 hover:bg-gray-600 text-white text-xs font-bold py-1 px-3 rounded disabled:opacity-50"
-                  >
-                    {updatingOrderId === order.id ? "..." : "Cancel Order"}
-                  </button>
-                )}
-                {order.status === "completed" && (
-                  <p className="text-xs text-green-700 font-medium">
-                    Order Completed
-                  </p>
-                )}
-                {order.status === "cancelled" && (
-                  <p className="text-xs text-red-700 font-medium">
-                    Order Cancelled
-                  </p>
-                )}
-              </div>
-              {/* --- END BUTTONS LOGIC --- */}
-            </div>
+    <div className="bg-white p-6 rounded-lg shadow-md">
+      {/* Status Filter Tabs */}
+      <div className="mb-6 border-b border-gray-200">
+        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+          {STATUS_TABS.map((status) => (
+            <button
+              key={status}
+              onClick={() => setActiveStatus(status)}
+              className={`${
+                activeStatus === status
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
+            >
+              {status === "order_placed"
+                ? "Pedido realizado"
+                : status === "receipt_printed"
+                ? "Recibo impreso"
+                : status === "completed"
+                ? "Completado"
+                : status === "cancelled"
+                ? "Cancelado"
+                : status.replace("_", " ")}
+              <span
+                className={`${
+                  activeStatus === status
+                    ? "bg-blue-100 text-blue-600"
+                    : "bg-gray-100 text-gray-900"
+                } hidden ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium md:inline-block`}
+              >
+                {orderCounts[status] ?? 0}
+              </span>
+            </button>
           ))}
+        </nav>
+      </div>
+
+      {/* Orders Grid */}
+      {filteredOrders.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOrders.map((order) => {
+            const isExpanded = expandedCardIds.includes(order.id);
+            const isTruncatable =
+              order.order_items.length > ITEMS_BEFORE_TRUNCATE;
+            const itemsToShow =
+              isTruncatable && !isExpanded
+                ? order.order_items.slice(0, ITEMS_BEFORE_TRUNCATE)
+                : order.order_items;
+            const remainingCount =
+              order.order_items.length - ITEMS_BEFORE_TRUNCATE;
+
+            return (
+              <div
+                key={order.id}
+                className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col"
+              >
+                {/* Card Header */}
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-bold text-lg">Mesa {order.table_id}</h3>
+                    <p className="text-sm text-gray-500">
+                      por {order.customer_name}
+                    </p>
+                    {order.source === "staff_placed" && (
+                      <div className="flex items-center text-xs text-blue-600 mt-1">
+                        <ClipboardEdit size={12} className="mr-1.5" />
+                        <span>Ingresado por Personal</span>
+                      </div>
+                    )}
+                  </div>
+                  <StatusPill status={order.status as OrderStatus} />
+                </div>
+
+                {/* Order Items */}
+                <div className="p-4 flex-grow space-y-2">
+                  {itemsToShow.map((item) => (
+                    <div key={item.id} className="flex justify-between text-sm">
+                      <span className="text-gray-700">
+                        {item.quantity}x {item.menu_items?.name ?? "Item"}
+                      </span>
+                      {/* Price per item can be added if needed */}
+                    </div>
+                  ))}
+                  {isTruncatable && (
+                    <button
+                      onClick={() => toggleCardExpansion(order.id)}
+                      className="w-full text-left text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 flex items-center"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={16} className="mr-1" /> Mostrar menos
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={16} className="mr-1" /> Mostrar{" "}
+                          {remainingCount} más items...
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Card Footer */}
+                <div className="p-4 border-t border-gray-200 space-y-3">
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total</span>
+                    <span className="font-mono font-bold text-lg">
+                      Bs {order.total_price?.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span
+                      className={`flex items-center ${getTimeAgoColor(
+                        order.created_at,
+                        currentTime
+                      )}`}
+                    >
+                      <Clock size={12} className="mr-1.5" />{" "}
+                      {formatTimeAgo(order.created_at, currentTime)}
+                    </span>
+                    <span className="text-gray-500">#{order.id}</span>
+                  </div>
+                  {/* Action Buttons */}
+                  <div className="pt-3 space-y-2">
+                    {order.status === "order_placed" && (
+                      <>
+                        <button
+                          onClick={() =>
+                            handleUpdateStatus(order.id, "receipt_printed")
+                          }
+                          disabled={updatingOrderId === order.id}
+                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <Printer size={16} className="mr-2" />{" "}
+                          {updatingOrderId === order.id
+                            ? "..."
+                            : "Imprimir Recibo"}
+                        </button>
+                        <button
+                          onClick={() => handleOpenCancelModal(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <XCircle size={16} className="mr-2" />
+                          Cancelar Pedido
+                        </button>
+                      </>
+                    )}
+                    {order.status === "receipt_printed" && (
+                      <>
+                        <button
+                          onClick={() => handleOpenConfirmModal(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={16} className="mr-2" />{" "}
+                          {updatingOrderId === order.id
+                            ? "..."
+                            : "Marcar como Completado"}
+                        </button>
+                        <button
+                          onClick={() => handleOpenCancelModal(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <XCircle size={16} className="mr-2" />
+                          Cancelar Pedido
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
-        <p className="text-gray-500">No orders found.</p>
+        <div className="text-center py-12">
+          <p className="text-gray-500">
+            No hay pedidos con estado "
+            {activeStatus === "order_placed"
+              ? "Pedido realizado"
+              : activeStatus === "receipt_printed"
+              ? "Recibo impreso"
+              : activeStatus === "completed"
+              ? "Completado"
+              : "Cancelado"}
+            .
+          </p>
+        </div>
       )}
-    </section>
+      <ConfirmCompletionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseConfirmModal}
+        onConfirm={handleConfirmCompletion}
+        order={selectedOrder}
+        isLoading={updatingOrderId === selectedOrder?.id}
+      />
+      <ConfirmCancelModal
+        isOpen={isCancelModalOpen}
+        onClose={handleCloseCancelModal}
+        onConfirm={handleConfirmCancellation}
+        order={selectedOrder}
+        isLoading={updatingOrderId === selectedOrder?.id}
+      />
+    </div>
   );
 }

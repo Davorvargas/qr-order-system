@@ -71,7 +71,7 @@ export default function MenuItemForm({
         .upload(fileName, imageFile);
 
       if (uploadError) {
-        setFormMessage(`Error uploading image: ${uploadError.message}`);
+        setFormMessage(`Error al subir la imagen: ${uploadError.message}`);
         setIsLoading(false);
         return;
       }
@@ -104,7 +104,7 @@ export default function MenuItemForm({
     }
 
     if (dbError) {
-      setFormMessage(`Error saving item: ${dbError.message}`);
+      setFormMessage(`Error al guardar el plato: ${dbError.message}`);
     } else {
       onComplete();
     }
@@ -120,7 +120,7 @@ export default function MenuItemForm({
           htmlFor="name"
           className="block text-sm font-medium text-gray-700"
         >
-          Item Name
+          Nombre del Plato
         </label>
         <input
           type="text"
@@ -136,7 +136,7 @@ export default function MenuItemForm({
           htmlFor="description"
           className="block text-sm font-medium text-gray-700"
         >
-          Description
+          Descripción
         </label>
         <textarea
           id="description"
@@ -151,7 +151,7 @@ export default function MenuItemForm({
           htmlFor="price"
           className="block text-sm font-medium text-gray-700"
         >
-          Price
+          Precio
         </label>
         <input
           type="number"
@@ -168,7 +168,7 @@ export default function MenuItemForm({
           htmlFor="category"
           className="block text-sm font-medium text-gray-700"
         >
-          Category
+          Categoría
         </label>
         <select
           id="category"
@@ -178,7 +178,7 @@ export default function MenuItemForm({
           className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
         >
           <option value="" disabled>
-            Select a category
+            Seleccione una categoría
           </option>
           {categories.map((cat) => (
             <option key={cat.id} value={cat.id}>
@@ -192,7 +192,7 @@ export default function MenuItemForm({
           htmlFor="image"
           className="block text-sm font-medium text-gray-700"
         >
-          Item Image
+          Imagen del Plato
         </label>
         <input
           type="file"
@@ -207,7 +207,8 @@ export default function MenuItemForm({
         />
         {itemToEdit?.image_url && !imageFile && (
           <p className="text-xs text-gray-500 mt-1">
-            Currently using existing image. Choose a new file to replace it.
+            Actualmente usando la imagen existente. Elija un nuevo archivo para
+            reemplazarla.
           </p>
         )}
       </div>
@@ -220,10 +221,10 @@ export default function MenuItemForm({
           className="flex-grow justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
         >
           {isLoading
-            ? "Saving..."
+            ? "Guardando..."
             : isEditMode
-            ? "Update Menu Item"
-            : "Add Menu Item"}
+            ? "Actualizar Plato"
+            : "Agregar Plato"}
         </button>
         {isEditMode && (
           <button
@@ -231,7 +232,7 @@ export default function MenuItemForm({
             onClick={onCancelEdit}
             className="py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
           >
-            Cancel Edit
+            Cancelar Edición
           </button>
         )}
       </div>
