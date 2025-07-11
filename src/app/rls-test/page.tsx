@@ -10,7 +10,7 @@ export default function RlsTestPage() {
       "Attempting to insert a test order. Check the F12 developer console for the result."
     );
 
-    const { data, error } = await supabase.from("orders").insert({
+    const { error } = await supabase.from("orders").insert({
       table_id: "test-123",
       customer_name: "Test Customer",
       total_price: 99.99,

@@ -48,7 +48,7 @@ async function getOrderDetails(orderId: number): Promise<Order> {
     price_at_order: number | null;
     menu_items: { name: string } | { name: string }[] | null;
   };
-  let safeOrder = order as unknown as {
+  const safeOrder = order as unknown as {
     id: number;
     customer_name: string;
     table_id: string;
