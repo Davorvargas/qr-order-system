@@ -13,8 +13,7 @@ interface OrderItem {
   id: number;
   quantity: number;
   price_at_order: number | null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  menu_items: any; // Relaxing type to fix persistent issue
+  menu_items: { name: string } | null;
 }
 interface Order {
   id: number;
@@ -42,12 +41,45 @@ async function getOrderDetails(orderId: number): Promise<Order> {
     console.error("Error fetching order details:", error);
     notFound();
   }
-  return order;
+  // Definir tipo intermedio para el resultado de Supabase
+  type SupabaseOrderItem = {
+    id: number;
+    quantity: number;
+    price_at_order: number | null;
+    menu_items: { name: string } | { name: string }[] | null;
+  };
+  let safeOrder = order as unknown as {
+    id: number;
+    customer_name: string;
+    table_id: string;
+    total_price: number | null;
+    notes: string | null;
+    order_items: SupabaseOrderItem[];
+  };
+  if (safeOrder && safeOrder.order_items) {
+    safeOrder.order_items = safeOrder.order_items.map(
+      (item: SupabaseOrderItem) => {
+        let menuItem: { name: string } | null = null;
+        if (Array.isArray(item.menu_items)) {
+          menuItem = item.menu_items.length > 0 ? item.menu_items[0] : null;
+        } else if (
+          item.menu_items &&
+          typeof item.menu_items.name === "string"
+        ) {
+          menuItem = item.menu_items;
+        }
+        return {
+          ...item,
+          menu_items: menuItem,
+        };
+      }
+    );
+  }
+  return safeOrder as Order;
 }
 
 // --- FINAL FIX ---
-// This comment tells the linter to ignore the 'no-explicit-any' rule for the next line only.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// Esta función ya no usa 'any' en menu_items, así que se puede eliminar el eslint-disable.
 export default async function OrderConfirmationPage({
   params: { orderId: orderIdString },
 }: ConfirmationPageProps) {

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Order, OrderItem } from "@/app/staff/dashboard/page"; // <-- Import types
+import { Order } from "@/app/staff/dashboard/page"; // <-- Import types
 import ConfirmCompletionModal from "./ConfirmCompletionModal";
 import ConfirmCancelModal from "./ConfirmCancelModal"; // <-- Import Cancel Modal
 import {
@@ -67,15 +67,13 @@ const StatusPill = ({ status }: { status: OrderStatus }) => (
       }[status]
     }`}
   >
-    {status === "order_placed"
-      ? "Pedido realizado"
-      : status === "receipt_printed"
-      ? "Recibo impreso"
-      : status === "completed"
-      ? "Completado"
-      : status === "cancelled"
-      ? "Cancelado"
-      : status.replace("_", " ")}
+    {(() => {
+      if (status === "order_placed") return "Pedido realizado";
+      if (status === "receipt_printed") return "Recibo impreso";
+      if (status === "completed") return "Completado";
+      if (status === "cancelled") return "Cancelado";
+      return String(status);
+    })()}
   </span>
 );
 
@@ -222,15 +220,13 @@ export default function OrderList({
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
             >
-              {status === "order_placed"
-                ? "Pedido realizado"
-                : status === "receipt_printed"
-                ? "Recibo impreso"
-                : status === "completed"
-                ? "Completado"
-                : status === "cancelled"
-                ? "Cancelado"
-                : status.replace("_", " ")}
+              {(() => {
+                if (status === "order_placed") return "Pedido realizado";
+                if (status === "receipt_printed") return "Recibo impreso";
+                if (status === "completed") return "Completado";
+                if (status === "cancelled") return "Cancelado";
+                return String(status);
+              })()}
               <span
                 className={`${
                   activeStatus === status
@@ -387,14 +383,14 @@ export default function OrderList({
       ) : (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            No hay pedidos con estado "
-            {activeStatus === "order_placed"
-              ? "Pedido realizado"
-              : activeStatus === "receipt_printed"
-              ? "Recibo impreso"
-              : activeStatus === "completed"
-              ? "Completado"
-              : "Cancelado"}
+            No hay pedidos con estado &quot;
+            {(() => {
+              if (activeStatus === "order_placed") return "Pedido realizado";
+              if (activeStatus === "receipt_printed") return "Recibo impreso";
+              if (activeStatus === "completed") return "Completado";
+              if (activeStatus === "cancelled") return "Cancelado";
+              return String(activeStatus);
+            })()}
             .
           </p>
         </div>

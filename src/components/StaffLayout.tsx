@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { List, LayoutGrid, Wallet, LogOut, BookMarked } from "lucide-react";
+import { LayoutGrid, Wallet, LogOut, BookMarked } from "lucide-react";
 
 const NavLink = ({
   href,

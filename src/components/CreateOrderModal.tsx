@@ -3,9 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { X, Plus, Minus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { X, Plus, Minus, ChevronDown, ChevronUp } from "lucide-react";
 
 // --- TYPE DEFINITIONS ---
 type Category = { id: number; name: string };
@@ -40,7 +38,6 @@ export default function CreateOrderModal({
   categories,
 }: CreateOrderModalProps) {
   const supabase = createClient();
-  const router = useRouter();
 
   // State
   const [tableId, setTableId] = useState("");
@@ -140,7 +137,7 @@ export default function CreateOrderModal({
       })),
     };
 
-    const { data, error } = await supabase.functions.invoke("place-order", {
+    const { error } = await supabase.functions.invoke("place-order", {
       body: payload,
     });
 
