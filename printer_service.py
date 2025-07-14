@@ -158,9 +158,10 @@ def process_print_queue():
         if print_order_from_queue(queue_item):
             # Impresión exitosa
             successful_prints.append(queue_item)
-            # Actualizar estado en Supabase
+            # Actualizar estado en Supabase - COMANDA IMPRESA
             try:
-                supabase.table("orders").update({"status": "printed"}).eq("id", queue_item['order']['id']).execute()
+                supabase.table("orders").update({"status": "kitchen_printed"}).eq("id", queue_item['order']['id']).execute()
+                print(f"🍳 COMANDA impresa - Status actualizado a 'kitchen_printed' para orden #{queue_item['order']['id']}")
             except Exception as e:
                 print(f"Error actualizando estado en Supabase: {e}")
         else:
