@@ -87,6 +87,8 @@ def print_order_from_queue(queue_item):
         order = queue_item['order']
         order_items = queue_item['order_items']
         
+        print(f"🖨️  Iniciando impresión de orden #{order['id']}...")
+        
         printer = Usb(VENDOR_ID, PRODUCT_ID)
 
         # Mesa grande
@@ -98,45 +100,40 @@ def print_order_from_queue(queue_item):
         printer.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
         printer.text(f"Hora: {time.strftime('%H:%M:%S')} | ID: {order['id']}\n")
         
-        # Mostrar si es reimpresión
-        if queue_item['retry_count'] > 0:
-            printer.text(f"** REIMPRESION #{queue_item['retry_count']} **\n")
-        
-        printer.text("----------------------------------------\n")
+        # Línea separadora
+        printer.text("=" * 32 + "\n")
+        printer.text("   COMANDA DE COCINA\n")
+        printer.text("=" * 32 + "\n\n")
 
-        # Artículos grandes
-        printer._raw(b'\x1d\x21\x11')
+        # Productos - más grandes
+        printer._raw(b'\x1d\x21\x01')
         for item in order_items:
-            item_name = item['menu_items']['name'] if item.get('menu_items') else 'Artículo desconocido'
-            printer.text(f"{item['quantity']}x {item_name}\n")
-        printer._raw(b'\x1d\x21\x00')
-        printer.text("----------------------------------------\n")
+            printer.text(f"{item['quantity']}x {item['menu_items']['name']}\n")
 
-        # Notas grandes si existen
-        if order.get('notes'):
-            printer._raw(b'\x1d\x21\x11')
-            printer.text("Notas:\n")
-            printer.text(f"{order['notes']}\n\n")
-            printer._raw(b'\x1d\x21\x00')
+        printer.text("\n" + "=" * 32 + "\n")
+        printer.text("  PREPARAR INMEDIATAMENTE\n")
+        printer.text("=" * 32 + "\n\n\n")
 
-        printer.text("\n\n")
+        # Cortar papel
         printer.cut()
         
-        print(f"✓ Orden #{order['id']} impresa exitosamente (intento {queue_item['retry_count'] + 1})")
+        print(f"✅ Orden #{order['id']} impresa exitosamente")
         return True
-        
+
     except Exception as e:
-        print(f"✗ Error imprimiendo orden #{queue_item['order']['id']}: {e}")
+        print(f"❌ Error imprimiendo orden #{queue_item['order']['id']}: {e}")
         return False
     finally:
         if printer:
             try:
                 printer.close()
-            except:
-                pass
+            except Exception as e:
+                print(f"⚠️  Error cerrando impresora: {e}")
             del printer
+        # Forzar liberación de memoria
         gc.collect()
-        time.sleep(2)
+        # Pequeña pausa para evitar problemas de recursos
+        time.sleep(1)
 
 def process_print_queue():
     """Procesa toda la cola de impresión"""
@@ -154,24 +151,38 @@ def process_print_queue():
     successful_prints = []
     failed_prints = []
     
-    for queue_item in queue:
-        if print_order_from_queue(queue_item):
-            # Impresión exitosa
-            successful_prints.append(queue_item)
-            # Actualizar estado en Supabase - COMANDA IMPRESA
-            try:
-                supabase.table("orders").update({"status": "kitchen_printed"}).eq("id", queue_item['order']['id']).execute()
-                print(f"🍳 COMANDA impresa - Status actualizado a 'kitchen_printed' para orden #{queue_item['order']['id']}")
-            except Exception as e:
-                print(f"Error actualizando estado en Supabase: {e}")
-        else:
-            # Impresión falló
+    for i, queue_item in enumerate(queue):
+        print(f"📋 Procesando orden {i+1}/{len(queue)}: #{queue_item['order']['id']}")
+        
+        try:
+            if print_order_from_queue(queue_item):
+                # Impresión exitosa
+                successful_prints.append(queue_item)
+                # Actualizar estado en Supabase - COMANDA IMPRESA
+                try:
+                    supabase.table("orders").update({"status": "kitchen_printed"}).eq("id", queue_item['order']['id']).execute()
+                    print(f"🍳 COMANDA impresa - Status actualizado a 'kitchen_printed' para orden #{queue_item['order']['id']}")
+                except Exception as e:
+                    print(f"Error actualizando estado en Supabase: {e}")
+            else:
+                # Impresión falló
+                queue_item['retry_count'] += 1
+                if queue_item['retry_count'] < queue_item['max_retries']:
+                    failed_prints.append(queue_item)
+                    print(f"🔄 Orden #{queue_item['order']['id']} reintentará ({queue_item['retry_count']}/{queue_item['max_retries']})")
+                else:
+                    print(f"❌ Orden #{queue_item['order']['id']} descartada tras {queue_item['max_retries']} intentos")
+        except Exception as e:
+            print(f"❌ Error crítico procesando orden #{queue_item['order']['id']}: {e}")
+            # En caso de error crítico, mantener la orden en la cola para reintento
             queue_item['retry_count'] += 1
             if queue_item['retry_count'] < queue_item['max_retries']:
                 failed_prints.append(queue_item)
-                print(f"🔄 Orden #{queue_item['order']['id']} reintentará ({queue_item['retry_count']}/{queue_item['max_retries']})")
-            else:
-                print(f"❌ Orden #{queue_item['order']['id']} descartada tras {queue_item['max_retries']} intentos")
+            
+        # Pausa entre impresiones para evitar saturar la impresora
+        if i < len(queue) - 1:  # No pausar después de la última
+            print("⏱️  Pausa entre impresiones...")
+            time.sleep(2)
     
     # Actualizar la cola solo con las órdenes que fallaron y pueden reintentarse
     save_print_queue(failed_prints)
