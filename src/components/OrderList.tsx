@@ -18,12 +18,14 @@ import {
 
 type OrderStatus =
   | "order_placed"
+  | "kitchen_printed"
   | "receipt_printed"
   | "completed"
   | "cancelled";
 
 const STATUS_TABS: OrderStatus[] = [
   "order_placed",
+  "kitchen_printed",
   "receipt_printed",
   "completed",
   "cancelled",
@@ -61,6 +63,7 @@ const StatusPill = ({ status }: { status: OrderStatus }) => (
     className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
       {
         order_placed: "bg-blue-100 text-blue-800",
+        kitchen_printed: "bg-orange-100 text-orange-800",
         receipt_printed: "bg-yellow-100 text-yellow-800",
         completed: "bg-green-100 text-green-800",
         cancelled: "bg-red-100 text-red-800",
@@ -69,6 +72,7 @@ const StatusPill = ({ status }: { status: OrderStatus }) => (
   >
     {(() => {
       if (status === "order_placed") return "Pedido realizado";
+      if (status === "kitchen_printed") return "En cocina";
       if (status === "receipt_printed") return "Recibo impreso";
       if (status === "completed") return "Completado";
       if (status === "cancelled") return "Cancelado";
@@ -222,6 +226,7 @@ export default function OrderList({
             >
               {(() => {
                 if (status === "order_placed") return "Pedido realizado";
+                if (status === "kitchen_printed") return "En cocina";
                 if (status === "receipt_printed") return "Recibo impreso";
                 if (status === "completed") return "Completado";
                 if (status === "cancelled") return "Cancelado";
@@ -330,6 +335,21 @@ export default function OrderList({
                   <div className="pt-3 space-y-2">
                     {order.status === "order_placed" && (
                       <>
+                        <div className="w-full bg-blue-50 border border-blue-200 text-blue-800 font-medium py-2 px-4 rounded-md text-center text-sm">
+                          🖨️ Esperando impresión automática de comanda...
+                        </div>
+                        <button
+                          onClick={() => handleOpenCancelModal(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <XCircle size={16} className="mr-2" />
+                          Cancelar Pedido
+                        </button>
+                      </>
+                    )}
+                    {order.status === "kitchen_printed" && (
+                      <>
                         <button
                           onClick={() =>
                             handleUpdateStatus(order.id, "receipt_printed")
@@ -340,7 +360,17 @@ export default function OrderList({
                           <Printer size={16} className="mr-2" />{" "}
                           {updatingOrderId === order.id
                             ? "..."
-                            : "Imprimir Recibo"}
+                            : "Imprimir Recibo Cliente"}
+                        </button>
+                        <button
+                          onClick={() => handleOpenConfirmModal(order)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50"
+                        >
+                          <CheckCircle2 size={16} className="mr-2" />{" "}
+                          {updatingOrderId === order.id
+                            ? "..."
+                            : "Marcar como Completado"}
                         </button>
                         <button
                           onClick={() => handleOpenCancelModal(order)}
@@ -386,6 +416,7 @@ export default function OrderList({
             No hay pedidos con estado &quot;
             {(() => {
               if (activeStatus === "order_placed") return "Pedido realizado";
+              if (activeStatus === "kitchen_printed") return "En cocina";
               if (activeStatus === "receipt_printed") return "Recibo impreso";
               if (activeStatus === "completed") return "Completado";
               if (activeStatus === "cancelled") return "Cancelado";
