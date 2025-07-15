@@ -1,75 +1,135 @@
+#!/usr/bin/env python3
+"""
+Servicio de Impresión Simple para QR Order System
+Basado en python-escpos para Star Micronics BSC10
+
+Este servicio monitorea Supabase directamente e imprime comandas
+inmediatamente cuando detecta nuevas órdenes.
+NO usa sistema de colas para evitar impresiones duplicadas.
+"""
+
 import os
 import time
-import gc
-import json
+import signal
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from escpos.printer import Usb
+from escpos.exceptions import USBNotFoundError, DeviceNotFoundError
+import argparse
 
-# IDs de tu impresora
+# Configuración de impresora Star Micronics BSC10
 VENDOR_ID = 0x0519
 PRODUCT_ID = 0x000b
 
-# Archivo para la cola de impresión persistente
-QUEUE_FILE = "print_queue.json"
+# Control de ejecución
+running = True
+last_checked_order_id = 0
 
-# Carga variables de entorno
-dotenv_path = os.path.join(os.path.dirname(__file__), '.env.local')
-load_dotenv(dotenv_path=dotenv_path)
+def signal_handler(sig, frame):
+    """Maneja la señal de interrupción para salida limpia"""
+    global running
+    print("\nRecibida señal de interrupción. Cerrando servicio...")
+    running = False
 
-url: str = os.environ.get("SUPABASE_URL")
-key: str = os.environ.get("SUPABASE_KEY")
+def load_environment():
+    """Carga variables de entorno de Supabase"""
+    dotenv_path = os.path.join(os.path.dirname(__file__), '.env.local')
+    load_dotenv(dotenv_path=dotenv_path)
+    
+    url = os.environ.get("SUPABASE_URL")
+    key = os.environ.get("SUPABASE_KEY")
+    
+    if not url or not key:
+        print("❌ Error: Faltan SUPABASE_URL o SUPABASE_KEY en .env.local")
+        sys.exit(1)
+    
+    return create_client(url, key)
 
-if not url or not key:
-    print("Error: Faltan SUPABASE_URL o SUPABASE_KEY en .env.local")
-    exit(1)
-
-supabase: Client = create_client(url, key)
-
-def load_print_queue():
-    """Carga la cola de impresión desde el archivo"""
+def test_printer():
+    """Prueba la conexión con la impresora"""
     try:
-        if os.path.exists(QUEUE_FILE):
-            with open(QUEUE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+        printer = Usb(VENDOR_ID, PRODUCT_ID, profile="default")
+        # Comando de reset simple para verificar comunicación
+        printer._raw(b'\x1b\x40')
+        printer.close()
+        print("✅ Impresora detectada y funcionando correctamente")
+        return True
+    except (USBNotFoundError, DeviceNotFoundError):
+        print("❌ Error: Impresora no encontrada (USB 0519:000b)")
+        print("   Verifica que la impresora esté conectada y encendida")
+        return False
     except Exception as e:
-        print(f"Error cargando cola de impresión: {e}")
-    return []
+        print(f"❌ Error de conexión con impresora: {e}")
+        return False
 
-def save_print_queue(queue):
-    """Guarda la cola de impresión en el archivo"""
-    try:
-        with open(QUEUE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(queue, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"Error guardando cola de impresión: {e}")
-
-def add_to_print_queue(order, order_items):
-    """Añade una orden a la cola de impresión"""
-    queue = load_print_queue()
-    queue_item = {
-        'id': f"order_{order['id']}_{int(time.time())}",
-        'order': order,
-        'order_items': order_items,
-        'added_at': datetime.now().isoformat(),
-        'retry_count': 0,
-        'max_retries': 5
-    }
-    queue.append(queue_item)
-    save_print_queue(queue)
-    print(f"Orden #{order['id']} añadida a la cola de impresión")
-
-def test_printer_connection():
-    """Prueba si la impresora está disponible"""
+def print_kitchen_ticket(order, order_items):
+    """
+    Imprime una comanda de cocina directamente
+    Basado en las mejores prácticas de python-escpos
+    """
     printer = None
     try:
-        printer = Usb(VENDOR_ID, PRODUCT_ID)
-        # Intenta enviar un comando simple para verificar conexión
-        printer._raw(b'\x1b\x40')  # Reset command
+        # Crear conexión con perfil por defecto
+        printer = Usb(VENDOR_ID, PRODUCT_ID, profile="default")
+        
+        # Reset de impresora
+        printer._raw(b'\x1b\x40')
+        
+        # Configurar codificación para caracteres especiales
+        printer.charcode('CP850')  # Codepage común para español
+        
+        # === ENCABEZADO ===
+        printer.set(
+            align='center',
+            font='b',      # Fuente B (más pequeña que A)
+            height=2,      # Doble altura
+            width=2        # Doble ancho
+        )
+        printer.text(f"MESA {order['table_id']}\n")
+        
+        # Reset a formato normal
+        printer.set(align='left', font='a', height=1, width=1)
+        
+        # Información del pedido
+        now = datetime.now()
+        printer.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
+        printer.text(f"Hora: {now.strftime('%H:%M:%S')}\n")
+        printer.text(f"ID Orden: {order['id']}\n")
+        
+        # Línea separadora
+        printer.text("=" * 32 + "\n")
+        printer.set(align='center', font='b')
+        printer.text("COMANDA DE COCINA\n")
+        printer.set(align='left', font='a')
+        printer.text("=" * 32 + "\n\n")
+        
+        # === PRODUCTOS ===
+        printer.set(font='b', height=1, width=1)  # Fuente bold para productos
+        for item in order_items:
+            qty = item['quantity']
+            name = item['menu_items']['name']
+            printer.text(f"{qty}x {name}\n")
+        
+        # Reset formato
+        printer.set(font='a')
+        
+        # === PIE ===
+        printer.text("\n" + "=" * 32 + "\n")
+        printer.set(align='center', font='b')
+        printer.text("PREPARAR INMEDIATAMENTE\n")
+        printer.set(align='left', font='a')
+        printer.text("=" * 32 + "\n\n\n")
+        
+        # Corte de papel
+        printer.cut()
+        
+        print(f"Comanda impresa: Mesa {order['table_id']}, Orden #{order['id']}")
         return True
+        
     except Exception as e:
-        print(f"Impresora no disponible: {e}")
+        print(f"❌ Error imprimiendo orden #{order['id']}: {e}")
         return False
     finally:
         if printer:
@@ -77,185 +137,178 @@ def test_printer_connection():
                 printer.close()
             except:
                 pass
-            del printer
-        gc.collect()
 
-def print_order_from_queue(queue_item):
-    """Imprime una orden desde la cola"""
-    printer = None
+def update_order_status(supabase, order_id, new_status):
+    """Actualiza el estado de una orden en Supabase"""
     try:
-        order = queue_item['order']
-        order_items = queue_item['order_items']
-        
-        print(f"🖨️  Iniciando impresión de orden #{order['id']}...")
-        
-        printer = Usb(VENDOR_ID, PRODUCT_ID)
-
-        # Mesa grande
-        printer._raw(b'\x1d\x21\x11')
-        printer.text(f"MESA: {order['table_id']}\n")
-
-        # Cliente y hora normal
-        printer._raw(b'\x1d\x21\x00')
-        printer.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
-        printer.text(f"Hora: {time.strftime('%H:%M:%S')} | ID: {order['id']}\n")
-        
-        # Línea separadora
-        printer.text("=" * 32 + "\n")
-        printer.text("   COMANDA DE COCINA\n")
-        printer.text("=" * 32 + "\n\n")
-
-        # Productos - más grandes
-        printer._raw(b'\x1d\x21\x01')
-        for item in order_items:
-            printer.text(f"{item['quantity']}x {item['menu_items']['name']}\n")
-
-        printer.text("\n" + "=" * 32 + "\n")
-        printer.text("  PREPARAR INMEDIATAMENTE\n")
-        printer.text("=" * 32 + "\n\n\n")
-
-        # Cortar papel
-        printer.cut()
-        
-        print(f"✅ Orden #{order['id']} impresa exitosamente")
-        return True
-
+        response = supabase.table("orders").update({"status": new_status}).eq("id", order_id).execute()
+        print(f"Respuesta de Supabase al actualizar estado: {response}")
+        if hasattr(response, "data") and response.data:
+            print(f"Estado actualizado: Orden #{order_id} -> {new_status}")
+            return True
+        else:
+            print(f"❌ No se pudo actualizar el estado de la orden #{order_id}. Respuesta: {response}")
+            return False
     except Exception as e:
-        print(f"❌ Error imprimiendo orden #{queue_item['order']['id']}: {e}")
+        print(f"Error actualizando estado de orden #{order_id}: {e}")
         return False
-    finally:
-        if printer:
-            try:
-                printer.close()
-            except Exception as e:
-                print(f"⚠️  Error cerrando impresora: {e}")
-            del printer
-        # Forzar liberación de memoria
-        gc.collect()
-        # Pequeña pausa para evitar problemas de recursos
-        time.sleep(1)
 
-def process_print_queue():
-    """Procesa toda la cola de impresión"""
-    queue = load_print_queue()
-    if not queue:
-        return
+def get_order_items(supabase, order_id):
+    """Obtiene los artículos de una orden"""
+    try:
+        response = supabase.table('order_items') \
+            .select('quantity, menu_items(name)') \
+            .eq('order_id', order_id) \
+            .execute()
+        return response.data
+    except Exception as e:
+        print(f"❌ Error obteniendo artículos de orden #{order_id}: {e}")
+        return []
+
+def process_new_orders(supabase):
+    """Procesa órdenes nuevas que necesitan impresión de comanda"""
+    global last_checked_order_id
     
-    print(f"📄 Procesando cola de impresión ({len(queue)} órdenes pendientes)...")
-    
-    # Verificar si la impresora está disponible
-    if not test_printer_connection():
-        print("⚠️  Impresora no disponible. Las órdenes permanecen en cola.")
-        return
-    
-    successful_prints = []
-    failed_prints = []
-    
-    for i, queue_item in enumerate(queue):
-        print(f"📋 Procesando orden {i+1}/{len(queue)}: #{queue_item['order']['id']}")
+    try:
+        # Buscar órdenes con status 'order_placed' más recientes que la última procesada
+        response = supabase.table("orders") \
+            .select("*") \
+            .eq("status", "order_placed") \
+            .gt("id", last_checked_order_id) \
+            .order("id") \
+            .execute()
         
-        try:
-            if print_order_from_queue(queue_item):
-                # Impresión exitosa
-                successful_prints.append(queue_item)
-                # Actualizar estado en Supabase - COMANDA IMPRESA
-                try:
-                    supabase.table("orders").update({"status": "kitchen_printed"}).eq("id", queue_item['order']['id']).execute()
-                    print(f"🍳 COMANDA impresa - Status actualizado a 'kitchen_printed' para orden #{queue_item['order']['id']}")
-                except Exception as e:
-                    print(f"Error actualizando estado en Supabase: {e}")
-            else:
-                # Impresión falló
-                queue_item['retry_count'] += 1
-                if queue_item['retry_count'] < queue_item['max_retries']:
-                    failed_prints.append(queue_item)
-                    print(f"🔄 Orden #{queue_item['order']['id']} reintentará ({queue_item['retry_count']}/{queue_item['max_retries']})")
-                else:
-                    print(f"❌ Orden #{queue_item['order']['id']} descartada tras {queue_item['max_retries']} intentos")
-        except Exception as e:
-            print(f"❌ Error crítico procesando orden #{queue_item['order']['id']}: {e}")
-            # En caso de error crítico, mantener la orden en la cola para reintento
-            queue_item['retry_count'] += 1
-            if queue_item['retry_count'] < queue_item['max_retries']:
-                failed_prints.append(queue_item)
+        if not response.data:
+            return  # No hay órdenes nuevas
+        
+        print(f"📋 Encontradas {len(response.data)} órdenes nuevas para imprimir")
+        
+        for order in response.data:
+            order_id = order['id']
             
-        # Pausa entre impresiones para evitar saturar la impresora
-        if i < len(queue) - 1:  # No pausar después de la última
-            print("⏱️  Pausa entre impresiones...")
-            time.sleep(2)
-    
-    # Actualizar la cola solo con las órdenes que fallaron y pueden reintentarse
-    save_print_queue(failed_prints)
-    
-    if successful_prints:
-        print(f"✅ {len(successful_prints)} órdenes impresas exitosamente")
-    if failed_prints:
-        print(f"⏳ {len(failed_prints)} órdenes permanecen en cola para reintento")
+            # Obtener artículos de la orden
+            order_items = get_order_items(supabase, order_id)
+            if not order_items:
+                print(f"⚠️  Orden #{order_id} no tiene artículos, saltando...")
+                last_checked_order_id = order_id
+                continue
+            
+            # Intentar imprimir comanda
+            if print_kitchen_ticket(order, order_items):
+                # Si la impresión fue exitosa, actualizar estado
+                if update_order_status(supabase, order_id, "kitchen_printed"):
+                    print(f"✅ Orden #{order_id} procesada completamente")
+                else:
+                    print(f"⚠️  Orden #{order_id} impresa pero no se pudo actualizar estado")
+            else:
+                print(f"❌ Error imprimiendo orden #{order_id}, se reintentará en el próximo ciclo")
+            
+            # Actualizar el último ID procesado solo si todo salió bien
+            last_checked_order_id = order_id
+            
+            # Pequeña pausa entre impresiones
+            time.sleep(1)
+            
+    except Exception as e:
+        print(f"❌ Error procesando órdenes nuevas: {e}")
 
-def print_order(order, order_items):
-    """Función de compatibilidad - añade la orden a la cola"""
-    add_to_print_queue(order, order_items)
+def find_last_processed_order(supabase):
+    """Encuentra la última orden procesada para evitar reimprimir"""
+    try:
+        # Buscar la orden más reciente que NO esté en estado 'order_placed'
+        response = supabase.table("orders") \
+            .select("id") \
+            .neq("status", "order_placed") \
+            .order("id", desc=True) \
+            .limit(1) \
+            .execute()
+        
+        if response.data:
+            return response.data[0]['id']
+        else:
+            return 0
+    except Exception as e:
+        print(f"⚠️  Error buscando última orden procesada: {e}")
+        return 0
+
+def print_single_order(order_id):
+    supabase = load_environment()
+    print(f"Buscando orden {order_id}...")
+    response = supabase.table("orders").select("*").eq("id", order_id).single().execute()
+    if not response.data:
+        print(f"❌ Orden {order_id} no encontrada")
+        return
+    order = response.data
+    order_items = get_order_items(supabase, order_id)
+    if not order_items:
+        print(f"❌ Orden {order_id} no tiene artículos")
+        return
+    print(f"Imprimiendo comanda para orden {order_id}...")
+    if print_kitchen_ticket(order, order_items):
+        print(f"Intentando actualizar status a kitchen_printed para orden {order_id}...")
+        if update_order_status(supabase, order_id, "kitchen_printed"):
+            print(f"Orden {order_id} impresa y actualizada a kitchen_printed")
+        else:
+            print(f"⚠️  Orden {order_id} impresa pero no se pudo actualizar status")
+    else:
+        print(f"❌ Error imprimiendo orden {order_id}")
 
 def main():
-    print("🖨️  Servicio de impresión iniciado")
-    print("📡 Conectando a Supabase y esperando nuevas órdenes...")
+    """Función principal del servicio"""
+    global running, last_checked_order_id
     
-    # Procesar cola existente al inicio
-    process_print_queue()
+    # Configurar manejo de señales
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
-    last_printed_order_id = 0
-
-    # ✅ CORREGIDO: Al inicio, procesar TODAS las órdenes pendientes
-    print("🔍 Buscando órdenes pendientes de imprimir...")
-    response = supabase.table("orders") \
-        .select("*") \
-        .eq("status", "order_placed") \
-        .order("id") \
-        .execute()
-
-    if response.data:
-        print(f"📋 Encontradas {len(response.data)} órdenes pendientes")
-        for order in response.data:
-            # Busca los artículos de la orden
-            items_resp = supabase.table('order_items').select('quantity, menu_items(name)').eq('order_id', order['id']).execute()
-            order_items = items_resp.data
-            
-            # Añadir a cola
-            add_to_print_queue(order, order_items)
-            last_printed_order_id = max(last_printed_order_id, order['id'])
-    else:
-        print("✅ No hay órdenes pendientes")
-
-    print(f"🚀 Monitoreo activo desde orden ID: {last_printed_order_id}")
-
-    while True:
+    print("🖨️  === SERVICIO DE IMPRESIÓN SIMPLE ===")
+    print("📡 Star Micronics BSC10 (USB 0519:000b)")
+    print("🔄 Sin sistema de colas - Impresión directa")
+    
+    # Cargar configuración
+    supabase = load_environment()
+    print("✅ Conectado a Supabase")
+    
+    # Probar impresora
+    if not test_printer():
+        print("❌ No se puede continuar sin impresora funcionando")
+        sys.exit(1)
+    
+    # Encontrar punto de inicio para evitar reimprimir órdenes
+    last_checked_order_id = find_last_processed_order(supabase)
+    print(f"🚀 Iniciando monitoreo desde orden ID: {last_checked_order_id}")
+    
+    # Ciclo principal
+    cycle_count = 0
+    while running:
         try:
-            # Procesar cola de impresión cada ciclo
-            process_print_queue()
+            cycle_count += 1
             
-            # Busca órdenes nuevas con status 'order_placed'
-            response = supabase.table("orders") \
-                .select("*") \
-                .gt("id", last_printed_order_id) \
-                .eq("status", "order_placed") \
-                .order("id") \
-                .execute()
-
-            if response.data:
-                for order in response.data:
-                    # Busca los artículos de la orden
-                    items_resp = supabase.table('order_items').select('quantity, menu_items(name)').eq('order_id', order['id']).execute()
-                    order_items = items_resp.data
-                    
-                    # Añadir a cola en lugar de imprimir directamente
-                    add_to_print_queue(order, order_items)
-                    last_printed_order_id = order['id']
-
+            # Mostrar estado cada 12 ciclos (1 minuto aprox)
+            if cycle_count % 12 == 1:
+                print(f"⏰ Monitoreo activo - {datetime.now().strftime('%H:%M:%S')}")
+            
+            # Procesar órdenes nuevas
+            process_new_orders(supabase)
+            
+            # Pausa antes del próximo ciclo
+            time.sleep(5)
+            
+        except KeyboardInterrupt:
+            break
         except Exception as e:
-            print(f"❌ Error en el ciclo principal: {e}")
+            print(f"❌ Error en ciclo principal: {e}")
+            print("🔄 Reintentando en 10 segundos...")
             time.sleep(10)
-
-        time.sleep(5)
+    
+    print("🛑 Servicio de impresión detenido")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--print-order", type=int, help="ID de la orden a imprimir")
+    args = parser.parse_args()
+
+    if args.print_order:
+        print_single_order(args.print_order)
+    else:
+        main() 

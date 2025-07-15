@@ -109,13 +109,13 @@ export default function StaffDashboardPage() {
     <StaffLayout userEmail={user?.email} onLogout={handleLogout}>
       <div className="w-full">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Orders Dashboard</h1>
+          <h1 className="text-3xl font-bold">Panel de Pedidos</h1>
           <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center justify-center bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors"
           >
             <PlusCircle size={20} className="mr-2" />
-            Create Order
+            Crear una orden
           </button>
         </div>
         <OrderList initialOrders={initialOrders} />

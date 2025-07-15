@@ -58,7 +58,7 @@ export default async function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center p-12 md:p-24">
-      <h1 className="text-4xl font-bold mb-12">Menu</h1>
+      <h1 className="text-4xl font-bold mb-12">Menú</h1>
 
       {categories && categories.length > 0 ? (
         <div className="w-full max-w-4xl">
@@ -74,28 +74,38 @@ export default async function Home() {
                       key={item.id}
                       className={`p-4 border rounded-md flex items-start gap-4 transition-all ${
                         !item.is_available
-                          ? "bg-gray-100 opacity-50 pointer-events-none"
+                          ? "bg-gray-100 pointer-events-none"
                           : ""
                       }`}
+                      style={{ opacity: item.is_available ? 1 : 0.5 }}
                     >
-                      {/* Displaying the image using next/image */}
-                      {item.image_url && (
+                      {/* Imagen con overlay si no está disponible */}
+                      <div className="relative w-24 h-24 flex-shrink-0">
                         <Image
-                          src={item.image_url}
+                          src={item.image_url || "/public/file.svg"}
                           alt={item.name}
-                          width={96} // Provide a width
-                          height={96} // Provide a height
-                          className="w-24 h-24 object-cover rounded-md bg-gray-200 flex-shrink-0"
+                          width={96}
+                          height={96}
+                          className="w-24 h-24 object-cover rounded-md bg-gray-200"
                         />
-                      )}
-
+                        {!item.is_available && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md z-10">
+                            <span
+                              className="text-gray-700 text-xs font-semibold tracking-wide text-center"
+                              style={{ letterSpacing: "0.03em" }}
+                            >
+                              No disponible por el momento
+                            </span>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-grow">
                         <h3 className="font-bold text-lg">{item.name}</h3>
                         <p className="text-sm text-gray-500">
                           {item.description}
                         </p>
                         <p className="font-semibold text-lg text-gray-800">
-                          ${item.price?.toFixed(2)}
+                          Bs {item.price?.toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -106,7 +116,7 @@ export default async function Home() {
           ))}
         </div>
       ) : (
-        <p className="text-gray-500">No menu items found.</p>
+        <p className="text-gray-500">No se encontraron productos en el menú.</p>
       )}
     </main>
   );

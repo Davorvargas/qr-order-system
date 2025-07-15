@@ -23,12 +23,12 @@ type OrderStatus =
   | "completed"
   | "cancelled";
 
-const STATUS_TABS: OrderStatus[] = [
-  "order_placed",
-  "kitchen_printed",
-  "receipt_printed",
-  "completed",
-  "cancelled",
+// Cambiar los nombres de los tabs y la lógica de filtrado
+const STATUS_TABS: { key: OrderStatus; label: string }[] = [
+  { key: "order_placed", label: "Comandas Pendientes" },
+  { key: "kitchen_printed", label: "Recibos para Cliente" },
+  { key: "completed", label: "Completados" },
+  { key: "cancelled", label: "Cancelados" },
 ];
 
 const ITEMS_BEFORE_TRUNCATE = 4; // Max items to show before truncating
@@ -62,20 +62,19 @@ const StatusPill = ({ status }: { status: OrderStatus }) => (
   <span
     className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
       {
-        order_placed: "bg-blue-100 text-blue-800",
-        kitchen_printed: "bg-orange-100 text-orange-800",
-        receipt_printed: "bg-yellow-100 text-yellow-800",
-        completed: "bg-green-100 text-green-800",
-        cancelled: "bg-red-100 text-red-800",
-      }[status]
+        order_placed: "bg-yellow-100 text-yellow-800 border border-yellow-300",
+        kitchen_printed: "bg-green-100 text-green-800 border border-green-300",
+        receipt_printed: "bg-gray-100 text-gray-800 border border-gray-300", // añadido para evitar error TS
+        completed: "bg-blue-100 text-blue-800 border border-blue-300",
+        cancelled: "bg-red-100 text-red-800 border border-red-300",
+      }[status] || "bg-gray-100 text-gray-800 border border-gray-300"
     }`}
   >
     {(() => {
-      if (status === "order_placed") return "Pedido realizado";
-      if (status === "kitchen_printed") return "En cocina";
-      if (status === "receipt_printed") return "Recibo impreso";
-      if (status === "completed") return "Completado";
-      if (status === "cancelled") return "Cancelado";
+      if (status === "order_placed") return "🟡 Comanda pendiente de imprimir";
+      if (status === "kitchen_printed") return "🟢 Comanda impresa";
+      if (status === "completed") return "✅ Completado";
+      if (status === "cancelled") return "❌ Cancelado";
       return String(status);
     })()}
   </span>
@@ -90,6 +89,7 @@ export default function OrderList({
   const [orders, setOrders] = useState(initialOrders);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  // Cambiar la lógica de tabs y filtrado
   const [activeStatus, setActiveStatus] = useState<OrderStatus>("order_placed");
   const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -157,6 +157,56 @@ export default function OrderList({
     setUpdatingOrderId(null); // RLS will trigger UI update
   };
 
+  const handlePrintKitchenOrder = async (orderId: number) => {
+    setUpdatingOrderId(orderId);
+    try {
+      const res = await fetch("/api/print-kitchen-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("Comanda enviada a impresión");
+      } else {
+        alert("Error al imprimir: " + (data.error || "Error desconocido"));
+      }
+    } catch (err) {
+      alert("Error de red al imprimir comanda");
+    }
+    setUpdatingOrderId(null);
+  };
+
+  const handlePrintReceipt = async (orderId: number) => {
+    setUpdatingOrderId(orderId);
+    try {
+      const receiptUrl = `/order/receipt/${orderId}`;
+      const printWindow = window.open(
+        receiptUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+      if (printWindow) {
+        // Espera un poco para que el usuario imprima
+        setTimeout(async () => {
+          await supabase
+            .from("orders")
+            .update({ status: "receipt_printed" })
+            .eq("id", orderId);
+          setUpdatingOrderId(null);
+        }, 1000); // 1 segundo, ajustable
+      } else {
+        alert(
+          "La ventana de impresión fue bloqueada. Por favor, permite ventanas emergentes para este sitio."
+        );
+        setUpdatingOrderId(null);
+      }
+    } catch (err) {
+      alert("Error al intentar imprimir el recibo");
+      setUpdatingOrderId(null);
+    }
+  };
+
   const toggleCardExpansion = (orderId: number) => {
     setExpandedCardIds((prev) =>
       prev.includes(orderId)
@@ -199,8 +249,8 @@ export default function OrderList({
 
   // Memoize counts and filtered orders for performance
   const orderCounts = useMemo(() => {
-    return STATUS_TABS.reduce((acc, status) => {
-      acc[status] = orders.filter((o) => o.status === status).length;
+    return STATUS_TABS.reduce((acc, tab) => {
+      acc[tab.key] = orders.filter((o) => o.status === tab.key).length;
       return acc;
     }, {} as Record<OrderStatus, number>);
   }, [orders]);
@@ -214,32 +264,25 @@ export default function OrderList({
       {/* Status Filter Tabs */}
       <div className="mb-6 border-b border-gray-200">
         <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-          {STATUS_TABS.map((status) => (
+          {STATUS_TABS.map((tab) => (
             <button
-              key={status}
-              onClick={() => setActiveStatus(status)}
+              key={tab.key}
+              onClick={() => setActiveStatus(tab.key)}
               className={`${
-                activeStatus === status
+                activeStatus === tab.key
                   ? "border-blue-500 text-blue-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
             >
-              {(() => {
-                if (status === "order_placed") return "Pedido realizado";
-                if (status === "kitchen_printed") return "En cocina";
-                if (status === "receipt_printed") return "Recibo impreso";
-                if (status === "completed") return "Completado";
-                if (status === "cancelled") return "Cancelado";
-                return String(status);
-              })()}
+              {tab.label}
               <span
                 className={`${
-                  activeStatus === status
+                  activeStatus === tab.key
                     ? "bg-blue-100 text-blue-600"
                     : "bg-gray-100 text-gray-900"
                 } hidden ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium md:inline-block`}
               >
-                {orderCounts[status] ?? 0}
+                {orderCounts[tab.key] ?? 0}
               </span>
             </button>
           ))}
@@ -335,9 +378,19 @@ export default function OrderList({
                   <div className="pt-3 space-y-2">
                     {order.status === "order_placed" && (
                       <>
-                        <div className="w-full bg-blue-50 border border-blue-200 text-blue-800 font-medium py-2 px-4 rounded-md text-center text-sm">
-                          🖨️ Esperando impresión automática de comanda...
+                        <div className="w-full bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
+                          Comanda pendiente de imprimir (automática)
                         </div>
+                        <button
+                          onClick={() => handlePrintKitchenOrder(order.id)}
+                          disabled={updatingOrderId === order.id}
+                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 mb-2"
+                        >
+                          <Printer size={16} className="mr-2" />
+                          {updatingOrderId === order.id
+                            ? "..."
+                            : "Imprimir Comanda"}
+                        </button>
                         <button
                           onClick={() => handleOpenCancelModal(order)}
                           disabled={updatingOrderId === order.id}
@@ -350,14 +403,15 @@ export default function OrderList({
                     )}
                     {order.status === "kitchen_printed" && (
                       <>
+                        <div className="w-full bg-green-50 border border-green-200 text-green-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
+                          🟢 Comanda impresa
+                        </div>
                         <button
-                          onClick={() =>
-                            handleUpdateStatus(order.id, "receipt_printed")
-                          }
+                          onClick={() => handlePrintReceipt(order.id)}
                           disabled={updatingOrderId === order.id}
-                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50"
+                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 mb-2"
                         >
-                          <Printer size={16} className="mr-2" />{" "}
+                          <Printer size={16} className="mr-2" />
                           {updatingOrderId === order.id
                             ? "..."
                             : "Imprimir Recibo Cliente"}
@@ -365,9 +419,9 @@ export default function OrderList({
                         <button
                           onClick={() => handleOpenConfirmModal(order)}
                           disabled={updatingOrderId === order.id}
-                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50"
+                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50 mb-2"
                         >
-                          <CheckCircle2 size={16} className="mr-2" />{" "}
+                          <CheckCircle2 size={16} className="mr-2" />
                           {updatingOrderId === order.id
                             ? "..."
                             : "Marcar como Completado"}
@@ -382,27 +436,15 @@ export default function OrderList({
                         </button>
                       </>
                     )}
-                    {order.status === "receipt_printed" && (
-                      <>
-                        <button
-                          onClick={() => handleOpenConfirmModal(order)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50"
-                        >
-                          <CheckCircle2 size={16} className="mr-2" />{" "}
-                          {updatingOrderId === order.id
-                            ? "..."
-                            : "Marcar como Completado"}
-                        </button>
-                        <button
-                          onClick={() => handleOpenCancelModal(order)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
-                        >
-                          <XCircle size={16} className="mr-2" />
-                          Cancelar Pedido
-                        </button>
-                      </>
+                    {order.status === "completed" && (
+                      <div className="w-full bg-blue-50 border border-blue-200 text-blue-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
+                        ✅ Pedido completado
+                      </div>
+                    )}
+                    {order.status === "cancelled" && (
+                      <div className="w-full bg-red-50 border border-red-200 text-red-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
+                        ❌ Pedido cancelado
+                      </div>
                     )}
                   </div>
                 </div>
@@ -415,12 +457,10 @@ export default function OrderList({
           <p className="text-gray-500">
             No hay pedidos con estado &quot;
             {(() => {
-              if (activeStatus === "order_placed") return "Pedido realizado";
-              if (activeStatus === "kitchen_printed") return "En cocina";
-              if (activeStatus === "receipt_printed") return "Recibo impreso";
-              if (activeStatus === "completed") return "Completado";
-              if (activeStatus === "cancelled") return "Cancelado";
-              return String(activeStatus);
+              const activeTab = STATUS_TABS.find(
+                (tab) => tab.key === activeStatus
+              );
+              return activeTab ? activeTab.label : String(activeStatus);
             })()}
             .
           </p>
