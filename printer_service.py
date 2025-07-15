@@ -66,33 +66,33 @@ def test_printer():
 
 def print_kitchen_ticket(order, order_items):
     """
-    Imprime una comanda de cocina directamente
-    Basado en las mejores prácticas de python-escpos
+    Imprime una comanda de cocina en formato normal
+    Con doble ancho solo para mesa, items y notas especiales
     """
     printer = None
     try:
-        # Crear conexión con perfil por defecto
+        # Crear conexión
         printer = Usb(VENDOR_ID, PRODUCT_ID, profile="default")
         
-        # Reset de impresora
+        # Reset de impresora (ESC @)
         printer._raw(b'\x1b\x40')
         
         # Configurar codificación para caracteres especiales
-        printer.charcode('CP850')  # Codepage común para español
+        printer.charcode('CP850')
         
-        # === ENCABEZADO ===
-        printer.set(
-            align='center',
-            font='b',      # Fuente B (más pequeña que A)
-            height=2,      # Doble altura
-            width=2        # Doble ancho
-        )
+        # === ENCABEZADO MESA ===
+        # Centrar texto (ESC a 1)
+        printer._raw(b'\x1b\x61\x01')
+        # Doble ancho solo para mesa (GS ! 16)
+        printer._raw(b'\x1d\x21\x10')
         printer.text(f"MESA {order['table_id']}\n")
         
-        # Reset a formato normal
-        printer.set(align='left', font='a', height=1, width=1)
+        # Reset a tamaño normal (GS ! 0)
+        printer._raw(b'\x1d\x21\x00')
+        # Alinear izquierda (ESC a 0)
+        printer._raw(b'\x1b\x61\x00')
         
-        # Información del pedido
+        # === INFORMACIÓN DEL PEDIDO ===
         now = datetime.now()
         printer.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
         printer.text(f"Hora: {now.strftime('%H:%M:%S')}\n")
@@ -100,26 +100,48 @@ def print_kitchen_ticket(order, order_items):
         
         # Línea separadora
         printer.text("=" * 32 + "\n")
-        printer.set(align='center', font='b')
+        
+        # === TÍTULO COMANDA ===
+        # Centrar (ESC a 1)
+        printer._raw(b'\x1b\x61\x01')
         printer.text("COMANDA DE COCINA\n")
-        printer.set(align='left', font='a')
+        
+        # Alinear izquierda
+        printer._raw(b'\x1b\x61\x00')
         printer.text("=" * 32 + "\n\n")
         
         # === PRODUCTOS ===
-        printer.set(font='b', height=1, width=1)  # Fuente bold para productos
+        # Doble ancho para items (GS ! 16)
+        printer._raw(b'\x1d\x21\x10')
         for item in order_items:
             qty = item['quantity']
             name = item['menu_items']['name']
             printer.text(f"{qty}x {name}\n")
         
-        # Reset formato
-        printer.set(font='a')
+        # Reset a tamaño normal (GS ! 0)
+        printer._raw(b'\x1d\x21\x00')
+        
+        # === NOTAS PARTICULARES ===
+        if order.get('notes') and order['notes'].strip():
+            printer.text("\n")
+            printer.text("-" * 32 + "\n")
+            printer._raw(b'\x1d\x21\x10')
+            printer.text("NOTAS ESPECIALES:\n")
+            printer.text(f"{order['notes']}\n")
+            
+            # Reset a tamaño normal (GS ! 0)
+            printer._raw(b'\x1d\x21\x00')
+            printer.text("-" * 32 + "\n")
         
         # === PIE ===
         printer.text("\n" + "=" * 32 + "\n")
-        printer.set(align='center', font='b')
+        
+        # Centrar (ESC a 1)
+        printer._raw(b'\x1b\x61\x01')
         printer.text("PREPARAR INMEDIATAMENTE\n")
-        printer.set(align='left', font='a')
+        
+        # Alinear izquierda
+        printer._raw(b'\x1b\x61\x00')
         printer.text("=" * 32 + "\n\n\n")
         
         # Corte de papel
