@@ -1,10 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-interface ReceiptPageProps {
-  params: { orderId: string };
-}
-
 // Definir tipo explícito para los items del pedido
 interface ReceiptOrderItem {
   id: number;
@@ -23,17 +19,27 @@ async function getOrderDetails(orderId: number) {
     .eq("id", orderId)
     .single();
   if (error || !order) notFound();
-  // Normalizar order_items
-  order.order_items = order.order_items.map((item: ReceiptOrderItem) => ({
-    ...item,
-    menu_items: Array.isArray(item.menu_items)
-      ? item.menu_items[0]
-      : item.menu_items,
-  }));
+  // Normalizar order_items para que menu_items siempre sea { name: string } | null
+  order.order_items = order.order_items.map((item: any) => {
+    let menuItem: { name: string } | null = null;
+    if (Array.isArray(item.menu_items)) {
+      menuItem = item.menu_items.length > 0 ? item.menu_items[0] : null;
+    } else if (item.menu_items && typeof item.menu_items.name === "string") {
+      menuItem = item.menu_items;
+    }
+    return {
+      ...item,
+      menu_items: menuItem,
+    };
+  });
   return order;
 }
 
-export default async function ReceiptPage({ params }: ReceiptPageProps) {
+export default async function ReceiptPage({
+  params,
+}: {
+  params: { orderId: string };
+}) {
   const orderId = parseInt(params.orderId, 10);
   if (isNaN(orderId)) notFound();
   const order = await getOrderDetails(orderId);
@@ -91,7 +97,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
               </tr>
             </thead>
             <tbody>
-              {order.order_items.map((item: ReceiptOrderItem) => (
+              {order.order_items.map((item) => (
                 <tr key={item.id}>
                   <td>{item.quantity}</td>
                   <td>{item.menu_items?.name ?? "-"}</td>
