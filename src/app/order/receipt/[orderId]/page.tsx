@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-// Definición de tipos explícitos para el pedido y los items
+// Tipos explícitos para los datos de la orden
 interface OrderItem {
   id: number;
   quantity: number;
@@ -15,13 +15,6 @@ interface Order {
   table_id: string;
   total_price: number;
   order_items: OrderItem[];
-}
-
-// Tipo para los props de la página
-interface ReceiptPageProps {
-  params: {
-    orderId: string;
-  };
 }
 
 async function getOrderDetails(orderId: number): Promise<Order> {
@@ -67,8 +60,12 @@ async function getOrderDetails(orderId: number): Promise<Order> {
   };
 }
 
-export default async function ReceiptPage(props: ReceiptPageProps) {
-  const orderId = parseInt(props.params.orderId, 10);
+export default async function Page({
+  params,
+}: {
+  params: { orderId: string };
+}) {
+  const orderId = parseInt(params.orderId, 10);
   if (isNaN(orderId)) notFound();
   const order = await getOrderDetails(orderId);
 
