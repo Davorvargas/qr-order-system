@@ -38,12 +38,8 @@ async function getOrderDetails(orderId: number) {
   return order;
 }
 
-export default async function ReceiptPage({
-  params,
-}: {
-  params: { orderId: string };
-}) {
-  const orderId = parseInt(params.orderId, 10);
+export default async function ReceiptPage(props: any) {
+  const orderId = parseInt(props.params.orderId, 10);
   if (isNaN(orderId)) notFound();
   const order = await getOrderDetails(orderId);
 
