@@ -4,6 +4,13 @@ import fetch from 'node-fetch';
 
 const VERCEL_API_TOKEN = process.env.VERCEL_API_TOKEN; // Asegúrate de tener esta variable en Vercel
 
+// Definir tipo explícito para los eventos de Vercel
+type VercelEvent = {
+  createdAt: number;
+  payload?: { text?: string };
+  type: string;
+};
+
 const handler = createMcpHandler(
   (server) => {
     server.tool(
@@ -30,10 +37,10 @@ const handler = createMcpHandler(
             content: [{ type: 'text', text: `Error al obtener logs: ${res.statusText}` }],
           };
         }
-        const data = await res.json() as { events: any[] };
+        const data = await res.json() as { events: VercelEvent[] };
         // Puedes formatear los logs como prefieras
         const logs = data.events
-          .map((event: any) => `[${event.createdAt}] ${event.payload?.text || event.type}`)
+          .map((event) => `[${event.createdAt}] ${event.payload?.text || event.type}`)
           .join('\n');
         return {
           content: [{ type: 'text', text: logs || 'No hay logs disponibles.' }],
