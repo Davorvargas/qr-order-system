@@ -1,7 +1,23 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-async function getOrderDetails(orderId: number) {
+// Definición de tipos explícitos para el pedido y los items
+interface OrderItem {
+  id: number;
+  quantity: number;
+  price_at_order: number;
+  menu_items: { name: string } | null;
+}
+
+interface Order {
+  id: number;
+  customer_name: string;
+  table_id: string;
+  total_price: number;
+  order_items: OrderItem[];
+}
+
+async function getOrderDetails(orderId: number): Promise<Order> {
   const supabase = await createClient();
   const { data: order, error } = await supabase
     .from("orders")
@@ -12,13 +28,13 @@ async function getOrderDetails(orderId: number) {
     .single();
   if (error || !order) notFound();
   // Normalizar order_items para que menu_items siempre sea { name: string } | null
-  order.order_items = order.order_items.map(
+  const normalizedOrderItems: OrderItem[] = order.order_items.map(
     (item: {
       id: number;
       quantity: number;
       price_at_order: number;
       menu_items: { name?: string }[] | { name?: string } | null;
-    }) => {
+    }): OrderItem => {
       let menuItem: { name: string } | null = null;
       if (Array.isArray(item.menu_items)) {
         menuItem =
@@ -35,7 +51,13 @@ async function getOrderDetails(orderId: number) {
       };
     }
   );
-  return order;
+  return {
+    id: order.id,
+    customer_name: order.customer_name,
+    table_id: order.table_id,
+    total_price: order.total_price,
+    order_items: normalizedOrderItems,
+  };
 }
 
 export default async function ReceiptPage(props: any) {
@@ -96,10 +118,10 @@ export default async function ReceiptPage(props: any) {
               </tr>
             </thead>
             <tbody>
-              {order.order_items.map((item) => (
+              {order.order_items.map((item: OrderItem) => (
                 <tr key={item.id}>
                   <td>{item.quantity}</td>
-                  <td>{item.menu_items?.name ?? "-"}</td>
+                  <td>{item.menu_items ? item.menu_items.name : "-"}</td>
                   <td>Bs {(item.price_at_order * item.quantity).toFixed(2)}</td>
                 </tr>
               ))}
