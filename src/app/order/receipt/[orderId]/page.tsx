@@ -5,6 +5,14 @@ interface ReceiptPageProps {
   params: { orderId: string };
 }
 
+// Definir tipo explícito para los items del pedido
+interface ReceiptOrderItem {
+  id: number;
+  quantity: number;
+  price_at_order: number;
+  menu_items: { name: string } | null;
+}
+
 async function getOrderDetails(orderId: number) {
   const supabase = await createClient();
   const { data: order, error } = await supabase
@@ -16,7 +24,7 @@ async function getOrderDetails(orderId: number) {
     .single();
   if (error || !order) notFound();
   // Normalizar order_items
-  order.order_items = order.order_items.map((item: any) => ({
+  order.order_items = order.order_items.map((item: ReceiptOrderItem) => ({
     ...item,
     menu_items: Array.isArray(item.menu_items)
       ? item.menu_items[0]
@@ -83,7 +91,7 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
               </tr>
             </thead>
             <tbody>
-              {order.order_items.map((item: any) => (
+              {order.order_items.map((item: ReceiptOrderItem) => (
                 <tr key={item.id}>
                   <td>{item.quantity}</td>
                   <td>{item.menu_items?.name ?? "-"}</td>
@@ -96,8 +104,8 @@ export default async function ReceiptPage({ params }: ReceiptPageProps) {
           <div className="thanks">¡Gracias por tu visita!</div>
         </div>
         <div className="print-instruction">
-          Si ves "Guardar como PDF", selecciona tu impresora para imprimir el
-          recibo.
+          Si ves &quot;Guardar como PDF&quot;, selecciona tu impresora para
+          imprimir el recibo.
         </div>
       </body>
     </html>

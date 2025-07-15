@@ -171,7 +171,7 @@ export default function OrderList({
       } else {
         alert("Error al imprimir: " + (data.error || "Error desconocido"));
       }
-    } catch (err) {
+    } catch {
       alert("Error de red al imprimir comanda");
     }
     setUpdatingOrderId(null);
@@ -187,21 +187,20 @@ export default function OrderList({
         "noopener,noreferrer"
       );
       if (printWindow) {
-        // Espera un poco para que el usuario imprima
         setTimeout(async () => {
           await supabase
             .from("orders")
             .update({ status: "receipt_printed" })
             .eq("id", orderId);
           setUpdatingOrderId(null);
-        }, 1000); // 1 segundo, ajustable
+        }, 1000);
       } else {
         alert(
           "La ventana de impresión fue bloqueada. Por favor, permite ventanas emergentes para este sitio."
         );
         setUpdatingOrderId(null);
       }
-    } catch (err) {
+    } catch {
       alert("Error al intentar imprimir el recibo");
       setUpdatingOrderId(null);
     }
