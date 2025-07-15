@@ -1,14 +1,6 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-// Definir tipo explícito para los items del pedido
-interface ReceiptOrderItem {
-  id: number;
-  quantity: number;
-  price_at_order: number;
-  menu_items: { name: string } | null;
-}
-
 async function getOrderDetails(orderId: number) {
   const supabase = await createClient();
   const { data: order, error } = await supabase
@@ -20,18 +12,29 @@ async function getOrderDetails(orderId: number) {
     .single();
   if (error || !order) notFound();
   // Normalizar order_items para que menu_items siempre sea { name: string } | null
-  order.order_items = order.order_items.map((item: any) => {
-    let menuItem: { name: string } | null = null;
-    if (Array.isArray(item.menu_items)) {
-      menuItem = item.menu_items.length > 0 ? item.menu_items[0] : null;
-    } else if (item.menu_items && typeof item.menu_items.name === "string") {
-      menuItem = item.menu_items;
+  order.order_items = order.order_items.map(
+    (item: {
+      id: number;
+      quantity: number;
+      price_at_order: number;
+      menu_items: { name?: string }[] | { name?: string } | null;
+    }) => {
+      let menuItem: { name: string } | null = null;
+      if (Array.isArray(item.menu_items)) {
+        menuItem =
+          item.menu_items.length > 0 &&
+          typeof item.menu_items[0].name === "string"
+            ? (item.menu_items[0] as { name: string })
+            : null;
+      } else if (item.menu_items && typeof item.menu_items.name === "string") {
+        menuItem = item.menu_items as { name: string };
+      }
+      return {
+        ...item,
+        menu_items: menuItem,
+      };
     }
-    return {
-      ...item,
-      menu_items: menuItem,
-    };
-  });
+  );
   return order;
 }
 
