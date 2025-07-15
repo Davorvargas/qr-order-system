@@ -63,9 +63,10 @@ async function getOrderDetails(orderId: number): Promise<Order> {
 export default async function Page({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
-  const orderId = parseInt(params.orderId, 10);
+  const resolvedParams = await params;
+  const orderId = parseInt(resolvedParams.orderId, 10);
   if (isNaN(orderId)) notFound();
   const order = await getOrderDetails(orderId);
 

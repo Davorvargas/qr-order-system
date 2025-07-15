@@ -5,9 +5,9 @@ import { notFound } from "next/navigation";
 export default async function Page({
   params,
 }: {
-  params: { orderId: string };
+  params: Promise<{ orderId: string }>;
 }) {
-  const { orderId: orderIdString } = params;
+  const { orderId: orderIdString } = await params;
   const orderId = parseInt(orderIdString, 10);
 
   if (isNaN(orderId)) {
