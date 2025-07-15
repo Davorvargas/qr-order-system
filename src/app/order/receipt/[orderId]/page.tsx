@@ -17,6 +17,13 @@ interface Order {
   order_items: OrderItem[];
 }
 
+// Tipo para los props de la página
+interface ReceiptPageProps {
+  params: {
+    orderId: string;
+  };
+}
+
 async function getOrderDetails(orderId: number): Promise<Order> {
   const supabase = await createClient();
   const { data: order, error } = await supabase
@@ -60,7 +67,7 @@ async function getOrderDetails(orderId: number): Promise<Order> {
   };
 }
 
-export default async function ReceiptPage(props: any) {
+export default async function ReceiptPage(props: ReceiptPageProps) {
   const orderId = parseInt(props.params.orderId, 10);
   if (isNaN(orderId)) notFound();
   const order = await getOrderDetails(orderId);
