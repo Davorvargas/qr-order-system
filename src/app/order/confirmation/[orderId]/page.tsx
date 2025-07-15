@@ -2,7 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 
-export default async function ReceiptPage({
+export default async function Page({
   params,
 }: {
   params: { orderId: string };
