@@ -3,44 +3,43 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
-import { Order } from "@/app/staff/dashboard/page"; // <-- Import types
+import { Order } from "@/app/staff/dashboard/page";
 import ConfirmCompletionModal from "./ConfirmCompletionModal";
-import ConfirmCancelModal from "./ConfirmCancelModal"; // <-- Import Cancel Modal
+import ConfirmCancelModal from "./ConfirmCancelModal";
 import {
   Clock,
   Printer,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  XCircle, // <-- Import Cancel Icon
-  ClipboardEdit, // <-- Import Manual Entry Icon
+  XCircle,
+  AlertCircle,
+  CookingPot,
+  GlassWater,
 } from "lucide-react";
 
-type OrderStatus =
-  | "order_placed"
-  | "kitchen_printed"
-  | "receipt_printed"
+type OrderWorkflowStatus =
+  | "pending"
+  | "in_progress"
   | "completed"
   | "cancelled";
 
-// Cambiar los nombres de los tabs y la lógica de filtrado
-const STATUS_TABS: { key: OrderStatus; label: string }[] = [
-  { key: "order_placed", label: "Comandas Pendientes" },
-  { key: "kitchen_printed", label: "Recibos para Cliente" },
+const STATUS_TABS: { key: OrderWorkflowStatus; label: string }[] = [
+  { key: "pending", label: "Pendientes" },
+  { key: "in_progress", label: "En Proceso" },
   { key: "completed", label: "Completados" },
   { key: "cancelled", label: "Cancelados" },
 ];
 
-const ITEMS_BEFORE_TRUNCATE = 4; // Max items to show before truncating
+const ITEMS_BEFORE_TRUNCATE = 4;
 
-// Re-usable function to format time
 function formatTimeAgo(dateString: string, now: Date) {
   const date = new Date(dateString);
   const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} minutos atrás`;
+  if (minutes < 60) return `${minutes} min atrás`;
   const hours = Math.round(minutes / 60);
-  return `${hours} horas atrás`;
+  return `${hours}h atrás`;
 }
 
 const getTimeAgoColor = (dateString: string, now: Date): string => {
@@ -48,36 +47,60 @@ const getTimeAgoColor = (dateString: string, now: Date): string => {
   const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
   const minutes = Math.floor(seconds / 60);
 
-  if (minutes >= 25) {
-    return "text-red-600 font-semibold"; // Red for 25+ minutes
-  } else if (minutes >= 15) {
-    return "text-yellow-600 font-semibold"; // Yellow for 15+ minutes
-  } else {
-    return "text-gray-500"; // Default color for recent orders
-  }
+  if (minutes >= 25) return "text-red-600 font-semibold";
+  if (minutes >= 15) return "text-yellow-600 font-semibold";
+  return "text-gray-500";
 };
 
-// Re-usable component for status pills
-const StatusPill = ({ status }: { status: OrderStatus }) => (
-  <span
-    className={`px-2 py-1 text-xs font-semibold rounded-full capitalize ${
-      {
-        order_placed: "bg-yellow-100 text-yellow-800 border border-yellow-300",
-        kitchen_printed: "bg-green-100 text-green-800 border border-green-300",
-        receipt_printed: "bg-gray-100 text-gray-800 border border-gray-300", // añadido para evitar error TS
-        completed: "bg-blue-100 text-blue-800 border border-blue-300",
-        cancelled: "bg-red-100 text-red-800 border border-red-300",
-      }[status] || "bg-gray-100 text-gray-800 border border-gray-300"
+// Componente para mostrar el estado de una impresora
+const PrintStatusIndicator = ({
+  label,
+  printed,
+  icon,
+}: {
+  label: string;
+  printed: boolean;
+  icon: React.ReactNode;
+}) => (
+  <div
+    className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border ${
+      printed
+        ? "bg-green-50 border-green-200 text-green-800"
+        : "bg-yellow-50 border-yellow-200 text-yellow-800"
     }`}
   >
-    {(() => {
-      if (status === "order_placed") return "🟡 Comanda pendiente de imprimir";
-      if (status === "kitchen_printed") return "🟢 Comanda impresa";
-      if (status === "completed") return "✅ Completado";
-      if (status === "cancelled") return "❌ Cancelado";
-      return String(status);
-    })()}
-  </span>
+    {icon}
+    <span>{label}:</span>
+    <span className="font-semibold">{printed ? "Impreso" : "Pendiente"}</span>
+    {printed ? (
+      <CheckCircle2 size={16} className="text-green-600" />
+    ) : (
+      <AlertCircle size={16} className="text-yellow-600" />
+    )}
+  </div>
+);
+
+// Componente para los botones de reimpresión
+const ReprintButton = ({
+  label,
+  onClick,
+  disabled,
+  icon,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+  icon: React.ReactNode;
+}) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors basis-0"
+  >
+    <Printer size={16} />
+    {icon}
+    {label}
+  </button>
 );
 
 export default function OrderList({
@@ -89,20 +112,18 @@ export default function OrderList({
   const [orders, setOrders] = useState(initialOrders);
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  // Cambiar la lógica de tabs y filtrado
-  const [activeStatus, setActiveStatus] = useState<OrderStatus>("order_placed");
+  const [activeStatus, setActiveStatus] =
+    useState<OrderWorkflowStatus>("pending");
   const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
-  // Timer to update "time ago"
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 60000); // Update every minute
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // Realtime subscription
   useEffect(() => {
     const channel = supabase
       .channel("realtime orders")
@@ -110,21 +131,14 @@ export default function OrderList({
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "orders" },
         async (payload) => {
-          // Add a small delay to ensure order_items are committed
           await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Fetch full order details for the new order
           const { data: newOrderDetails } = await supabase
             .from("orders")
             .select("*, order_items(*, menu_items(name))")
             .eq("id", payload.new.id)
             .single();
-
           if (newOrderDetails) {
-            setOrders((currentOrders) => [
-              newOrderDetails as Order,
-              ...currentOrders,
-            ]);
+            setOrders((current) => [newOrderDetails as Order, ...current]);
           }
         }
       )
@@ -132,8 +146,8 @@ export default function OrderList({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
-          setOrders((currentOrders) =>
-            currentOrders.map((order) =>
+          setOrders((current) =>
+            current.map((order) =>
               order.id === payload.new.id
                 ? { ...order, ...(payload.new as Order) }
                 : order
@@ -154,56 +168,37 @@ export default function OrderList({
       .from("orders")
       .update({ status: newStatus })
       .eq("id", orderId);
-    setUpdatingOrderId(null); // RLS will trigger UI update
+    setUpdatingOrderId(null);
   };
 
-  const handlePrintKitchenOrder = async (orderId: number) => {
+  const handlePrint = async (orderId: number, type: "kitchen" | "drink") => {
     setUpdatingOrderId(orderId);
+    const endpoint =
+      type === "kitchen"
+        ? "/api/print-kitchen-order"
+        : "/api/print-drink-order";
+    const successMessage =
+      type === "kitchen"
+        ? "Comanda de cocina enviada"
+        : "Comanda de bebidas enviada";
+
     try {
-      const res = await fetch("/api/print-kitchen-order", {
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
       const data = await res.json();
       if (res.ok) {
-        alert("Comanda enviada a impresión");
+        alert(successMessage);
       } else {
-        alert("Error al imprimir: " + (data.error || "Error desconocido"));
+        alert(`Error al imprimir: ${data.error || "Error desconocido"}`);
       }
-    } catch {
-      alert("Error de red al imprimir comanda");
+    } catch (error) {
+      alert("Error de red al imprimir");
+      console.error(error);
     }
     setUpdatingOrderId(null);
-  };
-
-  const handlePrintReceipt = async (orderId: number) => {
-    setUpdatingOrderId(orderId);
-    try {
-      const receiptUrl = `/order/receipt/${orderId}`;
-      const printWindow = window.open(
-        receiptUrl,
-        "_blank",
-        "noopener,noreferrer"
-      );
-      if (printWindow) {
-        setTimeout(async () => {
-          await supabase
-            .from("orders")
-            .update({ status: "receipt_printed" })
-            .eq("id", orderId);
-          setUpdatingOrderId(null);
-        }, 1000);
-      } else {
-        alert(
-          "La ventana de impresión fue bloqueada. Por favor, permite ventanas emergentes para este sitio."
-        );
-        setUpdatingOrderId(null);
-      }
-    } catch {
-      alert("Error al intentar imprimir el recibo");
-      setUpdatingOrderId(null);
-    }
   };
 
   const toggleCardExpansion = (orderId: number) => {
@@ -246,239 +241,193 @@ export default function OrderList({
     handleCloseCancelModal();
   };
 
-  // Memoize counts and filtered orders for performance
-  const orderCounts = useMemo(() => {
-    return STATUS_TABS.reduce((acc, tab) => {
-      acc[tab.key] = orders.filter((o) => o.status === tab.key).length;
-      return acc;
-    }, {} as Record<OrderStatus, number>);
-  }, [orders]);
-
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => order.status === activeStatus);
   }, [orders, activeStatus]);
 
+  const orderCounts = useMemo(() => {
+    const counts: { [key in OrderWorkflowStatus]: number } = {
+      pending: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    orders.forEach((order) => {
+      // Usamos el status directamente, ya que ahora es la fuente de verdad.
+      const status = order.status as OrderWorkflowStatus;
+      if (counts[status] !== undefined) {
+        counts[status]++;
+      }
+    });
+    return counts;
+  }, [orders]);
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md">
-      {/* Status Filter Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="mb-6">
+        <div className="flex border-b border-gray-200">
           {STATUS_TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveStatus(tab.key)}
-              className={`${
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
                 activeStatus === tab.key
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize`}
+                  ? "border-b-2 border-blue-600 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
             >
               {tab.label}
-              <span
-                className={`${
-                  activeStatus === tab.key
-                    ? "bg-blue-100 text-blue-600"
-                    : "bg-gray-100 text-gray-900"
-                } hidden ml-3 py-0.5 px-2.5 rounded-full text-xs font-medium md:inline-block`}
-              >
-                {orderCounts[tab.key] ?? 0}
+              <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-full">
+                {orderCounts[tab.key]}
               </span>
             </button>
           ))}
-        </nav>
+        </div>
       </div>
 
-      {/* Orders Grid */}
-      {filteredOrders.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredOrders.map((order) => {
-            const isExpanded = expandedCardIds.includes(order.id);
-            const isTruncatable =
-              order.order_items.length > ITEMS_BEFORE_TRUNCATE;
-            const itemsToShow =
-              isTruncatable && !isExpanded
-                ? order.order_items.slice(0, ITEMS_BEFORE_TRUNCATE)
-                : order.order_items;
-            const remainingCount =
-              order.order_items.length - ITEMS_BEFORE_TRUNCATE;
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredOrders.map((order) => {
+          const isExpanded = expandedCardIds.includes(order.id);
+          const displayedItems = isExpanded
+            ? order.order_items
+            : order.order_items.slice(0, ITEMS_BEFORE_TRUNCATE);
 
-            return (
-              <div
-                key={order.id}
-                className="bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col"
-              >
-                {/* Card Header */}
-                <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+          return (
+            <div
+              key={order.id}
+              className="bg-white rounded-xl shadow-md overflow-hidden transition-all duration-300 ease-in-out"
+            >
+              <div className="p-5">
+                <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-bold text-lg">Mesa {order.table_id}</h3>
-                    <p className="text-sm text-gray-500">
-                      por {order.customer_name}
+                    <p className="text-xl font-bold text-gray-800">
+                      Mesa {order.table_id}
                     </p>
-                    {order.source === "staff_placed" && (
-                      <div className="flex items-center text-xs text-blue-600 mt-1">
-                        <ClipboardEdit size={12} className="mr-1.5" />
-                        <span>Ingresado por Personal</span>
-                      </div>
-                    )}
+                    <p className="text-sm text-gray-500">
+                      por {order.customer_name || "Cliente"}
+                    </p>
                   </div>
-                  <StatusPill status={order.status as OrderStatus} />
+                  <span className="text-sm font-mono text-gray-400">
+                    #{order.id}
+                  </span>
                 </div>
 
-                {/* Order Items */}
-                <div className="p-4 flex-grow space-y-2">
-                  {itemsToShow.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-gray-700">
-                        {item.quantity}x {item.menu_items?.name ?? "Item"}
-                      </span>
-                      {/* Price per item can be added if needed */}
-                    </div>
-                  ))}
-                  {isTruncatable && (
+                <div className="my-4 flex flex-col gap-2">
+                  <PrintStatusIndicator
+                    label="Cocina"
+                    printed={order.kitchen_printed}
+                    icon={<CookingPot size={16} />}
+                  />
+                  <PrintStatusIndicator
+                    label="Bebidas"
+                    printed={order.drink_printed}
+                    icon={<GlassWater size={16} />}
+                  />
+                </div>
+
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <ul className="space-y-2 text-sm text-gray-700">
+                    {displayedItems.map((item) => (
+                      <li key={item.id} className="flex justify-between">
+                        <span>
+                          {item.quantity}x{" "}
+                          {item.menu_items?.name || "Item borrado"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {order.order_items.length > ITEMS_BEFORE_TRUNCATE && (
                     <button
                       onClick={() => toggleCardExpansion(order.id)}
-                      className="w-full text-left text-blue-600 hover:text-blue-800 text-sm font-medium mt-2 flex items-center"
+                      className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center"
                     >
+                      {isExpanded ? "Mostrar menos" : "Mostrar más"}
                       {isExpanded ? (
-                        <>
-                          <ChevronUp size={16} className="mr-1" /> Mostrar menos
-                        </>
+                        <ChevronUp size={16} className="ml-1" />
                       ) : (
-                        <>
-                          <ChevronDown size={16} className="mr-1" /> Mostrar{" "}
-                          {remainingCount} más items...
-                        </>
+                        <ChevronDown size={16} className="ml-1" />
                       )}
                     </button>
                   )}
                 </div>
 
-                {/* Card Footer */}
-                <div className="p-4 border-t border-gray-200 space-y-3">
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span className="font-mono font-bold text-lg">
-                      Bs {order.total_price?.toFixed(2)}
-                    </span>
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <div className="flex justify-between items-center">
+                    <p className="text-lg font-bold">Total</p>
+                    <p className="text-lg font-bold">
+                      Bs {(order.total_price || 0).toFixed(2)}
+                    </p>
                   </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span
-                      className={`flex items-center ${getTimeAgoColor(
-                        order.created_at,
-                        currentTime
-                      )}`}
-                    >
-                      <Clock size={12} className="mr-1.5" />{" "}
-                      {formatTimeAgo(order.created_at, currentTime)}
-                    </span>
-                    <span className="text-gray-500">#{order.id}</span>
-                  </div>
-                  {/* Action Buttons */}
-                  <div className="pt-3 space-y-2">
-                    {order.status === "order_placed" && (
-                      <>
-                        <div className="w-full bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
-                          Comanda pendiente de imprimir (automática)
+                  <p
+                    className={`mt-1 text-xs ${getTimeAgoColor(
+                      order.created_at,
+                      currentTime
+                    )}`}
+                  >
+                    <Clock size={12} className="inline-block mr-1" />
+                    {formatTimeAgo(order.created_at, currentTime)}
+                  </p>
+                </div>
+
+                {order.status !== "completed" &&
+                  order.status !== "cancelled" && (
+                    <div className="mt-5 pt-4 border-t border-gray-100">
+                      <div className="flex flex-col gap-3">
+                        <div className="flex gap-3">
+                          <ReprintButton
+                            label="Cocina"
+                            onClick={() => handlePrint(order.id, "kitchen")}
+                            disabled={updatingOrderId === order.id}
+                            icon={<CookingPot size={16} />}
+                          />
+                          <ReprintButton
+                            label="Bebidas"
+                            onClick={() => handlePrint(order.id, "drink")}
+                            disabled={updatingOrderId === order.id}
+                            icon={<GlassWater size={16} />}
+                          />
                         </div>
-                        <button
-                          onClick={() => handlePrintKitchenOrder(order.id)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 mb-2"
-                        >
-                          <Printer size={16} className="mr-2" />
-                          {updatingOrderId === order.id
-                            ? "..."
-                            : "Imprimir Comanda"}
-                        </button>
-                        <button
-                          onClick={() => handleOpenCancelModal(order)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
-                        >
-                          <XCircle size={16} className="mr-2" />
-                          Cancelar Pedido
-                        </button>
-                      </>
-                    )}
-                    {order.status === "kitchen_printed" && (
-                      <>
-                        <div className="w-full bg-green-50 border border-green-200 text-green-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
-                          🟢 Comanda impresa
-                        </div>
-                        <button
-                          onClick={() => handlePrintReceipt(order.id)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full bg-black text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 flex items-center justify-center disabled:opacity-50 mb-2"
-                        >
-                          <Printer size={16} className="mr-2" />
-                          {updatingOrderId === order.id
-                            ? "..."
-                            : "Imprimir Recibo Cliente"}
-                        </button>
                         <button
                           onClick={() => handleOpenConfirmModal(order)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-md hover:bg-green-600 flex items-center justify-center disabled:opacity-50 mb-2"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
                         >
-                          <CheckCircle2 size={16} className="mr-2" />
-                          {updatingOrderId === order.id
-                            ? "..."
-                            : "Marcar como Completado"}
+                          <CheckCircle2 size={16} />
+                          Marcar como Completado
                         </button>
                         <button
                           onClick={() => handleOpenCancelModal(order)}
-                          disabled={updatingOrderId === order.id}
-                          className="w-full text-red-600 font-medium py-2 px-4 rounded-md hover:bg-red-50 flex items-center justify-center disabled:opacity-50"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200"
                         >
-                          <XCircle size={16} className="mr-2" />
+                          <XCircle size={16} />
                           Cancelar Pedido
                         </button>
-                      </>
-                    )}
-                    {order.status === "completed" && (
-                      <div className="w-full bg-blue-50 border border-blue-200 text-blue-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
-                        ✅ Pedido completado
                       </div>
-                    )}
-                    {order.status === "cancelled" && (
-                      <div className="w-full bg-red-50 border border-red-200 text-red-800 font-medium py-2 px-4 rounded-md text-center text-sm mb-2">
-                        ❌ Pedido cancelado
-                      </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  )}
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500">
-            No hay pedidos con estado &quot;
-            {(() => {
-              const activeTab = STATUS_TABS.find(
-                (tab) => tab.key === activeStatus
-              );
-              return activeTab ? activeTab.label : String(activeStatus);
-            })()}
-            .
-          </p>
-        </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {isModalOpen && selectedOrder && (
+        <ConfirmCompletionModal
+          isOpen={isModalOpen}
+          isLoading={updatingOrderId === selectedOrder.id}
+          order={selectedOrder}
+          onClose={handleCloseConfirmModal}
+          onConfirm={handleConfirmCompletion}
+        />
       )}
-      <ConfirmCompletionModal
-        isOpen={isModalOpen}
-        onClose={handleCloseConfirmModal}
-        onConfirm={handleConfirmCompletion}
-        order={selectedOrder}
-        isLoading={updatingOrderId === selectedOrder?.id}
-      />
-      <ConfirmCancelModal
-        isOpen={isCancelModalOpen}
-        onClose={handleCloseCancelModal}
-        onConfirm={handleConfirmCancellation}
-        order={selectedOrder}
-        isLoading={updatingOrderId === selectedOrder?.id}
-      />
+      {isCancelModalOpen && selectedOrder && (
+        <ConfirmCancelModal
+          isOpen={isCancelModalOpen}
+          isLoading={updatingOrderId === selectedOrder.id}
+          order={selectedOrder}
+          onClose={handleCloseCancelModal}
+          onConfirm={handleConfirmCancellation}
+        />
+      )}
     </div>
   );
 }

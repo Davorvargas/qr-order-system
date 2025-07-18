@@ -40,7 +40,7 @@ export default function StaffLayout({
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-gray-800 text-white flex flex-col">
+      <aside className="w-56 flex-shrink-0 bg-gray-800 text-white flex flex-col">
         <div className="h-16 flex items-center justify-center px-4 bg-gray-900">
           <h1 className="text-2xl font-bold tracking-wider">QRMenu</h1>
         </div>

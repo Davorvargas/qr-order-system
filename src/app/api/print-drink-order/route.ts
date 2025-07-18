@@ -11,18 +11,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Falta orderId" }, { status: 400 });
     }
 
-    // 1. Ejecutar el script de impresión
-    const scriptPath = path.resolve(process.cwd(), "printer_service.py");
+    // 1. Ejecutar el script de impresión de bebidas
+    const scriptPath = path.resolve(process.cwd(), "xprinter_service.py");
     const command = `python "${scriptPath}" --print-order ${orderId}`;
 
-    console.log(`Ejecutando comando de cocina: ${command}`);
+    console.log(`Ejecutando comando de bebidas: ${command}`);
 
     await new Promise<void>((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {
         if (error) {
-          console.error(`Error al ejecutar script de cocina: ${error.message}`);
+          console.error(`Error al ejecutar script de bebidas: ${error.message}`);
           console.error(`Stderr: ${stderr}`);
-          reject(new Error(`Error del script de cocina: ${stderr || error.message}`));
+          reject(new Error(`Error del script de bebidas: ${stderr || error.message}`));
           return;
         }
         console.log(`Stdout: ${stdout}`);
@@ -34,28 +34,28 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const { data: updatedOrder, error: updateError } = await supabase
       .from("orders")
-      .update({ kitchen_printed: true })
+      .update({ drink_printed: true })
       .eq("id", orderId)
       .select()
       .single();
 
     if (updateError) {
-      console.error("Error al actualizar 'kitchen_printed':", updateError);
+      console.error("Error al actualizar 'drink_printed':", updateError);
       // No devolver error, pero registrarlo
     }
 
     // 3. Si ambas comandas están impresas, cambiar estado a 'in_progress'
-    if (updatedOrder && updatedOrder.drink_printed) {
+    if (updatedOrder && updatedOrder.kitchen_printed) {
       await supabase
         .from("orders")
         .update({ status: 'in_progress' })
         .eq("id", orderId);
     }
 
-    return NextResponse.json({ message: "Comanda de cocina enviada a la impresora" });
+    return NextResponse.json({ message: "Comanda de bebidas enviada a la impresora" });
 
   } catch (error) {
-    console.error("Error en el endpoint print-kitchen-order:", error);
+    console.error("Error en el endpoint print-drink-order:", error);
     const errorMessage = error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

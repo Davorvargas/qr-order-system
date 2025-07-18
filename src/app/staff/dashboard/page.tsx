@@ -25,6 +25,8 @@ export type Order = {
   total_price: number | null;
   order_items: OrderItem[];
   source: string; // Add source field
+  kitchen_printed: boolean;
+  drink_printed: boolean;
 };
 
 // Types for menu data needed by the modal
