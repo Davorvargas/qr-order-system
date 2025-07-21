@@ -21,6 +21,7 @@ type OrderItem = {
   name: string;
   quantity: number;
   price: number;
+  notes: string; // <-- AÑADIR CAMPO DE NOTAS
 };
 
 interface CreateOrderModalProps {
@@ -108,6 +109,20 @@ export default function CreateOrderModal({
           name: item.name,
           quantity: newQuantity,
           price: item.price ?? 0,
+          notes: existing?.notes || "", // <-- MANTENER LAS NOTAS EXISTENTES
+        },
+      };
+    });
+  };
+
+  const handleNoteChange = (itemId: number, newNote: string) => {
+    setOrderItems((prev) => {
+      if (!prev[itemId]) return prev; // No hacer nada si el ítem no está en el pedido
+      return {
+        ...prev,
+        [itemId]: {
+          ...prev[itemId],
+          notes: newNote,
         },
       };
     });
@@ -129,12 +144,12 @@ export default function CreateOrderModal({
       table_id: tableId,
       customer_name: customerName.trim() || `Table ${tableId}`, // Default name if empty
       total_price: totalPrice,
-      notes: "", // Can add a notes field later if needed
       source: "staff_placed", // The key identifier!
       order_items: Object.values(orderItems).map((item) => ({
         menu_item_id: item.menu_item_id,
         quantity: item.quantity,
         price_at_order: item.price,
+        notes: item.notes, // <-- INCLUIR LAS NOTAS
       })),
     };
 
@@ -225,8 +240,21 @@ export default function CreateOrderModal({
                         <div className="flex-grow">
                           <p className="font-semibold">{item.name}</p>
                           <p className="text-sm text-gray-500">
-                            ${item.price?.toFixed(2)}
+                            Bs {(item.price || 0).toFixed(2)}
                           </p>
+                          {/* --- CAMPO DE NOTAS VISUAL --- */}
+                          {orderItems[item.id] && (
+                            <input
+                              type="text"
+                              placeholder="Añadir nota... (ej. sin cebolla)"
+                              value={orderItems[item.id].notes}
+                              onChange={(e) =>
+                                handleNoteChange(item.id, e.target.value)
+                              }
+                              className="mt-2 block w-full text-sm px-2 py-1 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          )}
+                          {/* --------------------------- */}
                         </div>
                         {item.is_available ? (
                           <div className="flex items-center gap-2">

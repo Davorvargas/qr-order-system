@@ -85,12 +85,15 @@ def print_kitchen_ticket(order):
             p.set(width=2, height=2)
             p.text(f"{quantity}x {item_name}\n")
 
-            # --- Imprimir notas especiales ---
-            notes = item.get('notes')
-            if notes:
-                p.set(width=1, height=1, bold=False, align='left')
-                p.text(f"  >> {notes}\n")
-            # --------------------------------
+        # --- Imprimir la nota general del pedido ---
+        order_notes = order.get('notes')
+        if order_notes:
+            p.set(align='left', bold=True, width=1, height=1)
+            p.text("----------------------------------------\n")
+            p.text("Notas Generales:\n")
+            p.set(bold=False)
+            p.text(f"{order_notes}\n")
+        # -----------------------------------------
 
         p.text("\n")
         p.cut()
@@ -124,7 +127,7 @@ def process_new_orders():
         try:
             # Ahora busca CUALQUIER orden que no esté impresa para la cocina.
             # Esto incluye nuevas y las que se marcaron para reimprimir.
-            response = supabase.table('orders').select('*, order_items(*, menu_items(*))').eq('kitchen_printed', False).order('id').execute()
+            response = supabase.table('orders').select('*, notes, order_items(*, menu_items(*))').eq('kitchen_printed', False).order('id').execute()
             
             new_orders = response.data
             
