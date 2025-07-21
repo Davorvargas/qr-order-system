@@ -200,7 +200,7 @@ def process_new_orders():
                                 else:
                                     print(f"[ERROR] No se pudo re-obtener el estado del pedido #{order['id']} después de actualizar.")
                             else:
-                                print(f"[ERROR] FALLO AL ACTUALIZAR la base de datos para el pedido #{order['id']}.")
+                                print(f"[ERROR] FALLO AL ACTUALIZAR la base de datos para el pedido #{order['id']}. Respuesta: {update_response}")
                         else:
                             print(f"[ERROR] No se marcará el pedido #{order['id']} como impreso debido a un fallo de impresión.")
             else:
