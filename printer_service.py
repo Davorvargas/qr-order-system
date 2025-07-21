@@ -85,12 +85,12 @@ def print_kitchen_ticket(order):
             p.set(width=2, height=2)
             p.text(f"{quantity}x {item_name}\n")
 
-            # --- Imprimir instrucciones especiales ---
-            special_instructions = item.get('special_instructions')
-            if special_instructions:
+            # --- Imprimir notas especiales ---
+            notes = item.get('notes')
+            if notes:
                 p.set(width=1, height=1, bold=False, align='left')
-                p.text(f"  >> {special_instructions}\n")
-            # -----------------------------------------
+                p.text(f"  >> {notes}\n")
+            # --------------------------------
 
         p.text("\n")
         p.cut()
