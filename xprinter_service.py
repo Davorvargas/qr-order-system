@@ -126,6 +126,14 @@ def print_drink_ticket(order, receipt_mode=False):
             else:
                 p.text(line_item + "\n")
 
+            # --- Imprimir instrucciones especiales ---
+            special_instructions = item.get('special_instructions')
+            if special_instructions and not show_prices: # Solo en comanda, no en recibo
+                p.set(width=1, height=1, bold=False, align='left')
+                p.text(f"  >> {special_instructions}\n")
+                p.set(width=1, height=1, bold=True) # Volver a la fuente normal
+            # -----------------------------------------
+
         if show_prices:
             p.text("----------------------------------------\n")
             p.set(align='right', width=2, height=2, bold=True)
