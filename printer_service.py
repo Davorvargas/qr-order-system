@@ -237,18 +237,20 @@ def process_new_orders(supabase):
         print(f"[ERROR] Error procesando órdenes nuevas: {e}")
 
 def find_last_processed_order(supabase):
-    """Encuentra la última orden procesada para evitar reimprimir"""
+    """Encuentra la última orden en la DB para iniciar el monitoreo desde ahí."""
     try:
-        # Buscar la orden más reciente que NO esté en estado 'order_placed'
+        # Buscar la orden más reciente (sin importar el estado)
+        # para empezar desde ahí y solo procesar nuevas.
         response = supabase.table("orders") \
             .select("id") \
-            .neq("status", "order_placed") \
             .order("id", desc=True) \
             .limit(1) \
             .execute()
         
         if response.data:
-            return response.data[0]['id']
+            latest_id = response.data[0]['id']
+            # Devolvemos el ID anterior para asegurarnos de incluir la última orden en la búsqueda
+            return latest_id - 1 
         else:
             return 0
     except Exception as e:
