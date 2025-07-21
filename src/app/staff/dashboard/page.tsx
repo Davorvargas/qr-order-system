@@ -13,7 +13,7 @@ import { PlusCircle } from "lucide-react"; // Import an icon
 export type OrderItem = {
   id: number;
   quantity: number;
-  menu_items: { name: string } | null;
+  menu_items: { name: string; price: number | null } | null;
 };
 
 export type Order = {
@@ -68,7 +68,7 @@ export default function StaffDashboardPage() {
 
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("*, order_items(*, menu_items(name))") // <-- Fetch nested data
+        .select("*, order_items(*, menu_items(name, price))") // <-- Fetch price too
         .gte("created_at", today.toISOString()) // Filter for orders from today onwards
         .order("created_at", { ascending: false });
 

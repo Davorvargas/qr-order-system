@@ -1,7 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { exec } from "child_process";
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,52 +9,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Falta orderId" }, { status: 400 });
     }
 
-    // 1. Ejecutar el script de impresión
-    const scriptPath = path.resolve(process.cwd(), "printer_service.py");
-    const command = `python "${scriptPath}" --print-order ${orderId}`;
-
-    console.log(`Ejecutando comando de cocina: ${command}`);
-
-    await new Promise<void>((resolve, reject) => {
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error al ejecutar script de cocina: ${error.message}`);
-          console.error(`Stderr: ${stderr}`);
-          reject(new Error(`Error del script de cocina: ${stderr || error.message}`));
-          return;
-        }
-        console.log(`Stdout: ${stdout}`);
-        resolve();
-      });
-    });
-
-    // 2. Actualizar el estado en Supabase
+    // Simplemente restablecemos la bandera de impresión.
+    // El servicio de la impresora en la Raspberry Pi detectará este cambio.
     const supabase = await createClient();
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { error } = await supabase
       .from("orders")
-      .update({ kitchen_printed: true })
-      .eq("id", orderId)
-      .select()
-      .single();
+      .update({ kitchen_printed: false })
+      .eq("id", orderId);
 
-    if (updateError) {
-      console.error("Error al actualizar 'kitchen_printed':", updateError);
-      // No devolver error, pero registrarlo
+    if (error) {
+      console.error("Error al resetear 'kitchen_printed':", error);
+      return NextResponse.json(
+        { error: "Error de base de datos al solicitar la reimpresión" },
+        { status: 500 }
+      );
     }
 
-    // 3. Si ambas comandas están impresas, cambiar estado a 'in_progress'
-    if (updatedOrder && updatedOrder.drink_printed) {
-      await supabase
-        .from("orders")
-        .update({ status: 'in_progress' })
-        .eq("id", orderId);
-    }
-
-    return NextResponse.json({ message: "Comanda de cocina enviada a la impresora" });
+    return NextResponse.json({
+      message: "Solicitud de reimpresión de cocina enviada",
+    });
 
   } catch (error) {
     console.error("Error en el endpoint print-kitchen-order:", error);
-    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 

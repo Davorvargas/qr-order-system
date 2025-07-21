@@ -180,7 +180,7 @@ export default function OrderList({
     const successMessage =
       type === "kitchen"
         ? "Comanda de cocina enviada"
-        : "Comanda de bebidas enviada";
+        : "Recibo / Comanda de bar enviada";
 
     try {
       const res = await fetch(endpoint, {
@@ -319,7 +319,7 @@ export default function OrderList({
                     icon={<CookingPot size={16} />}
                   />
                   <PrintStatusIndicator
-                    label="Bebidas"
+                    label="Recibo / Bar"
                     printed={order.drink_printed}
                     icon={<GlassWater size={16} />}
                   />
@@ -381,7 +381,7 @@ export default function OrderList({
                             icon={<CookingPot size={16} />}
                           />
                           <ReprintButton
-                            label="Bebidas"
+                            label="Recibo / Bar"
                             onClick={() => handlePrint(order.id, "drink")}
                             disabled={updatingOrderId === order.id}
                             icon={<GlassWater size={16} />}

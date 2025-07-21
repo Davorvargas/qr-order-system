@@ -1,7 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { exec } from "child_process";
 import { NextRequest, NextResponse } from "next/server";
-import path from "path";
 
 export async function POST(req: NextRequest) {
   try {
@@ -11,52 +9,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Falta orderId" }, { status: 400 });
     }
 
-    // 1. Ejecutar el script de impresión de bebidas
-    const scriptPath = path.resolve(process.cwd(), "xprinter_service.py");
-    const command = `python "${scriptPath}" --print-order ${orderId}`;
-
-    console.log(`Ejecutando comando de bebidas: ${command}`);
-
-    await new Promise<void>((resolve, reject) => {
-      exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error(`Error al ejecutar script de bebidas: ${error.message}`);
-          console.error(`Stderr: ${stderr}`);
-          reject(new Error(`Error del script de bebidas: ${stderr || error.message}`));
-          return;
-        }
-        console.log(`Stdout: ${stdout}`);
-        resolve();
-      });
-    });
-
-    // 2. Actualizar el estado en Supabase
+    // Restablecemos la bandera de impresión para que el servicio de la impresora de bebidas lo detecte.
     const supabase = await createClient();
-    const { data: updatedOrder, error: updateError } = await supabase
+    const { error } = await supabase
       .from("orders")
-      .update({ drink_printed: true })
-      .eq("id", orderId)
-      .select()
-      .single();
+      .update({ drink_printed: false })
+      .eq("id", orderId);
 
-    if (updateError) {
-      console.error("Error al actualizar 'drink_printed':", updateError);
-      // No devolver error, pero registrarlo
+    if (error) {
+      console.error("Error al resetear 'drink_printed':", error);
+      return NextResponse.json(
+        { error: "Error de base de datos al solicitar la reimpresión" },
+        { status: 500 }
+      );
     }
 
-    // 3. Si ambas comandas están impresas, cambiar estado a 'in_progress'
-    if (updatedOrder && updatedOrder.kitchen_printed) {
-      await supabase
-        .from("orders")
-        .update({ status: 'in_progress' })
-        .eq("id", orderId);
-    }
-
-    return NextResponse.json({ message: "Comanda de bebidas enviada a la impresora" });
+    return NextResponse.json({
+      message: "Solicitud de reimpresión de bebidas enviada",
+    });
 
   } catch (error) {
     console.error("Error en el endpoint print-drink-order:", error);
-    const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+    const errorMessage =
+      error instanceof Error ? error.message : "Error desconocido";
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 
