@@ -69,30 +69,47 @@ def print_kitchen_ticket(order):
     try:
         p = Usb(VENDOR_ID, PRODUCT_ID, profile="TM-T88V")
 
+        # Buscar el número de mesa real
+        table_id = order.get('table_id')
+        table_number = None
+        if table_id:
+            # Buscar en la tabla 'tables' el número de mesa
+            table_resp = supabase.table('tables').select('table_number').eq('id', table_id).single().execute()
+            if table_resp.data and 'table_number' in table_resp.data:
+                table_number = table_resp.data['table_number']
+        mesa_str = table_number if table_number else table_id
+
         p.set(align='center', bold=True, width=2, height=2)
         p.text("COCINA\n")
         p.set(align='left', bold=False, width=1, height=1)
         p.text("----------------------------------------\n")
         p.set(bold=True)
-        p.text(f"Pedido #{order['id']} - Mesa: {order.get('table_id', 'N/A')}\n")
+        p.text(f"Pedido #{order['id']} - Mesa: {mesa_str}\n")
         p.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
         p.set(bold=False)
         p.text("----------------------------------------\n")
 
+        # Imprimir platos (order_items)
         for item in order.get('order_items', []):
             quantity = item.get('quantity', 0)
             item_name = item.get('menu_items', {}).get('name', 'Producto no encontrado')
             p.set(width=2, height=2)
             p.text(f"{quantity}x {item_name}\n")
 
-            # --- LÓGICA CORREGIDA PARA NOTAS POR ÍTEM ---
+            # Notas por ítem
             item_notes = item.get('notes')
             if item_notes:
                 p.set(width=1, height=1, bold=False, align='left')
                 p.text(f"  >> {item_notes}\n")
-            # ---------------------------------------------
 
-        # La nota general del pedido ya no se usa aquí
+        # Imprimir nota global si existe
+        global_notes = order.get('notes')
+        if global_notes:
+            p.set(width=1, height=1, bold=True, align='left')
+            p.text("\n--- Nota del pedido ---\n")
+            p.set(width=1, height=1, bold=False, align='left')
+            p.text(f"{global_notes}\n")
+
         p.text("\n")
         p.cut()
         p.close()
@@ -125,7 +142,7 @@ def process_new_orders():
         try:
             # Ahora busca CUALQUIER orden que no esté impresa para la cocina.
             # Esto incluye nuevas y las que se marcaron para reimprimir.
-            response = supabase.table('orders').select('*, notes, order_items(*, menu_items(*))').eq('kitchen_printed', False).order('id').execute()
+            response = supabase.table('orders').select('*, notes, order_items(*, notes, menu_items(*))').eq('kitchen_printed', False).order('id').execute()
             
             new_orders = response.data
             
