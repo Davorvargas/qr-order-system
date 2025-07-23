@@ -85,16 +85,14 @@ def print_kitchen_ticket(order):
             p.set(width=2, height=2)
             p.text(f"{quantity}x {item_name}\n")
 
-        # --- Imprimir la nota general del pedido ---
-        order_notes = order.get('notes')
-        if order_notes:
-            p.set(align='left', bold=True, width=1, height=1)
-            p.text("----------------------------------------\n")
-            p.text("Notas Generales:\n")
-            p.set(bold=False)
-            p.text(f"{order_notes}\n")
-        # -----------------------------------------
+            # --- LÓGICA CORREGIDA PARA NOTAS POR ÍTEM ---
+            item_notes = item.get('notes')
+            if item_notes:
+                p.set(width=1, height=1, bold=False, align='left')
+                p.text(f"  >> {item_notes}\n")
+            # ---------------------------------------------
 
+        # La nota general del pedido ya no se usa aquí
         p.text("\n")
         p.cut()
         p.close()
