@@ -67,6 +67,7 @@ def test_printer():
 def print_kitchen_ticket(order):
     """Imprime un ticket de cocina para un pedido específico."""
     try:
+        print("DEBUG ORDER:", order)
         p = Usb(VENDOR_ID, PRODUCT_ID, profile="TM-T88V")
 
         # Buscar el número de mesa real
