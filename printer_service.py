@@ -119,6 +119,7 @@ def print_kitchen_ticket(order):
             if item_notes:
                 p.set(width=1, height=1, bold=False, align='left')
                 p.text(f"  >> {item_notes}\n")
+                p.set(width=1, height=1, bold=True)
 
         # Imprimir nota global si existe
         global_notes = order.get('notes')
