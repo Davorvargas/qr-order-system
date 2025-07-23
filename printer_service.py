@@ -65,6 +65,7 @@ def test_printer():
         return False
 
 def print_kitchen_ticket(order):
+    print(f"[DEBUG] Orden recibida en cocina: {order}")
     """Imprime un ticket de cocina para un pedido específico."""
     try:
         print("DEBUG ORDER:", order)
@@ -73,12 +74,13 @@ def print_kitchen_ticket(order):
         # Buscar el número de mesa real
         table_id = order.get('table_id')
         table_number = None
+        print(f"[DEBUG] Buscando número de mesa para table_id: {table_id}")
         if table_id:
-            # Buscar en la tabla 'tables' el número de mesa
             table_resp = supabase.table('tables').select('table_number').eq('id', table_id).single().execute()
+            print(f"[DEBUG] Resultado de lookup de mesa: {table_resp.data}")
             if table_resp.data and 'table_number' in table_resp.data:
                 table_number = table_resp.data['table_number']
-        mesa_str = table_number if table_number else table_id
+        mesa_str = table_number if table_number else 'Mesa desconocida'
 
         p.set(align='center', bold=True, width=2, height=2)
         p.text("COCINA\n")
@@ -87,11 +89,26 @@ def print_kitchen_ticket(order):
         p.set(bold=True)
         p.text(f"Pedido #{order['id']} - Mesa: {mesa_str}\n")
         p.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
+        # Add order time
+        order_time = order.get('created_at')
+        if order_time:
+            # Format timestamp if needed
+            try:
+                from dateutil import parser
+                dt = parser.parse(order_time) if isinstance(order_time, str) else order_time
+                order_time_str = dt.strftime('%d/%m/%Y %H:%M:%S')
+            except Exception:
+                order_time_str = str(order_time)
+        else:
+            from datetime import datetime
+            order_time_str = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        p.text(f"Fecha: {order_time_str}\n")
         p.set(bold=False)
         p.text("----------------------------------------\n")
 
         # Imprimir platos (order_items)
         for item in order.get('order_items', []):
+            print(f"[DEBUG] Item de orden: {item}")
             quantity = item.get('quantity', 0)
             item_name = item.get('menu_items', {}).get('name', 'Producto no encontrado')
             p.set(width=2, height=2)
