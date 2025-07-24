@@ -96,11 +96,6 @@ export default function StaffDashboardPage() {
     getInitialData();
   }, [supabase, router]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
