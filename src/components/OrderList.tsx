@@ -303,7 +303,7 @@ export default function OrderList({
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xl font-bold text-gray-800">
-                      Mesa {order.table?.table_number || order.table_id}
+                      Mesa {order.table_number || order.table_id}
                     </p>
                     <p className="text-sm text-gray-500">
                       por {order.customer_name || "Cliente"}
