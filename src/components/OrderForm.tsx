@@ -8,21 +8,13 @@ import FloatingCart from "./FloatingCart";
 import OrderSummaryModal from "./OrderSummaryModal";
 import MenuItemDetailModal from "./MenuItemDetailModal";
 import { Plus } from "lucide-react"; // Importar el icono Plus
+import type { MenuItem } from "@/types/MenuItem";
 
 // --- INTERFACES ---
 // (Las interfaces permanecen igual, pero algunas se usarán en el nuevo modal)
 interface Category {
   id: number;
   name: string;
-}
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number | null;
-  category_id: number | null;
-  is_available: boolean;
-  image_url: string | null;
 }
 interface OrderItemDetail {
   quantity: number;

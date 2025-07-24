@@ -3,16 +3,9 @@
 import Image from "next/image";
 import { X, Plus, Minus } from "lucide-react";
 import { useState, useEffect, useRef } from "react"; // <-- ASEGÚRATE DE QUE ESTÉN ESTOS TRES
+import type { MenuItem } from "@/types/MenuItem";
 
 // --- TYPE DEFINITIONS ---
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number | null;
-  image_url: string | null;
-}
-
 interface MenuItemDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
