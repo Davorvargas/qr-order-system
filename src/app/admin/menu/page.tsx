@@ -41,13 +41,16 @@ export default async function MenuPage() {
     );
   }
 
+  // Normalizar is_available para que nunca sea null
+  const safeCategories = (categories || []).map((cat) => ({
+    ...cat,
+    is_available: cat.is_available ?? false,
+  }));
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
-      <MenuManager
-        initialItems={menuItems || []}
-        categories={categories || []}
-      />
+      <MenuManager initialItems={menuItems || []} categories={safeCategories} />
     </div>
   );
 }
