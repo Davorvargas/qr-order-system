@@ -29,6 +29,7 @@ export type Order = {
   source: string; // Add source field
   kitchen_printed: boolean;
   drink_printed: boolean;
+  notes?: string;
 };
 
 // Types for menu data needed by the modal
