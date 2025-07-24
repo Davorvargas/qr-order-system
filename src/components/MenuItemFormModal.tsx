@@ -41,8 +41,8 @@ export default function MenuItemFormModal({
     description: "",
     price: "",
     category_id: "",
-    image_url: "",
   });
+  const [imageUrl, setImageUrl] = useState<string | null>(null); // <-- Estado separado para la URL
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -53,16 +53,16 @@ export default function MenuItemFormModal({
         description: itemToEdit.description ?? "",
         price: itemToEdit.price?.toString() ?? "",
         category_id: itemToEdit.category_id?.toString() ?? "",
-        image_url: itemToEdit.image_url ?? "",
       });
+      setImageUrl(itemToEdit.image_url); // <-- Setear la URL de la imagen por separado
     } else {
       setFormData({
         name: "",
         description: "",
         price: "",
         category_id: categoryId?.toString() ?? "",
-        image_url: "",
       });
+      setImageUrl(null); // <-- Limpiar la URL de la imagen
     }
   }, [itemToEdit, categoryId, isOpen]);
 
@@ -82,6 +82,7 @@ export default function MenuItemFormModal({
     if (!file) return;
 
     setIsUploading(true);
+    setImageUrl(null); // Limpiar la imagen anterior
     const fileName = `${Date.now()}-${file.name}`;
     const { data, error } = await supabase.storage
       .from("menu-images")
@@ -93,7 +94,7 @@ export default function MenuItemFormModal({
       const {
         data: { publicUrl },
       } = supabase.storage.from("menu-images").getPublicUrl(data.path);
-      setFormData((prev) => ({ ...prev, image_url: publicUrl }));
+      setImageUrl(publicUrl); // <-- Actualizar el estado de la URL de la imagen
     }
     setIsUploading(false);
   };
@@ -107,7 +108,7 @@ export default function MenuItemFormModal({
       description: formData.description,
       price: parseFloat(formData.price) || null,
       category_id: parseInt(formData.category_id, 10) || null,
-      image_url: formData.image_url || null,
+      image_url: imageUrl, // <-- Usar el estado separado de la URL
     };
 
     let savedItem: MenuItem | null = null;
@@ -235,9 +236,9 @@ export default function MenuItemFormModal({
               Imagen del Plato
             </label>
             <div className="mt-1 flex items-center space-x-4">
-              {formData.image_url && (
+              {imageUrl && ( // <-- Usar el estado separado de la URL
                 <Image
-                  src={formData.image_url}
+                  src={imageUrl} // <-- Usar el estado separado de la URL
                   alt="Current"
                   width={64}
                   height={64}

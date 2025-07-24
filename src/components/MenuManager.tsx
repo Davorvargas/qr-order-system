@@ -8,7 +8,7 @@ import { ChevronDown, PlusCircle, Settings, Trash2 } from "lucide-react";
 import MenuItemFormModal from "./MenuItemFormModal";
 
 // --- TYPE DEFINITIONS ---
-type Category = { id: number; name: string };
+type Category = { id: number; name: string; is_available: boolean };
 type MenuItem = {
   id: number;
   name: string;
@@ -72,6 +72,24 @@ export default function MenuManager({
     setUpdatingId(null);
   };
 
+  const handleToggleCategoryAvailability = async (category: Category) => {
+    const newStatus = !category.is_available;
+    const { error } = await supabase
+      .from("menu_categories")
+      .update({ is_available: newStatus })
+      .eq("id", category.id);
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+    } else {
+      setMenuCategories((current) =>
+        current.map((c) =>
+          c.id === category.id ? { ...c, is_available: newStatus } : c
+        )
+      );
+    }
+  };
+
   const handleAddCategory = async () => {
     const name = prompt("Ingrese el nombre de la nueva categoría:");
     if (!name) return;
@@ -87,6 +105,39 @@ export default function MenuManager({
     } else if (data) {
       setMenuCategories((current) => [...current, data]);
       alert("¡Categoría agregada!");
+    }
+  };
+
+  const handleDeleteCategory = async (category: Category) => {
+    // Safety check: only allow deleting empty categories
+    const itemsInGategory = itemsByCategory[category.id] || [];
+    if (itemsInGategory.length > 0) {
+      alert(
+        `Error: No se puede eliminar la categoría "${category.name}" porque no está vacía. Por favor, elimine primero todos los platos de esta categoría.`
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `¿Está seguro de que desea eliminar permanentemente la categoría "${category.name}"? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("menu_categories")
+      .delete()
+      .eq("id", category.id);
+
+    if (error) {
+      alert(`Error: ${error.message}`);
+    } else {
+      setMenuCategories((current) =>
+        current.filter((c) => c.id !== category.id)
+      );
+      alert("Categoría eliminada exitosamente.");
     }
   };
 
@@ -111,7 +162,7 @@ export default function MenuManager({
   };
 
   const handleAddItemClick = (categoryId: number) => {
-    setEditingCategory({ id: categoryId, name: "" }); // We just need the ID here
+    setEditingCategory({ id: categoryId, name: "", is_available: true }); // We just need the ID here
     setEditingItem(null);
     setIsItemModalOpen(true);
   };
@@ -153,23 +204,42 @@ export default function MenuManager({
             >
               {/* Category Header */}
               <div
-                className="flex items-center p-4 cursor-pointer"
-                onClick={() => setOpenCategoryId(isOpen ? null : category.id)}
+                className={`flex items-center p-4 ${
+                  !category.is_available ? "bg-gray-100 opacity-70" : ""
+                }`}
               >
-                <ChevronDown
-                  size={20}
-                  className={`transition-transform mr-3 ${
-                    isOpen ? "" : "-rotate-90"
-                  }`}
-                />
-                <h2 className="font-semibold text-lg flex-grow">
-                  {category.name}
-                </h2>
+                <div
+                  className="flex items-center flex-grow cursor-pointer"
+                  onClick={() => setOpenCategoryId(isOpen ? null : category.id)}
+                >
+                  <ChevronDown
+                    size={20}
+                    className={`transition-transform mr-3 ${
+                      isOpen ? "" : "-rotate-90"
+                    }`}
+                  />
+                  <h2 className="font-semibold text-lg">{category.name}</h2>
+                </div>
                 <span className="text-gray-500 text-sm mr-4">
                   {items.length} items
                 </span>
-                <button className="text-gray-400 hover:text-gray-600">
+                <label className="relative inline-flex items-center cursor-pointer mr-4">
+                  <input
+                    type="checkbox"
+                    checked={category.is_available}
+                    onChange={() => handleToggleCategoryAvailability(category)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                </label>
+                <button className="text-gray-400 hover:text-gray-600 mr-2">
                   <Settings size={18} />
+                </button>
+                <button
+                  onClick={() => handleDeleteCategory(category)}
+                  className="text-gray-400 hover:text-red-600"
+                >
+                  <Trash2 size={18} />
                 </button>
               </div>
 

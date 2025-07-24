@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+- Critical business logic (e.g., placing an order) MUST be handled in Edge Functions.
+- After any change to an Edge Function, it MUST be redeployed using `npx supabase functions deploy [function-name]`.
+- Edge Functions MUST validate input and enforce business rules server-side, not just in the frontend.
+
+**Example:**  
+The `place-order` function checks the `table_id`, fetches the correct `restaurant_id`, and inserts the order with all necessary context.
+
+**Rationale:**  
+This centralizes business logic, improves security, and ensures consistency.

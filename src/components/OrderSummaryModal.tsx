@@ -5,6 +5,7 @@ interface OrderItemDetail {
   quantity: number;
   name: string;
   price: number | null;
+  notes?: string; // Added notes to the interface
 }
 interface OrderState {
   [itemId: number]: OrderItemDetail;
@@ -99,6 +100,11 @@ export default function OrderSummaryModal({
                 <li key={id} className="flex items-center justify-between">
                   <div className="flex-grow">
                     <p className="font-semibold">{itemDetail.name}</p>
+                    {itemDetail.notes && itemDetail.notes.trim() !== "" && (
+                      <p className="text-xs text-gray-500 mt-1 ml-1 whitespace-pre-wrap">
+                        &#x1F4AC; {itemDetail.notes}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-600">
                       Bs {(itemDetail.price ?? 0).toFixed(2)}
                     </p>

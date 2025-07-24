@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LayoutGrid, Wallet, LogOut, BookMarked } from "lucide-react";
+import { createClient } from "@/utils/supabase/client";
 
 const NavLink = ({
   href,
@@ -29,13 +32,18 @@ const NavLink = ({
 export default function StaffLayout({
   children,
   userEmail,
-  onLogout,
 }: {
   children: React.ReactNode;
   userEmail: string | undefined;
-  onLogout: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
@@ -75,8 +83,8 @@ export default function StaffLayout({
             {userEmail}
           </div>
           <button
-            onClick={onLogout}
-            className="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-gray-300 hover:bg-red-600 hover:text-white rounded-md"
+            onClick={handleLogout}
+            className="w-full flex items-center px-4 py-3 text-sm font-medium transition-colors text-gray-300 hover:bg-gray-900 hover:text-white rounded-md"
           >
             <LogOut size={20} />
             <span className="ml-3">Cerrar sesión</span>

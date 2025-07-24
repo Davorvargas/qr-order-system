@@ -1,0 +1,20 @@
+---
+description: Multi-printer hardware integration rules for QR Order System.
+alwaysApply: false
+---
+
+# Multi-Printer System Rules
+
+- All printer interactions MUST go through the printer service layer (e.g., `printer_service.py`).
+- Printer assignment logic MUST be stored in configuration or database, NOT hardcoded.
+- Print jobs MUST be queued and processed asynchronously.
+- Printer errors MUST be logged and retried; escalate if all retries fail.
+- Printer status SHOULD be monitored and visible in the admin dashboard.
+- Only authorized users/processes may send print jobs.
+- Adding/changing printers MUST be possible via configuration, not code changes.
+
+**Example:**  
+To add a new kitchen printer, update the printer configuration file or database table, then restart the printer service. No code changes required.
+
+**Rationale:**  
+This ensures reliability, maintainability, and security for all printing operations.

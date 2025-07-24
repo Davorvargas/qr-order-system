@@ -134,7 +134,9 @@ export default function OrderList({
           await new Promise((resolve) => setTimeout(resolve, 500));
           const { data: newOrderDetails } = await supabase
             .from("orders")
-            .select("*, order_items(*, menu_items(name))")
+            .select(
+              "*, notes, table:tables(table_number), order_items(*, notes, menu_items(name))"
+            )
             .eq("id", payload.new.id)
             .single();
           if (newOrderDetails) {
@@ -301,7 +303,7 @@ export default function OrderList({
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-xl font-bold text-gray-800">
-                      Mesa {order.table_id}
+                      Mesa {order.table?.table_number || order.table_id}
                     </p>
                     <p className="text-sm text-gray-500">
                       por {order.customer_name || "Cliente"}
@@ -332,6 +334,11 @@ export default function OrderList({
                         <span>
                           {item.quantity}x{" "}
                           {item.menu_items?.name || "Item borrado"}
+                          {item.notes && (
+                            <span className="block text-xs text-gray-500 ml-2 whitespace-pre-wrap">
+                              📝 {item.notes}
+                            </span>
+                          )}
                         </span>
                       </li>
                     ))}
@@ -350,6 +357,14 @@ export default function OrderList({
                     </button>
                   )}
                 </div>
+
+                {/* Nota global de la orden */}
+                {order.notes && (
+                  <div className="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 text-sm rounded">
+                    <strong>Nota del pedido:</strong>{" "}
+                    <span className="whitespace-pre-wrap">{order.notes}</span>
+                  </div>
+                )}
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
                   <div className="flex justify-between items-center">

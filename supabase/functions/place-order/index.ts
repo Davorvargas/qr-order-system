@@ -23,31 +23,60 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const payload: OrderPayload = await req.json();
+    const { table_id, customer_name, total_price, notes, order_items } = await req.json()
 
-    if (!payload.table_id || !payload.customer_name || !payload.order_items || payload.order_items.length === 0) {
-      throw new Error("Missing required order information.");
-    }
-
-    const supabaseAdmin = createClient(
+    // Create a Supabase client with the Auth context of the user that called the function.
+    // This way your row-level-security policies are applied.
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+    
+    // 1. Obtener el restaurant_id de la mesa
+    const { data: tableData, error: tableError } = await supabaseClient
+      .from('tables')
+      .select('restaurant_id')
+      .eq('id', table_id)
+      .single()
 
-    // --- REFACTORED LOGIC ---
-    // Instead of inserting directly, we now call the database function
-    // which handles the transaction atomically.
-    const { data, error } = await supabaseAdmin.rpc('create_new_order', {
-      payload,
-    });
+    if (tableError) throw tableError
+    const restaurantId = tableData.restaurant_id
 
-    if (error) {
-      console.error('RPC Error:', error);
-      throw error;
-    }
+    // 2. Crear el pedido principal, ahora con el restaurant_id
+    const { data: orderData, error: orderError } = await supabaseClient
+      .from('orders')
+      .insert({
+        table_id: table_id,
+        customer_name: customer_name,
+        total_price: total_price,
+        notes: notes,
+        status: 'pending',
+        restaurant_id: restaurantId, // <-- AÑADIDO
+      })
+      .select('id')
+      .single()
 
-    // The database function returns { "order_id": ... }
-    return new Response(JSON.stringify(data), {
+    if (orderError) throw orderError
+    const orderId = orderData.id
+
+    // Insert order_items
+    const { error: itemsError } = await supabaseClient
+      .from('order_items')
+      .insert(
+        order_items.map(item => ({
+          order_id: orderId,
+          menu_item_id: item.menu_item_id,
+          quantity: item.quantity,
+          price_at_order: item.price_at_order,
+          notes: item.notes ?? null,
+        }))
+      );
+
+    if (itemsError) throw itemsError;
+
+    // Return the order_id
+    return new Response(JSON.stringify({ order_id: orderId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });

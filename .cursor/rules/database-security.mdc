@@ -1,0 +1,17 @@
+---
+alwaysApply: true
+---
+
+# Database Security & Architecture Rules
+
+- All tables with restaurant-specific data (e.g., `menu_items`, `orders`, `tables`, `menu_categories`) MUST have a `restaurant_id` column referencing `public.restaurants`.
+- Row-Level Security (RLS) MUST be enabled on all tables containing sensitive or multi-tenant data.
+- For every table with RLS, explicit `CREATE POLICY` statements MUST be defined for `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.
+- The `is_admin()` function SHOULD be used for admin-level access policies.
+- All schema changes (tables, columns, policies) MUST be made via Supabase migration files, NOT manual dashboard edits.
+
+**Example:**  
+When adding a new table for staff schedules, include a `restaurant_id` column and enable RLS with appropriate policies.
+
+**Rationale:**  
+This ensures data isolation, security, and maintainability as the project grows.

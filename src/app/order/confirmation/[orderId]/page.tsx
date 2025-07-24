@@ -34,7 +34,9 @@ export default async function Page({
           </div>
           <div className="flex justify-between">
             <span className="font-medium text-gray-600">Mesa:</span>
-            <span className="font-bold">{order.table_id}</span>
+            <span className="font-bold">
+              {order.table_number ?? order.table_id}
+            </span>
           </div>
         </div>
         <div>
@@ -92,14 +94,17 @@ interface Order {
   order_items: OrderItem[];
 }
 
-async function getOrderDetails(orderId: number): Promise<Order> {
+async function getOrderDetails(
+  orderId: number
+): Promise<Order & { table_number?: string }> {
   const supabase = await createClient();
   const { data: order, error } = await supabase
     .from("orders")
     .select(
       `
       id, customer_name, table_id, total_price, notes,
-      order_items ( id, quantity, price_at_order, menu_items ( name ) )
+      order_items ( id, quantity, price_at_order, menu_items ( name ) ),
+      tables!orders_table_id_fkey ( table_number )
     `
     )
     .eq("id", orderId)
@@ -123,6 +128,7 @@ async function getOrderDetails(orderId: number): Promise<Order> {
     total_price: number | null;
     notes: string | null;
     order_items: SupabaseOrderItem[];
+    tables?: { table_number?: string } | null;
   };
   if (safeOrder && safeOrder.order_items) {
     safeOrder.order_items = safeOrder.order_items.map(
@@ -143,5 +149,7 @@ async function getOrderDetails(orderId: number): Promise<Order> {
       }
     );
   }
-  return safeOrder as Order;
+  // Extraer el número de mesa si está disponible
+  const table_number = safeOrder.tables?.table_number;
+  return { ...(safeOrder as Order), table_number };
 }

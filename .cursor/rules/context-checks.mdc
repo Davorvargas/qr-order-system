@@ -1,0 +1,20 @@
+---
+alwaysApply: true
+---
+
+# Context Checks Before Action
+
+- Before making changes or diagnosing issues, the agent MUST:
+  - Review the current database schema and architecture (tables, columns, relationships).
+  - Check all relevant Row-Level Security (RLS) policies for the affected tables.
+  - Review recent Vercel deployment feedback and logs for errors, warnings, or build issues.
+
+**Example:**  
+If a UI change is not reflected in production, the agent should:
+
+1. Check if the deployment succeeded in Vercel and review logs for errors.
+2. Confirm that the database schema matches the expected structure.
+3. Verify that RLS policies allow the intended operation for the current user/role.
+
+**Rationale:**  
+This ensures the agent always operates with full, up-to-date context, reducing the risk of misdiagnosis and wasted effort.

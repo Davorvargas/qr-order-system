@@ -68,7 +68,9 @@ export default function StaffDashboardPage() {
 
       const { data: orders, error } = await supabase
         .from("orders")
-        .select("*, order_items(*, menu_items(name, price))") // <-- Fetch price too
+        .select(
+          "*, notes, table:tables(table_number), order_items(*, notes, menu_items(name, price))"
+        )
         .gte("created_at", today.toISOString()) // Filter for orders from today onwards
         .order("created_at", { ascending: false });
 

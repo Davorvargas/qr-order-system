@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+# Frontend Architecture Rules
+
+- Public-facing routes identifying a resource (like a table) MUST use a UUID, e.g., `/menu/[tableId]`.
+- Server Components (no `"use client"`) SHOULD be used for admin/data pages to ensure data freshness and avoid caching issues.
+- Client Components (`"use client"`) SHOULD be used for highly interactive pages (e.g., customer order form).
+
+**Example:**  
+The customer menu page at `/menu/[tableId]` is a Client Component, while the admin menu management page is a Server Component.
+
+**Rationale:**  
+This ensures security, scalability, and a smooth user experience.

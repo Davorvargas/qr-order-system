@@ -6,8 +6,11 @@ import { useState, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import FloatingCart from "./FloatingCart";
 import OrderSummaryModal from "./OrderSummaryModal";
+import MenuItemDetailModal from "./MenuItemDetailModal";
+import { Plus } from "lucide-react"; // Importar el icono Plus
 
 // --- INTERFACES ---
+// (Las interfaces permanecen igual, pero algunas se usarán en el nuevo modal)
 interface Category {
   id: number;
   name: string;
@@ -35,43 +38,8 @@ interface OrderFormProps {
   items: MenuItem[];
   tableId: string;
 }
-// --- END INTERFACES ---
 
-// --- ICONS ---
-const AddIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-3.5 w-3.5"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={2.5}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 4.5v15m7.5-7.5h-15"
-    />
-  </svg>
-);
-const CheckIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-3.5 w-3.5"
-    fill="none"
-    viewBox="0 0 24 24"
-    stroke="currentColor"
-    strokeWidth={3}
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M4.5 12.75l6 6 9-13.5"
-    />
-  </svg>
-);
-// --- END ICONS ---
-
+// --- MAIN COMPONENT ---
 export default function OrderForm({
   categories,
   items,
@@ -82,12 +50,14 @@ export default function OrderForm({
   const supabase = createClient();
   const [orderItems, setOrderItems] = useState<OrderState>({});
   const [customerName, setCustomerName] = useState("");
+  // La nota general ya no es necesaria, se manejará por ítem
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [addedItemId, setAddedItemId] = useState<number | null>(null);
-  // --- END STATE ---
+  const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
+
+  // Nuevo estado para el modal de detalle
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
 
   // --- MEMOS & HELPER FUNCTIONS ---
   const itemsByCategory = useMemo(() => {
@@ -107,19 +77,43 @@ export default function OrderForm({
     }, 0);
   }, [orderItems]);
 
-  const handleAddToOrder = (itemToAdd: MenuItem) => {
+  const handleItemClick = (item: MenuItem) => {
+    setSelectedItem(item);
+  };
+
+  const handleCloseDetailModal = () => {
+    setSelectedItem(null);
+  };
+
+  const handleQuickAdd = (itemToAdd: MenuItem) => {
     setOrderItems((prev) => ({
       ...prev,
       [itemToAdd.id]: {
-        ...prev[itemToAdd.id],
         quantity: (prev[itemToAdd.id]?.quantity || 0) + 1,
         name: itemToAdd.name,
         price: itemToAdd.price,
-        notes: "",
+        notes: prev[itemToAdd.id]?.notes || "", // Preservar notas existentes si se vuelve a añadir
       },
     }));
-    setAddedItemId(itemToAdd.id);
-    setTimeout(() => setAddedItemId(null), 1500); // Reset after 1.5s
+  };
+
+  const handleAddToCartFromModal = (
+    item: MenuItem,
+    quantity: number,
+    notes: string
+  ) => {
+    setOrderItems((prev) => ({
+      ...prev,
+      [item.id]: {
+        quantity: (prev[item.id]?.quantity || 0) + quantity,
+        name: item.name,
+        price: item.price,
+        // Concatenamos las notas si el ítem ya estaba en el carrito
+        notes: prev[item.id]?.notes
+          ? `${prev[item.id].notes}; ${notes}`
+          : notes,
+      },
+    }));
   };
 
   const handleUpdateQuantity = (itemId: number, newQuantity: number) => {
@@ -149,11 +143,12 @@ export default function OrderForm({
       table_id: tableId,
       customer_name: customerName.trim(),
       total_price: totalPrice,
-      notes: notes.trim(), // Include general notes
+      notes, // Usar la nota global real
       order_items: Object.entries(orderItems).map(([itemId, details]) => ({
         menu_item_id: parseInt(itemId, 10),
         quantity: details.quantity,
         price_at_order: details.price,
+        notes: details.notes, // <-- ENVIAR LAS NOTAS POR ÍTEM
       })),
     };
 
@@ -187,65 +182,88 @@ export default function OrderForm({
             <h2 className="text-2xl font-semibold mb-4 tracking-tight text-gray-800">
               {category.name}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5">
-              {(itemsByCategory[category.id] || []).map((item) => {
-                const isAdded = addedItemId === item.id;
-                return (
-                  <div
-                    key={item.id}
-                    className={`bg-white transition-opacity flex gap-4 p-4 border-b ${
-                      !item.is_available ? "opacity-60" : ""
-                    }`}
-                  >
-                    <div className="flex-grow">
-                      <h3 className="text-base font-semibold text-gray-900">
-                        {item.name}
-                      </h3>
-                      <p className="text-gray-600 text-sm my-1">
-                        {item.description}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Bs {(item.price ?? 0).toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex-shrink-0 w-24 h-24 relative">
-                      {item.image_url ? (
+            <div className="flex flex-col">
+              {(itemsByCategory[category.id] || []).map((item) => (
+                <div key={item.id} className="bg-white border-b">
+                  {item.image_url ? (
+                    // --- CON IMAGEN ---
+                    <div
+                      className={`flex gap-4 p-4 ${
+                        !item.is_available ? "opacity-60" : ""
+                      }`}
+                    >
+                      <div
+                        className="flex-grow cursor-pointer"
+                        onClick={() => handleItemClick(item)}
+                      >
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {item.name}
+                        </h3>
+                        <p className="text-gray-600 text-sm my-1 line-clamp-2">
+                          {item.description}
+                        </p>
+                        <p className="text-sm font-bold text-gray-800 mt-2">
+                          Bs {(item.price ?? 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 w-28 h-28 relative">
                         <Image
                           src={item.image_url}
                           alt={item.name}
                           layout="fill"
                           className="object-cover rounded-md"
                         />
-                      ) : (
-                        <div className="w-full h-full bg-gray-200 rounded-md" />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleAddToOrder(item)}
-                        disabled={!item.is_available || isAdded}
-                        className={`absolute top-1 right-1 w-7 h-7 rounded-full text-white flex items-center justify-center shadow-md transition-all duration-200 ease-in-out transform hover:scale-110 ${
-                          isAdded
-                            ? "bg-green-500"
-                            : "bg-black bg-opacity-70 hover:bg-opacity-100"
-                        } disabled:bg-gray-400 disabled:cursor-not-allowed`}
-                      >
-                        {isAdded ? <CheckIcon /> : <AddIcon />}
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  ) : (
+                    // --- SIN IMAGEN ---
+                    <div
+                      className={`flex items-center gap-4 p-4 ${
+                        !item.is_available ? "opacity-60" : ""
+                      }`}
+                    >
+                      <div
+                        className="flex-grow cursor-pointer"
+                        onClick={() => handleItemClick(item)}
+                      >
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {item.name}
+                        </h3>
+                        <p className="text-gray-600 text-sm my-1 line-clamp-2">
+                          {item.description}
+                        </p>
+                        <p className="text-sm font-bold text-gray-800 mt-2">
+                          Bs {(item.price ?? 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleQuickAdd(item);
+                          }}
+                          disabled={!item.is_available}
+                          className="w-10 h-10 rounded-full bg-gray-100 text-black flex items-center justify-center hover:bg-gray-200 disabled:bg-gray-50"
+                        >
+                          <Plus size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </section>
         ))}
       </div>
+      {/* Modals */}
       <FloatingCart
         orderItems={orderItems}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => setIsSummaryModalOpen(true)}
       />
       <OrderSummaryModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isSummaryModalOpen}
+        onClose={() => setIsSummaryModalOpen(false)}
         orderItems={orderItems}
         totalPrice={totalPrice}
         customerName={customerName}
@@ -256,6 +274,12 @@ export default function OrderForm({
         onRemoveItem={handleRemoveItem}
         onSubmit={handlePlaceOrder}
         isLoading={isLoading}
+      />
+      <MenuItemDetailModal
+        isOpen={selectedItem !== null}
+        onClose={handleCloseDetailModal}
+        item={selectedItem}
+        onAddToCart={handleAddToCartFromModal}
       />
     </div>
   );

@@ -76,6 +76,7 @@ def close_printer():
         printer = None
 
 def print_drink_ticket(order, receipt_mode=False):
+    print(f"[DEBUG] Orden recibida en bar: {order}")
     """Imprime una comanda de bar o un recibo para un pedido específico."""
     global printer
     try:
@@ -87,20 +88,30 @@ def print_drink_ticket(order, receipt_mode=False):
 
         p = printer
         
+        # Buscar el número de mesa real
+        table_id = order.get('table_id')
+        table_number = None
+        print(f"[DEBUG] Buscando número de mesa para table_id: {table_id}")
+        if table_id:
+            table_resp = supabase.table('tables').select('table_number').eq('id', table_id).single().execute()
+            print(f"[DEBUG] Resultado de lookup de mesa: {table_resp.data}")
+            if table_resp.data and 'table_number' in table_resp.data:
+                table_number = table_resp.data['table_number']
+        mesa_str = table_number if table_number else 'Mesa desconocida'
+
         # Determinar el título y si mostrar precios
         if receipt_mode:
             title = "RECIBO CLIENTE"
-            show_prices = True
         else:
             title = "COMANDA DE BAR"
-            show_prices = False
+        show_prices = True  # Always show prices for both receipts
 
         p.set(align='center', bold=True, width=2, height=2)
         p.text(title + "\n")
         p.set(align='left', bold=False, width=1, height=1)
         p.text("----------------------------------------\n")
         p.set(bold=True)
-        p.text(f"Pedido #{order['id']} - Mesa: {order.get('table_id', 'N/A')}\n")
+        p.text(f"Pedido #{order['id']} - Mesa: {mesa_str}\n")
         p.text(f"Cliente: {order.get('customer_name', 'N/A')}\n")
         p.set(bold=False)
         p.text(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}\n")
@@ -120,26 +131,35 @@ def print_drink_ticket(order, receipt_mode=False):
                 item_total = quantity * price
                 total_price += item_total
                 price_str = f"Bs {item_total:.2f}"
-                # Ajustar el padding para alinear el precio a la derecha
                 padding = ' ' * (40 - len(line_item) - len(price_str))
                 p.text(line_item + padding + price_str + "\n")
             else:
                 p.text(line_item + "\n")
 
-        # --- Imprimir la nota general del pedido ---
-        order_notes = order.get('notes')
-        if order_notes and not show_prices: # Solo en comanda, no en recibo
-            p.set(align='left', bold=True, width=1, height=1)
-            p.text("----------------------------------------\n")
-            p.text("Notas Generales:\n")
-            p.set(bold=False)
-            p.text(f"{order_notes}\n")
-        # -----------------------------------------
+            # Notas por ítem
+            item_notes = item.get('notes')
+            if item_notes:
+                p.set(width=1, height=1, bold=False, align='left')
+                p.text(f"  >> {item_notes}\n")
+                p.set(width=1, height=1, bold=True)
+
+        # Imprimir nota global si existe
+        global_notes = order.get('notes')
+        if global_notes:
+            p.set(width=1, height=1, bold=True, align='left')
+            p.text("\n--- Nota del pedido ---\n")
+            p.set(width=1, height=1, bold=False, align='left')
+            p.text(f"{global_notes}\n")
 
         if show_prices:
             p.text("----------------------------------------\n")
             p.set(align='right', width=2, height=2, bold=True)
-            p.text(f"TOTAL: Bs {total_price:.2f}\n")
+            # Usar el total_price de la orden si está disponible
+            total = order.get('total_price')
+            if total is not None:
+                p.text(f"TOTAL: Bs {float(total):.2f}\n")
+            else:
+                p.text(f"TOTAL: Bs {total_price:.2f}\n")
 
         p.text("\n\n")
         p.cut()
@@ -151,12 +171,11 @@ def print_drink_ticket(order, receipt_mode=False):
         print(f"[ERROR] Error de USB al imprimir: {e}. Reintentando una vez...")
         close_printer()
         time.sleep(5)
-        # Segundo intento
         try:
             init_printer()
             if printer:
                 print("[INFO] Segundo intento de impresión...")
-                return False # Simplificamos y evitamos recursión compleja
+                return False
             else:
                 return False
         except Exception as e2:
@@ -177,7 +196,7 @@ def process_new_orders():
         try:
             # Ahora busca CUALQUIER orden que no esté impresa para bebidas.
             # Esto incluye nuevas y las que se marcaron para reimprimir.
-            response = supabase.table('orders').select('*, notes, order_items(*, menu_items(name, price))').eq('drink_printed', False).order('id').execute()
+            response = supabase.table('orders').select('*, notes, order_items(*, notes, menu_items(name, price))').eq('drink_printed', False).order('id').execute()
             
             new_orders = response.data
             
