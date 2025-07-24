@@ -22,6 +22,7 @@ export type Order = {
   customer_name: string;
   status: string;
   table_id: string;
+  table?: { table_number?: string };
   total_price: number | null;
   order_items: OrderItem[];
   source: string; // Add source field
