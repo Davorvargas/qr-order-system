@@ -81,6 +81,7 @@ def print_kitchen_ticket(order):
             if table_resp.data and 'table_number' in table_resp.data:
                 table_number = table_resp.data['table_number']
         mesa_str = table_number if table_number else 'Mesa desconocida'
+        print(f"[DEBUG] mesa_str usado en impresión: {mesa_str}")
 
         p.set(align='center', bold=True, width=2, height=2)
         p.text("COCINA\n")
@@ -116,6 +117,7 @@ def print_kitchen_ticket(order):
 
             # Notas por ítem
             item_notes = item.get('notes')
+            print(f"[DEBUG] Notas del ítem: {item_notes}")
             if item_notes:
                 p.set(width=1, height=1, bold=False, align='left')
                 p.text(f"  >> {item_notes}\n")
@@ -123,6 +125,7 @@ def print_kitchen_ticket(order):
 
         # Imprimir nota global si existe
         global_notes = order.get('notes')
+        print(f"[DEBUG] Nota global del pedido: {global_notes}")
         if global_notes:
             p.set(width=1, height=1, bold=True, align='left')
             p.text("\n--- Nota del pedido ---\n")
