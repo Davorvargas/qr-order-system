@@ -108,12 +108,6 @@ export default function TransactionsPage() {
     fetchTransactions();
   }, [supabase, user, activeRange, includeCancelled]); // Add dependency
 
-  // --- LOGOUT HANDLER ---
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
-
   // --- CALCULATE TOTALS ---
   // Memoize completed transactions to derive stats from
   const completedTransactions = useMemo(() => {
@@ -145,7 +139,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <StaffLayout userEmail={user?.email} onLogout={handleLogout}>
+    <StaffLayout userEmail={user?.email}>
       <div className="w-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
