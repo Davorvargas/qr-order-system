@@ -4,7 +4,7 @@ import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import OrderList from "@/components/OrderList";
-import StaffLayout from "@/components/StaffLayout"; // <-- Import the new layout
+
 import { User } from "@supabase/supabase-js";
 import CreateOrderModal from "@/components/CreateOrderModal"; // Import the modal
 import { PlusCircle } from "lucide-react"; // Import an icon
@@ -23,7 +23,7 @@ export type Order = {
   customer_name: string;
   status: string;
   table_id: string;
-  table?: { table_number?: string };
+  table?: { table_number?: string; restaurant_id?: string };
   total_price: number | null;
   order_items: OrderItem[];
   source: string; // Add source field
@@ -72,7 +72,7 @@ export default function StaffDashboardPage() {
       const { data: orders, error } = await supabase
         .from("orders")
         .select(
-          "*, notes, table:tables(table_number), order_items(*, notes, menu_items(name, price))"
+          "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
         )
         .gte("created_at", today.toISOString()) // Filter for orders from today onwards
         .order("created_at", { ascending: false });
@@ -108,26 +108,26 @@ export default function StaffDashboardPage() {
   }
 
   return (
-    <StaffLayout userEmail={user?.email}>
-      <div className="w-full">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Panel de Pedidos</h1>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors"
-          >
-            <PlusCircle size={20} className="mr-2" />
-            Crear una orden
-          </button>
-        </div>
-        <OrderList initialOrders={initialOrders} />
+    <div className="w-full">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Panel de Pedidos</h1>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center justify-center bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg shadow hover:bg-blue-700 transition-colors"
+        >
+          <PlusCircle size={20} className="mr-2" />
+          Crear una orden
+        </button>
       </div>
+
+      <OrderList initialOrders={initialOrders} />
+      
       <CreateOrderModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         menuItems={menuItems}
         categories={categories}
       />
-    </StaffLayout>
+    </div>
   );
 }

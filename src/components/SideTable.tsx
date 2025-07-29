@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  LayoutGrid,
-  Wallet,
   BookMarked,
   Printer,
   BarChart3,
@@ -36,7 +34,7 @@ const NavLink = ({
   </Link>
 );
 
-export default function StaffLayout({
+export default function SideTable({
   children,
   userEmail,
 }: {
@@ -57,41 +55,27 @@ export default function StaffLayout({
       {/* Sidebar */}
       <aside className="w-56 flex-shrink-0 bg-gray-800 text-white flex flex-col">
         <div className="h-16 flex items-center justify-center px-4 bg-gray-900">
-          <h1 className="text-lg font-bold tracking-wider">Staff Panel</h1>
+          <h1 className="text-lg font-bold tracking-wider">Admin Panel</h1>
         </div>
         <nav className="flex-grow mt-5">
           <NavLink
-            href="/staff/dashboard"
-            icon={<LayoutGrid size={20} />}
-            isActive={pathname === "/staff/dashboard"}
-          >
-            Pedidos
-          </NavLink>
-          <NavLink
-            href="/staff/transactions"
-            icon={<Wallet size={20} />}
-            isActive={pathname === "/staff/transactions"}
-          >
-            Transacciones
-          </NavLink>
-          <NavLink
-            href="/staff/menu"
+            href="/admin/menu"
             icon={<BookMarked size={20} />}
-            isActive={pathname.startsWith("/staff/menu")}
+            isActive={pathname.startsWith("/admin/menu")}
           >
             Menú
           </NavLink>
           <NavLink
-            href="/staff/printers"
+            href="/admin/printers"
             icon={<Printer size={20} />}
-            isActive={pathname.startsWith("/staff/printers")}
+            isActive={pathname.startsWith("/admin/printers")}
           >
             Impresoras
           </NavLink>
           <NavLink
-            href="/staff/reports"
+            href="/admin/reports"
             icon={<BarChart3 size={20} />}
-            isActive={pathname.startsWith("/staff/reports")}
+            isActive={pathname.startsWith("/admin/reports")}
           >
             Reportes
           </NavLink>

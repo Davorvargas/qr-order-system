@@ -4,8 +4,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Order } from "@/app/staff/dashboard/page";
+import { Database } from "@/lib/database.types";
 import ConfirmCompletionModal from "./ConfirmCompletionModal";
 import ConfirmCancelModal from "./ConfirmCancelModal";
+import PaymentMethodModal from "./PaymentMethodModal";
 import {
   Clock,
   Printer,
@@ -16,7 +18,10 @@ import {
   AlertCircle,
   CookingPot,
   GlassWater,
+  Receipt,
 } from "lucide-react";
+
+type Printer = Database["public"]["Tables"]["printers"]["Row"];
 
 type OrderWorkflowStatus =
   | "pending"
@@ -56,11 +61,9 @@ const getTimeAgoColor = (dateString: string, now: Date): string => {
 const PrintStatusIndicator = ({
   label,
   printed,
-  icon,
 }: {
   label: string;
   printed: boolean;
-  icon: React.ReactNode;
 }) => (
   <div
     className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full border ${
@@ -85,12 +88,10 @@ const ReprintButton = ({
   label,
   onClick,
   disabled,
-  icon,
 }: {
   label: string;
   onClick: () => void;
   disabled: boolean;
-  icon: React.ReactNode;
 }) => (
   <button
     onClick={onClick}
@@ -98,7 +99,6 @@ const ReprintButton = ({
     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors basis-0"
   >
     <Printer size={16} />
-    {icon}
     {label}
   </button>
 );
@@ -109,15 +109,102 @@ export default function OrderList({
   initialOrders: Order[];
 }) {
   const supabase = createClient();
-  const [orders, setOrders] = useState(initialOrders);
-  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [activeStatus, setActiveStatus] =
     useState<OrderWorkflowStatus>("pending");
   const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // Nuevo estado para impresoras activas
+  const [activePrinters, setActivePrinters] = useState<Printer[]>([]);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+
+  // Obtener restaurant_id y impresoras activas
+  useEffect(() => {
+    const fetchRestaurantAndPrinters = async () => {
+      try {
+        // Obtener restaurant_id de la primera orden
+        if (orders.length > 0) {
+          const { data: tableData } = await supabase
+            .from("tables")
+            .select("restaurant_id")
+            .eq("id", orders[0].table_id)
+            .single();
+
+          if (tableData?.restaurant_id) {
+            setRestaurantId(tableData.restaurant_id);
+
+            // Obtener impresoras activas
+            const { data: printers } = await supabase
+              .from("printers")
+              .select("*")
+              .eq("restaurant_id", tableData.restaurant_id)
+              .eq("is_active", true)
+              .order("type");
+
+            setActivePrinters(printers || []);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching restaurant and printers:", error);
+      }
+    };
+
+    fetchRestaurantAndPrinters();
+  }, [orders, supabase]);
+
+  // Función para obtener el icono según el tipo de impresora
+  const getPrinterIcon = (type: string) => {
+    switch (type) {
+      case "kitchen":
+        return <CookingPot size={16} />;
+      case "drink":
+        return <GlassWater size={16} />;
+      case "receipt":
+        return <Receipt size={16} />;
+      default:
+        return <Printer size={16} />;
+    }
+  };
+
+  // Función para obtener el label según el tipo de impresora
+  const getPrinterLabel = (type: string) => {
+    switch (type) {
+      case "kitchen":
+        return "Cocina";
+      case "drink":
+        return "Bar";
+      case "receipt":
+        return "Recibo";
+      default:
+        return type;
+    }
+  };
+
+  // Función para verificar si un pedido está listo para pasar a "En Proceso"
+  const isOrderReadyForProgress = (order: Order) => {
+    // Si no hay impresoras activas, el pedido está listo
+    if (activePrinters.length === 0) return true;
+
+    // Verificar que todas las impresoras activas hayan impreso
+    return activePrinters.every((printer) => {
+      switch (printer.type) {
+        case "kitchen":
+          return order.kitchen_printed;
+        case "drink":
+          return order.drink_printed;
+        case "receipt":
+          return order.drink_printed; // Los recibos usan el mismo campo que drink
+        default:
+          return true;
+      }
+    });
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -173,16 +260,30 @@ export default function OrderList({
     setUpdatingOrderId(null);
   };
 
-  const handlePrint = async (orderId: number, type: "kitchen" | "drink") => {
+  const handlePrint = async (orderId: number, printerType: string) => {
     setUpdatingOrderId(orderId);
-    const endpoint =
-      type === "kitchen"
-        ? "/api/print-kitchen-order"
-        : "/api/print-drink-order";
-    const successMessage =
-      type === "kitchen"
-        ? "Comanda de cocina enviada"
-        : "Recibo / Comanda de bar enviada";
+
+    // Determinar el endpoint según el tipo de impresora
+    let endpoint: string;
+    let successMessage: string;
+
+    switch (printerType) {
+      case "kitchen":
+        endpoint = "/api/print-kitchen-order";
+        successMessage = "Comanda de cocina enviada";
+        break;
+      case "drink":
+        endpoint = "/api/print-drink-order";
+        successMessage = "Comanda de bar enviada";
+        break;
+      case "receipt":
+        endpoint = "/api/print-drink-order"; // Los recibos usan el mismo endpoint
+        successMessage = "Recibo enviado";
+        break;
+      default:
+        endpoint = "/api/print-kitchen-order";
+        successMessage = "Comanda enviada";
+    }
 
     try {
       const res = await fetch(endpoint, {
@@ -190,17 +291,40 @@ export default function OrderList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
-      const data = await res.json();
+
       if (res.ok) {
+        // Actualizar el estado de impresión en la base de datos
+        const updateData: {
+          kitchen_printed?: boolean;
+          drink_printed?: boolean;
+        } = {};
+        if (printerType === "kitchen") {
+          updateData.kitchen_printed = true;
+        } else if (printerType === "drink" || printerType === "receipt") {
+          updateData.drink_printed = true;
+        }
+
+        await supabase.from("orders").update(updateData).eq("id", orderId);
+
+        // Verificar si el pedido debe pasar a "En Proceso"
+        const order = orders.find((o) => o.id === orderId);
+        if (order && order.status === "pending") {
+          const updatedOrder = { ...order, ...updateData };
+          if (isOrderReadyForProgress(updatedOrder)) {
+            await handleUpdateStatus(orderId, "in_progress");
+          }
+        }
+
         alert(successMessage);
       } else {
-        alert(`Error al imprimir: ${data.error || "Error desconocido"}`);
+        alert("Error al enviar la comanda");
       }
     } catch (error) {
-      alert("Error de red al imprimir");
-      console.error(error);
+      console.error("Error printing order:", error);
+      alert("Error al enviar la comanda");
+    } finally {
+      setUpdatingOrderId(null);
     }
-    setUpdatingOrderId(null);
   };
 
   const toggleCardExpansion = (orderId: number) => {
@@ -213,7 +337,7 @@ export default function OrderList({
 
   const handleOpenConfirmModal = (order: Order) => {
     setSelectedOrder(order);
-    setIsModalOpen(true);
+    setIsPaymentModalOpen(true); // Cambiar a modal de pago
   };
 
   const handleCloseConfirmModal = () => {
@@ -221,10 +345,37 @@ export default function OrderList({
     setSelectedOrder(null);
   };
 
-  const handleConfirmCompletion = async () => {
-    if (!selectedOrder) return;
-    await handleUpdateStatus(selectedOrder.id, "completed");
-    handleCloseConfirmModal();
+  const handleClosePaymentModal = () => {
+    setIsPaymentModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handlePaymentComplete = () => {
+    // Refrescar la lista de pedidos
+    fetchOrders();
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data: ordersData, error } = await supabase
+        .from("orders")
+        .select(
+          "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
+        )
+        .gte("created_at", today.toISOString())
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching orders:", error);
+      } else {
+        setOrders(ordersData as Order[]);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    }
   };
 
   const handleOpenCancelModal = (order: Order) => {
@@ -244,8 +395,19 @@ export default function OrderList({
   };
 
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => order.status === activeStatus);
-  }, [orders, activeStatus]);
+    return orders.filter((order) => {
+      // Filtrar por estado activo
+      if (order.status !== activeStatus) return false;
+
+      // Si el estado es "pending", verificar si el pedido está realmente pendiente
+      // Un pedido está pendiente si no todas las impresoras activas han impreso
+      if (activeStatus === "pending") {
+        return !isOrderReadyForProgress(order);
+      }
+
+      return true;
+    });
+  }, [orders, activeStatus, activePrinters, isOrderReadyForProgress]);
 
   const orderCounts = useMemo(() => {
     const counts: { [key in OrderWorkflowStatus]: number } = {
@@ -255,14 +417,24 @@ export default function OrderList({
       cancelled: 0,
     };
     orders.forEach((order) => {
-      // Usamos el status directamente, ya que ahora es la fuente de verdad.
-      const status = order.status as OrderWorkflowStatus;
-      if (counts[status] !== undefined) {
-        counts[status]++;
+      // Para pedidos "pending", verificar si realmente están pendientes
+      if (order.status === "pending") {
+        if (!isOrderReadyForProgress(order)) {
+          counts.pending++;
+        } else {
+          // Si está listo para progreso, contar como "in_progress"
+          counts.in_progress++;
+        }
+      } else {
+        // Para otros estados, usar el status directamente
+        const status = order.status as OrderWorkflowStatus;
+        if (counts[status] !== undefined) {
+          counts[status]++;
+        }
       }
     });
     return counts;
-  }, [orders]);
+  }, [orders, activePrinters, isOrderReadyForProgress]);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
@@ -315,16 +487,20 @@ export default function OrderList({
                 </div>
 
                 <div className="my-4 flex flex-col gap-2">
-                  <PrintStatusIndicator
-                    label="Cocina"
-                    printed={order.kitchen_printed}
-                    icon={<CookingPot size={16} />}
-                  />
-                  <PrintStatusIndicator
-                    label="Recibo / Bar"
-                    printed={order.drink_printed}
-                    icon={<GlassWater size={16} />}
-                  />
+                  {activePrinters.map((printer) => (
+                    <PrintStatusIndicator
+                      key={printer.id}
+                      label={getPrinterLabel(printer.type)}
+                      printed={
+                        printer.type === "kitchen"
+                          ? order.kitchen_printed
+                          : printer.type === "drink"
+                          ? order.drink_printed
+                          : order.drink_printed // Recibos usan el mismo campo que drink
+                      }
+                      icon={getPrinterIcon(printer.type)}
+                    />
+                  ))}
                 </div>
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
@@ -388,26 +564,26 @@ export default function OrderList({
                   order.status !== "cancelled" && (
                     <div className="mt-5 pt-4 border-t border-gray-100">
                       <div className="flex flex-col gap-3">
-                        <div className="flex gap-3">
-                          <ReprintButton
-                            label="Cocina"
-                            onClick={() => handlePrint(order.id, "kitchen")}
-                            disabled={updatingOrderId === order.id}
-                            icon={<CookingPot size={16} />}
-                          />
-                          <ReprintButton
-                            label="Recibo / Bar"
-                            onClick={() => handlePrint(order.id, "drink")}
-                            disabled={updatingOrderId === order.id}
-                            icon={<GlassWater size={16} />}
-                          />
-                        </div>
+                        {activePrinters.length > 0 && (
+                          <div className="flex gap-3">
+                            {activePrinters.map((printer) => (
+                              <ReprintButton
+                                key={printer.id}
+                                label={getPrinterLabel(printer.type)}
+                                onClick={() =>
+                                  handlePrint(order.id, printer.type)
+                                }
+                                disabled={updatingOrderId === order.id}
+                              />
+                            ))}
+                          </div>
+                        )}
                         <button
                           onClick={() => handleOpenConfirmModal(order)}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
                         >
                           <CheckCircle2 size={16} />
-                          Marcar como Completado
+                          Completar Pedido
                         </button>
                         <button
                           onClick={() => handleOpenCancelModal(order)}
@@ -441,6 +617,16 @@ export default function OrderList({
           order={selectedOrder}
           onClose={handleCloseCancelModal}
           onConfirm={handleConfirmCancellation}
+        />
+      )}
+      {isPaymentModalOpen && selectedOrder && restaurantId && (
+        <PaymentMethodModal
+          isOpen={isPaymentModalOpen}
+          orderId={selectedOrder.id}
+          orderTotal={selectedOrder.total_price || 0}
+          restaurantId={restaurantId}
+          onClose={handleClosePaymentModal}
+          onPaymentComplete={handlePaymentComplete}
         />
       )}
     </div>

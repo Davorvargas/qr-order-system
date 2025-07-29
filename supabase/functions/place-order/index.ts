@@ -14,6 +14,7 @@ interface OrderPayload {
     menu_item_id: number;
     quantity: number;
     price_at_order: number;
+    notes: string | null;
   }[];
 }
 

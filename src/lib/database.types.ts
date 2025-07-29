@@ -205,6 +205,202 @@ export type Database = {
           },
         ]
       }
+      printers: {
+        Row: {
+          created_at: string
+          description: string | null
+          error_message: string | null
+          id: string
+          is_active: boolean
+          last_status_check: string | null
+          location: string | null
+          name: string
+          product_id: number | null
+          restaurant_id: string
+          status: string | null
+          type: string
+          vendor_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_status_check?: string | null
+          location?: string | null
+          name: string
+          product_id?: number | null
+          restaurant_id: string
+          status?: string | null
+          type: string
+          vendor_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_status_check?: string | null
+          location?: string | null
+          name?: string
+          product_id?: number | null
+          restaurant_id?: string
+          status?: string | null
+          type?: string
+          vendor_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "printers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cash_registers: {
+        Row: {
+          id: string
+          restaurant_id: string
+          opened_at: string
+          closed_at: string | null
+          opening_amount: number
+          closing_amount: number | null
+          total_sales: number
+          total_qr: number
+          total_card: number
+          total_cash: number
+          difference: number | null
+          status: string
+          opened_by: string | null
+          closed_by: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          restaurant_id: string
+          opened_at?: string
+          closed_at?: string | null
+          opening_amount?: number
+          closing_amount?: number | null
+          total_sales?: number
+          total_qr?: number
+          total_card?: number
+          total_cash?: number
+          difference?: number | null
+          status?: string
+          opened_by?: string | null
+          closed_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          restaurant_id?: string
+          opened_at?: string
+          closed_at?: string | null
+          opening_amount?: number
+          closing_amount?: number | null
+          total_sales?: number
+          total_qr?: number
+          total_card?: number
+          total_cash?: number
+          difference?: number | null
+          status?: string
+          opened_by?: string | null
+          closed_by?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_registers_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_registers_opened_by_fkey"
+            columns: ["opened_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_registers_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_payments: {
+        Row: {
+          id: string
+          order_id: number
+          cash_register_id: string | null
+          payment_method: string
+          amount: number
+          processed_at: string
+          processed_by: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          order_id: number
+          cash_register_id?: string | null
+          payment_method: string
+          amount: number
+          processed_at?: string
+          processed_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          order_id?: number
+          cash_register_id?: string | null
+          payment_method?: string
+          amount?: number
+          processed_at?: string
+          processed_by?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_cash_register_id_fkey"
+            columns: ["cash_register_id"]
+            isOneToOne: false
+            referencedRelation: "cash_registers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_payments_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

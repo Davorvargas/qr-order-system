@@ -1,10 +1,10 @@
-// src/app/admin/menu/page.tsx
+// src/app/staff/menu/page.tsx
 import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { Database } from "@/lib/database.types";
 import MenuManager from "@/components/MenuManager";
 
-export const dynamic = "force-dynamic"; // <-- FUERZA A LA PÁGINA A SER DINÁMICA
+export const dynamic = "force-dynamic";
 
 export default async function MenuPage() {
   const supabase = createServerComponentClient<Database>({
@@ -25,7 +25,7 @@ export default async function MenuPage() {
 
   const { data: categories, error: categoriesError } = await supabase
     .from("menu_categories")
-    .select("*") // <-- Limpiado para más claridad
+    .select("*")
     .order("display_order");
 
   if (categoriesError) {
@@ -42,20 +42,19 @@ export default async function MenuPage() {
       <div>Error loading menu data. Check the server logs for details.</div>
     );
   } else {
-    // Normalizar is_available para que nunca sea null
     const safeCategories = (categories || []).map((cat) => ({
       ...cat,
       is_available: cat.is_available ?? false,
     }));
 
     content = (
-      <>
+      <div className="w-full">
         <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
         <MenuManager
           initialItems={menuItems || []}
           categories={safeCategories}
         />
-      </>
+      </div>
     );
   }
 

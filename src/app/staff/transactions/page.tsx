@@ -4,7 +4,6 @@
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
-import StaffLayout from "@/components/StaffLayout";
 import { User } from "@supabase/supabase-js";
 import {
   startOfToday,
@@ -139,8 +138,7 @@ export default function TransactionsPage() {
   }
 
   return (
-    <StaffLayout userEmail={user?.email}>
-      <div className="w-full">
+    <div className="w-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold">Transactions</h1>
@@ -288,7 +286,6 @@ export default function TransactionsPage() {
             </tbody>
           </table>
         </div>
-      </div>
-    </StaffLayout>
+    </div>
   );
 }
