@@ -164,7 +164,8 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
   };
 
   const generateQRUrl = (table: QRTable) => {
-    const baseUrl = window.location.origin;
+    // Usar la URL de Vercel para que funcione desde dispositivos móviles
+    const baseUrl = 'https://qr-order-system.vercel.app';
     // Usar el UUID de la mesa, no el número
     return `${baseUrl}/menu/${table.id}`;
   };
