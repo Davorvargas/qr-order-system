@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   LayoutGrid,
   Wallet,
@@ -9,6 +10,10 @@ import {
   Printer,
   BarChart3,
   LogOut,
+  PlusCircle,
+  QrCode,
+  Menu,
+  X,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
@@ -17,14 +22,17 @@ const NavLink = ({
   icon,
   children,
   isActive,
+  onClick,
 }: {
   href: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   isActive?: boolean;
+  onClick?: () => void;
 }) => (
   <Link
     href={href}
+    onClick={onClick}
     className={`flex items-center px-4 py-3 text-sm font-medium transition-colors ${
       isActive
         ? "bg-yellow-600 text-white"
@@ -46,16 +54,37 @@ export default function StaffLayout({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
+      {/* Hamburger Menu Button - Always visible */}
+      <div className={`fixed top-4 z-50 transition-all duration-300 ${
+        isSidebarOpen ? "left-60" : "left-4"
+      }`}>
+        <button
+          onClick={toggleSidebar}
+          className="p-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors shadow-lg"
+        >
+          <Menu size={20} />
+        </button>
+      </div>
+
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 bg-gray-800 text-white flex flex-col">
+      <aside
+        className={`w-56 bg-gray-800 text-white transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? "ml-0" : "-ml-56"
+        } flex flex-col h-screen shadow-lg flex-shrink-0`}
+      >
         <div className="h-16 flex items-center justify-center px-4 bg-gray-900">
           <h1 className="text-lg font-bold tracking-wider">Staff Panel</h1>
         </div>
@@ -64,13 +93,23 @@ export default function StaffLayout({
             href="/staff/dashboard"
             icon={<LayoutGrid size={20} />}
             isActive={pathname === "/staff/dashboard"}
+onClick={() => {}}
           >
             Pedidos
+          </NavLink>
+          <NavLink
+            href="/staff/create-order"
+            icon={<PlusCircle size={20} />}
+            isActive={pathname === "/staff/create-order"}
+onClick={() => {}}
+          >
+            Agregar Pedido
           </NavLink>
           <NavLink
             href="/staff/transactions"
             icon={<Wallet size={20} />}
             isActive={pathname === "/staff/transactions"}
+onClick={() => {}}
           >
             Transacciones
           </NavLink>
@@ -78,6 +117,7 @@ export default function StaffLayout({
             href="/staff/menu"
             icon={<BookMarked size={20} />}
             isActive={pathname.startsWith("/staff/menu")}
+onClick={() => {}}
           >
             Menú
           </NavLink>
@@ -85,6 +125,7 @@ export default function StaffLayout({
             href="/staff/printers"
             icon={<Printer size={20} />}
             isActive={pathname.startsWith("/staff/printers")}
+onClick={() => {}}
           >
             Impresoras
           </NavLink>
@@ -92,8 +133,17 @@ export default function StaffLayout({
             href="/staff/reports"
             icon={<BarChart3 size={20} />}
             isActive={pathname.startsWith("/staff/reports")}
+onClick={() => {}}
           >
             Reportes
+          </NavLink>
+          <NavLink
+            href="/staff/qr-codes"
+            icon={<QrCode size={20} />}
+            isActive={pathname.startsWith("/staff/qr-codes")}
+onClick={() => {}}
+          >
+            Códigos QR
           </NavLink>
         </nav>
         <div className="p-4 border-t border-gray-700">
@@ -114,8 +164,8 @@ export default function StaffLayout({
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        <main className="flex-1 p-8">{children}</main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 p-8 pt-16 transition-all duration-300 overflow-auto">{children}</main>
       </div>
     </div>
   );

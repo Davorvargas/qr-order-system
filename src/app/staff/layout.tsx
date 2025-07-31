@@ -17,22 +17,31 @@ export default function StaffRootLayout({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push("/login");
-        return;
+    // Check initial session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        setUser(session.user)
+      } else {
+        router.push("/login")
       }
-      
-      setUser(user);
-      setLoading(false);
-    };
-    
-    checkUser();
-  }, [supabase, router]);
+      setLoading(false)
+    }
+
+    checkSession()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+      } else {
+        setUser(null)
+        router.push("/login")
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   if (loading) {
     return (

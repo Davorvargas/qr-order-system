@@ -1,62 +1,90 @@
-// src/app/staff/menu/page.tsx
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { Database } from "@/lib/database.types";
-import MenuManager from "@/components/MenuManager";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
+import MenuOrderManager from "@/components/MenuOrderManager";
 
-export default async function MenuPage() {
-  const supabase = createServerComponentClient<Database>({
-    cookies,
-  });
+type Category = {
+  id: number;
+  name: string;
+  is_available: boolean;
+  display_order: number;
+};
 
-  const { data: menuItems, error: itemsError } = await supabase
-    .from("menu_items")
-    .select("*")
-    .order("display_order");
+type MenuItem = {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number | null;
+  category_id: number | null;
+  is_available: boolean;
+  image_url: string | null;
+  display_order: number;
+};
 
-  if (itemsError) {
-    console.error(
-      "Error fetching menu items:",
-      JSON.stringify(itemsError, null, 2)
-    );
-  }
+export default function MenuPage() {
+  const supabase = createClient();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: categories, error: categoriesError } = await supabase
-    .from("menu_categories")
-    .select("*")
-    .order("display_order");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data: menuItemsData, error: itemsError } = await supabase
+          .from("menu_items")
+          .select("*")
+          .order("display_order");
 
-  if (categoriesError) {
-    console.error(
-      "Error fetching categories:",
-      JSON.stringify(categoriesError, null, 2)
-    );
-  }
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("menu_categories")
+          .select("*")
+          .order("display_order");
 
-  let content;
+        if (itemsError || categoriesError) {
+          setError("Error loading menu data");
+          console.error("Error:", itemsError || categoriesError);
+        } else {
+          setMenuItems(menuItemsData || []);
+          setCategories(
+            (categoriesData || []).map((cat) => ({
+              ...cat,
+              is_available: cat.is_available ?? false,
+            }))
+          );
+        }
+      } catch (err) {
+        setError("Error loading menu data");
+        console.error("Error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (itemsError || categoriesError) {
-    content = (
-      <div>Error loading menu data. Check the server logs for details.</div>
-    );
-  } else {
-    const safeCategories = (categories || []).map((cat) => ({
-      ...cat,
-      is_available: cat.is_available ?? false,
-    }));
+    fetchData();
+  }, []);
 
-    content = (
-      <div className="w-full">
-        <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
-        <MenuManager
-          initialItems={menuItems || []}
-          categories={safeCategories}
-        />
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading menu...</p>
       </div>
     );
   }
 
-  return content;
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-red-600">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
+      <MenuOrderManager categories={categories} menuItems={menuItems} />
+    </div>
+  );
 }
