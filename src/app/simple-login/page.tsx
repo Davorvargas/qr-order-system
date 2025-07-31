@@ -95,7 +95,7 @@ export default function SimpleLogin() {
 
         <div className="mt-4 text-center text-sm text-gray-600">
           <p>Credenciales pre-cargadas ↑</p>
-          <p>Solo dale click a "Iniciar Sesión"</p>
+          <p>Solo dale click a &quot;Iniciar Sesión&quot;</p>
         </div>
       </div>
     </div>

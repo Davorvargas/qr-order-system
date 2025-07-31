@@ -3,9 +3,46 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 
+interface Restaurant {
+  id: string;
+  name: string | null;
+}
+
+interface Table {
+  id: string;
+  table_number: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  is_available: boolean;
+}
+
+interface MenuItem {
+  id: number;
+  name: string;
+  price: number | null;
+  is_available: boolean;
+}
+
+interface QRUrl {
+  mesa: string;
+  id: string;
+  url: string;
+}
+
+interface DiagnosticData {
+  restaurant: Restaurant;
+  tables: Table[];
+  categories: Category[];
+  menuItems: MenuItem[];
+  qrUrls: QRUrl[];
+}
+
 export default function TestQRPage() {
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DiagnosticData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,7 +62,7 @@ export default function TestQRPage() {
         }
 
         if (!restaurants || restaurants.length === 0) {
-          setData({ error: "No hay restaurantes configurados" });
+          setData({ error: "No hay restaurantes configurados" } as any);
           return;
         }
 
@@ -175,7 +212,7 @@ export default function TestQRPage() {
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">🪑 Mesas Configuradas</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {data.tables.map((table: any) => (
+            {data.tables.map((table) => (
               <div
                 key={table.id}
                 className="border border-gray-200 rounded-lg p-4"
@@ -198,7 +235,7 @@ export default function TestQRPage() {
             📱 URLs de Códigos QR (Ejemplo)
           </h2>
           <div className="space-y-3">
-            {data.qrUrls.map((qr: any) => (
+            {data.qrUrls.map((qr) => (
               <div
                 key={qr.id}
                 className="border border-gray-200 rounded-lg p-4"
@@ -223,7 +260,7 @@ export default function TestQRPage() {
             <p className="text-gray-600">No hay productos en el menú</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {data.menuItems.slice(0, 6).map((item: any) => (
+              {data.menuItems.slice(0, 6).map((item) => (
                 <div
                   key={item.id}
                   className="border border-gray-200 rounded-lg p-4"

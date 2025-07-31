@@ -1,6 +1,5 @@
 // src/app/staff/qr-codes/page.tsx
 import { createClient } from "@/utils/supabase/server";
-import { Database } from "@/lib/database.types";
 import QRCodeGenerator from "@/components/QRCodeGenerator";
 
 export const dynamic = "force-dynamic";
