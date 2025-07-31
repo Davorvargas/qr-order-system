@@ -299,7 +299,7 @@ export default function CreateOrderModal({
               ? `View Order (${totalItems} items)`
               : "Add items to order"}
           </span>
-          <span>${totalPrice.toFixed(2)}</span>
+          <span>Bs {totalPrice.toFixed(2)}</span>
         </button>
       </div>
     </>
@@ -308,14 +308,14 @@ export default function CreateOrderModal({
   const renderSummary = () => (
     <>
       <div className="p-6">
-        <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+        <h2 className="text-xl font-bold mb-4">Resumen del Pedido</h2>
         <div className="space-y-2 border-b pb-4 mb-4">
           <div className="flex justify-between">
-            <span className="font-medium text-gray-600">Table:</span>
+            <span className="font-medium text-gray-600">Mesa:</span>
             <span className="font-bold">{tableId}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-gray-600">Customer:</span>
+            <span className="font-medium text-gray-600">Cliente:</span>
             <span className="font-bold">{customerName || "N/A"}</span>
           </div>
         </div>
@@ -325,7 +325,7 @@ export default function CreateOrderModal({
               <span className="font-bold">{item.quantity}x</span>
               <span className="flex-grow">{item.name}</span>
               <span className="font-mono">
-                ${(item.price * item.quantity).toFixed(2)}
+                Bs {(item.price * item.quantity).toFixed(2)}
               </span>
             </div>
           ))}
@@ -341,7 +341,7 @@ export default function CreateOrderModal({
           onClick={() => setView("form")}
           className="w-full bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-md hover:bg-gray-300"
         >
-          Back to Menu
+          Volver al Menú
         </button>
         <button
           onClick={handlePlaceOrder}
@@ -350,7 +350,7 @@ export default function CreateOrderModal({
         >
           {isLoading
             ? "Placing Order..."
-            : `Place Order ($${totalPrice.toFixed(2)})`}
+            : `Realizar Pedido (Bs ${totalPrice.toFixed(2)})`}
         </button>
       </div>
     </>

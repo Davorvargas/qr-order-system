@@ -44,7 +44,19 @@ Deno.serve(async (req) => {
     if (tableError) throw tableError
     const restaurantId = tableData.restaurant_id
 
-    // 2. Crear el pedido principal, ahora con el restaurant_id
+    // 2. Verificar si hay impresoras activas en el restaurante
+    const { data: activePrinters, error: printersError } = await supabaseClient
+      .from('printers')
+      .select('id, type, is_active')
+      .eq('restaurant_id', restaurantId)
+      .eq('is_active', true)
+
+    if (printersError) throw printersError
+
+    // Determinar el status inicial basado en las impresoras activas
+    const initialStatus = (activePrinters && activePrinters.length > 0) ? 'pending' : 'in_progress'
+
+    // 3. Crear el pedido principal, ahora con el restaurant_id y status correcto
     const { data: orderData, error: orderError } = await supabaseClient
       .from('orders')
       .insert({
@@ -52,7 +64,7 @@ Deno.serve(async (req) => {
         customer_name: customer_name,
         total_price: total_price,
         notes: notes,
-        status: 'pending',
+        status: initialStatus,
         restaurant_id: restaurantId, // <-- AÑADIDO
       })
       .select('id')

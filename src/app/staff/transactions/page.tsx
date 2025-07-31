@@ -16,6 +16,7 @@ import {
   endOfMonth,
   format,
 } from "date-fns";
+import OrderDetailModal from "@/components/OrderDetailModal";
 
 // --- TYPE DEFINITIONS ---
 type Transaction = {
@@ -42,6 +43,8 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [activeRange, setActiveRange] = useState<DateRangeOption>("This Week");
   const [includeCancelled, setIncludeCancelled] = useState(false); // State for the filter
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   // --- DATA FETCHING & AUTH ---
   useEffect(() => {
@@ -128,11 +131,30 @@ export default function TransactionsPage() {
     "All Time",
   ];
 
+  const dateRangeLabels: Record<DateRangeOption, string> = {
+    "Today": "Hoy",
+    "Yesterday": "Ayer",
+    "This Week": "Esta Semana",
+    "This Month": "Este Mes", 
+    "All Time": "Todo el Tiempo",
+  };
+
+  // --- HANDLER FUNCTIONS ---
+  const handleOrderClick = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedOrderId(null);
+  };
+
   // --- RENDER ---
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Loading user...</p>
+        <p>Cargando usuario...</p>
       </div>
     );
   }
@@ -141,7 +163,12 @@ export default function TransactionsPage() {
     <div className="w-full">
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Transactions</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Transacciones</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Haz click en cualquier transacción para ver los detalles
+            </p>
+          </div>
           {/* Filter for cancelled orders */}
           <div className="flex items-center">
             <input
@@ -155,7 +182,7 @@ export default function TransactionsPage() {
               htmlFor="include-cancelled"
               className="ml-2 block text-sm font-medium text-gray-900"
             >
-              Include Cancelled
+              Incluir Cancelados
             </label>
           </div>
         </div>
@@ -173,7 +200,7 @@ export default function TransactionsPage() {
                     : "bg-transparent text-gray-600 hover:bg-white/50"
                 }`}
               >
-                {range}
+                {dateRangeLabels[range]}
               </button>
             ))}
           </div>
@@ -182,12 +209,12 @@ export default function TransactionsPage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-sm font-medium text-gray-500">Total Sales</h3>
-            <p className="text-3xl font-bold mt-1">${totalSales.toFixed(2)}</p>
+            <h3 className="text-sm font-medium text-gray-500">Ventas Totales</h3>
+            <p className="text-3xl font-bold mt-1">Bs {totalSales.toFixed(2)}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow">
             <h3 className="text-sm font-medium text-gray-500">
-              Total Transactions
+              Total de Transacciones
             </h3>
             <p className="text-3xl font-bold mt-1">
               {completedTransactions.length}
@@ -204,31 +231,31 @@ export default function TransactionsPage() {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Order ID
+                  ID Orden
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Date
+                  Fecha
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Customer
+                  Cliente
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Status
+                  Estado
                 </th>
                 <th
                   scope="col"
                   className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  Amount
+                  Monto
                 </th>
               </tr>
             </thead>
@@ -236,16 +263,19 @@ export default function TransactionsPage() {
               {loading ? (
                 <tr>
                   <td colSpan={5} className="text-center py-10 text-gray-500">
-                    Loading transactions...
+                    Cargando transacciones...
                   </td>
                 </tr>
               ) : transactions.length > 0 ? (
                 transactions.map((t) => (
                   <tr
                     key={t.id}
-                    className={t.status === "cancelled" ? "bg-red-50" : ""}
+                    onClick={() => handleOrderClick(t.id)}
+                    className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+                      t.status === "cancelled" ? "bg-red-50 hover:bg-red-100" : ""
+                    }`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600 hover:text-blue-800">
                       #{t.id}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -256,13 +286,13 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full capitalize ${
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           t.status === "completed"
                             ? "bg-green-100 text-green-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
-                        {t.status}
+                        {t.status === "completed" ? "Completado" : "Cancelado"}
                       </span>
                     </td>
                     <td
@@ -272,20 +302,27 @@ export default function TransactionsPage() {
                           : "text-gray-900"
                       }`}
                     >
-                      ${t.total_price?.toFixed(2)}
+                      Bs {t.total_price?.toFixed(2)}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td colSpan={5} className="text-center py-10 text-gray-500">
-                    No transactions found for the selected period.
+                    No se encontraron transacciones para el período seleccionado.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Order Detail Modal */}
+        <OrderDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={handleCloseDetailModal}
+          orderId={selectedOrderId}
+        />
     </div>
   );
 }

@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(grep:*)",
+      "Bash(npm run build:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx supabase functions logs:*)",
+      "Bash(npx supabase functions:*)",
+      "Bash(rg:*)",
+      "Bash(rm:*)",
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(del \"C:\\Users\\davor\\Documents\\Projects\\Intentos-del-proyecto\\qr-order-system-frontend-gemini\\temp_db_query.js\")",
+      "Bash(supabase status:*)",
+      "Bash(npx supabase:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=https://osvgapxefsqqhltkabku.supabase.co SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zdmdhcHhlZnNxcWhsdGthYmt1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDgwMzEyNSwiZXhwIjoyMDY2Mzc5MTI1fQ.zKLPq_6X9gk1kA9W0l88XduIYtdx-OfqdR9O7uXPmyc node create-test-user.js)",
+      "Bash(fuser:*)",
+      "Bash(npx kill-port:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(mv:*)"
+    ],
+    "deny": []
+  }
+}

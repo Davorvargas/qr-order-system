@@ -77,7 +77,7 @@ export default function ConfirmCompletionModal({
         <div className="flex justify-between items-center mb-6">
           <span className="text-lg font-bold text-gray-800">Total:</span>
           <span className="text-2xl font-bold font-mono">
-            ${order.total_price?.toFixed(2)}
+            Bs {order.total_price?.toFixed(2)}
           </span>
         </div>
 
