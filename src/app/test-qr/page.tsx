@@ -62,7 +62,7 @@ export default function TestQRPage() {
         }
 
         if (!restaurants || restaurants.length === 0) {
-          setData({ error: "No hay restaurantes configurados" } as any);
+          setError("No hay restaurantes configurados");
           return;
         }
 
