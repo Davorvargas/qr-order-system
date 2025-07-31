@@ -61,7 +61,8 @@ export async function middleware(request: NextRequest) {
   if (!user && 
       !request.nextUrl.pathname.startsWith('/login') && 
       !request.nextUrl.pathname.startsWith('/menu') &&
-      !request.nextUrl.pathname.startsWith('/order/confirmation')) {
+      !request.nextUrl.pathname.startsWith('/order/confirmation') &&
+      !request.nextUrl.pathname.startsWith('/admin')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -79,6 +80,6 @@ export const config = {
      * - order/confirmation (order confirmation pages for customers)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|menu|order/confirmation).*)',
+    '/((?!_next/static|_next/image|favicon.ico|menu|order/confirmation|admin).*)',
   ],
 }
