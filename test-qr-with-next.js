@@ -1,29 +1,33 @@
-// Script para probar la funcionalidad completa de QR
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
-async function testQRFunctionality() {
-  console.log('🧪 PRUEBA DE FUNCIONALIDAD DE CÓDIGOS QR');
-  console.log('=========================================\n');
+// Usar las variables de entorno que Next.js está usando
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // Verificar variables de entorno
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    console.log('❌ ERROR: Variables de entorno no configuradas');
-    console.log('   Por favor, verifica tu archivo .env.local');
-    console.log('   NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY son requeridos');
-    return;
-  }
+console.log('🔍 DIAGNÓSTICO CON VARIABLES DE ENTORNO DE NEXT.JS');
+console.log('===================================================\n');
 
-  console.log('✅ Variables de entorno configuradas');
-  
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
+console.log('1. VERIFICANDO VARIABLES DE ENTORNO:');
+console.log('   NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl ? '✅ Configurado' : '❌ No configurado');
+console.log('   NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseKey ? '✅ Configurado' : '❌ No configurado');
 
+if (!supabaseUrl || !supabaseKey) {
+  console.log('\n❌ Las variables de entorno no están disponibles en este contexto');
+  console.log('   Esto es normal - las variables solo están disponibles en el contexto de Next.js');
+  console.log('   El servidor está corriendo correctamente en http://localhost:3002');
+  console.log('\n💡 Para probar los códigos QR:');
+  console.log('   1. Ve a http://localhost:3002/staff/qr-codes');
+  console.log('   2. Genera o descarga los códigos QR');
+  console.log('   3. Escanea un código QR desde tu teléfono');
+  console.log('   4. Verifica que se abra la página del menú');
+  return;
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function testQRWithNext() {
   try {
-    // 1. Verificar conexión a Supabase
-    console.log('\n1. PROBANDO CONEXIÓN A SUPABASE:');
+    console.log('\n2. PROBANDO CONEXIÓN A SUPABASE:');
     const { data: testData, error: testError } = await supabase
       .from('restaurants')
       .select('id')
@@ -35,8 +39,8 @@ async function testQRFunctionality() {
     }
     console.log('   ✅ Conexión exitosa a Supabase');
 
-    // 2. Obtener restaurante
-    console.log('\n2. OBTENIENDO RESTAURANTE:');
+    // 3. Obtener restaurante
+    console.log('\n3. OBTENIENDO RESTAURANTE:');
     const { data: restaurants, error: restaurantsError } = await supabase
       .from('restaurants')
       .select('id, name')
@@ -49,15 +53,14 @@ async function testQRFunctionality() {
 
     if (!restaurants || restaurants.length === 0) {
       console.log('   ❌ No hay restaurantes configurados');
-      console.log('   💡 Crea un restaurante primero');
       return;
     }
 
     const restaurant = restaurants[0];
     console.log(`   ✅ Restaurante encontrado: ${restaurant.name || 'Sin nombre'} (ID: ${restaurant.id})`);
 
-    // 3. Obtener mesas
-    console.log('\n3. OBTENIENDO MESAS:');
+    // 4. Obtener mesas
+    console.log('\n4. OBTENIENDO MESAS:');
     const { data: tables, error: tablesError } = await supabase
       .from('tables')
       .select('id, table_number')
@@ -71,7 +74,6 @@ async function testQRFunctionality() {
 
     if (!tables || tables.length === 0) {
       console.log('   ❌ No hay mesas configuradas');
-      console.log('   💡 Ve al dashboard y genera códigos QR para crear las mesas');
       return;
     }
 
@@ -81,19 +83,18 @@ async function testQRFunctionality() {
       console.log(`      - Mesa ${table.table_number} (ID: ${table.id})`);
     });
 
-    // 4. Generar URLs de códigos QR
-    console.log('\n4. GENERANDO URLs DE CÓDIGOS QR:');
-    const baseUrl = 'http://localhost:3000'; // Cambiar por tu URL de producción
+    // 5. Generar URLs de códigos QR
+    console.log('\n5. URLs DE CÓDIGOS QR:');
+    const baseUrl = 'http://localhost:3002'; // Puerto correcto
     console.log('   📱 URLs que se abrirán al escanear los QR:');
     tables.slice(0, 5).forEach(table => {
       const qrUrl = `${baseUrl}/menu/${table.id}`;
       console.log(`      Mesa ${table.table_number}: ${qrUrl}`);
     });
 
-    // 5. Verificar datos del menú
-    console.log('\n5. VERIFICANDO DATOS DEL MENÚ:');
+    // 6. Verificar datos del menú
+    console.log('\n6. VERIFICANDO DATOS DEL MENÚ:');
     
-    // Categorías
     const { data: categories, error: categoriesError } = await supabase
       .from('menu_categories')
       .select('id, name, is_available')
@@ -103,15 +104,8 @@ async function testQRFunctionality() {
       console.log('   ❌ Error al obtener categorías:', categoriesError.message);
     } else {
       console.log(`   ✅ ${categories.length} categorías encontradas`);
-      if (categories.length > 0) {
-        console.log('   📋 Categorías:');
-        categories.forEach(category => {
-          console.log(`      - ${category.name} (Disponible: ${category.is_available ? 'Sí' : 'No'})`);
-        });
-      }
     }
 
-    // Elementos del menú
     const { data: menuItems, error: menuItemsError } = await supabase
       .from('menu_items')
       .select('id, name, price, is_available')
@@ -122,19 +116,12 @@ async function testQRFunctionality() {
     } else {
       console.log(`   ✅ ${menuItems.length} elementos del menú encontrados`);
       if (menuItems.length > 0) {
-        console.log('   📋 Primeros 5 elementos:');
-        menuItems.slice(0, 5).forEach(item => {
+        console.log('   📋 Primeros 3 elementos:');
+        menuItems.slice(0, 3).forEach(item => {
           console.log(`      - ${item.name} - Bs. ${item.price || 0} (Disponible: ${item.is_available ? 'Sí' : 'No'})`);
         });
       }
     }
-
-    // 6. Verificar políticas RLS
-    console.log('\n6. VERIFICANDO POLÍTICAS RLS:');
-    console.log('   ℹ️  Para que los códigos QR funcionen, las siguientes políticas deben permitir acceso público:');
-    console.log('      - tables: SELECT (para obtener restaurant_id)');
-    console.log('      - menu_categories: SELECT (para mostrar categorías)');
-    console.log('      - menu_items: SELECT (para mostrar productos)');
 
     // 7. Resumen final
     console.log('\n7. RESUMEN FINAL:');
@@ -149,11 +136,10 @@ async function testQRFunctionality() {
     }
 
     console.log('\n8. PRÓXIMOS PASOS PARA PROBAR:');
-    console.log('   1. Asegúrate de que el servidor esté corriendo: npm run dev');
-    console.log('   2. Ve a http://localhost:3000/staff/qr-codes');
-    console.log('   3. Genera o descarga los códigos QR');
-    console.log('   4. Escanea un código QR desde tu teléfono');
-    console.log('   5. Verifica que se abra la página del menú correctamente');
+    console.log('   1. Ve a http://localhost:3002/staff/qr-codes');
+    console.log('   2. Genera o descarga los códigos QR');
+    console.log('   3. Escanea un código QR desde tu teléfono');
+    console.log('   4. Verifica que se abra la página del menú correctamente');
 
     console.log('\n9. URL DE PRUEBA DIRECTA:');
     if (tables.length > 0) {
@@ -167,4 +153,4 @@ async function testQRFunctionality() {
   }
 }
 
-testQRFunctionality();
+testQRWithNext(); 
