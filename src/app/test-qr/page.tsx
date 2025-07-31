@@ -102,7 +102,7 @@ export default function TestQRPage() {
         }
 
         // 5. Generar URLs de ejemplo
-        const baseUrl = 'https://qr-order-system.vercel.app';
+        const baseUrl = "https://qr-order-system.vercel.app";
         const qrUrls =
           tables?.slice(0, 3).map((table) => ({
             mesa: table.table_number,
@@ -222,7 +222,7 @@ export default function TestQRPage() {
                 </div>
                 <div className="text-sm text-gray-600">ID: {table.id}</div>
                 <div className="text-sm text-blue-600 mt-2">
-                  URL: {window.location.origin}/menu/{table.id}
+                  URL: https://qr-order-system.vercel.app/menu/{table.id}
                 </div>
               </div>
             ))}

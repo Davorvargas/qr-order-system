@@ -11,6 +11,15 @@ const nextConfig: NextConfig = {
     // your project has TypeScript errors.
     ignoreBuildErrors: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        // This is your Supabase project hostname
+        hostname: 'osvgapxefsqqhltkabku.supabase.co', 
+      },
+    ],
+  },
 };
 
 export default nextConfig;
