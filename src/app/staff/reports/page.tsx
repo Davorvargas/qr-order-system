@@ -1,63 +1,94 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
-import { Database } from "@/lib/database.types";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import { User } from "@supabase/supabase-js";
 import CashRegisterManager from "@/components/CashRegisterManager";
 
-export const dynamic = "force-dynamic";
+export default function ReportsPage() {
+  const [user, setUser] = useState<User | null>(null);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
-export default async function ReportsPage() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient<Database>({
-    cookies: () => cookieStore,
-  });
+  useEffect(() => {
+    const checkAuthAndFetchData = async () => {
+      try {
+        // Check authentication
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
 
-  // Check authentication first
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+        if (!user) {
+          router.push("/login");
+          return;
+        }
 
-  if (!user) {
-    redirect("/login");
-  }
+        setUser(user);
 
-  // Get restaurant ID from current user's profile
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('restaurant_id')
-    .eq('id', user.id)
-    .single();
+        // Get restaurant ID from user's profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('restaurant_id')
+          .eq('id', user.id)
+          .single();
 
-  if (!profile?.restaurant_id) {
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          setError("Error al cargar el perfil del usuario");
+          return;
+        }
+
+        if (!profile?.restaurant_id) {
+          setError("Tu perfil no está asociado a ningún restaurante");
+          return;
+        }
+
+        setRestaurantId(profile.restaurant_id);
+      } catch (err) {
+        console.error("Error in auth check:", err);
+        setError("Error al verificar la autenticación");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuthAndFetchData();
+  }, [supabase, router]);
+
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          No se encontró un restaurante
-        </h2>
-        <p className="text-gray-600 mb-4">
-          Tu perfil no está asociado a ningún restaurante.
-        </p>
-        <p className="text-sm text-gray-500">
-          Contacta al administrador del sistema para configurar tu perfil.
-        </p>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4">Cargando reportes...</p>
+        </div>
       </div>
     );
   }
 
-  const restaurantId = profile.restaurant_id;
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Redirigiendo al login...</p>
+      </div>
+    );
+  }
 
-  if (!restaurantId) {
+  if (error || !restaurantId) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          No se encontró un restaurante
+          Error al cargar los reportes
         </h2>
         <p className="text-gray-600 mb-4">
-          Para usar el sistema de reportes, primero necesitas crear un
-          restaurante.
+          {error || "No se pudo obtener la información del restaurante"}
         </p>
         <p className="text-sm text-gray-500">
-          Contacta al administrador del sistema para configurar tu restaurante.
+          Contacta al administrador del sistema para configurar tu perfil.
         </p>
       </div>
     );
