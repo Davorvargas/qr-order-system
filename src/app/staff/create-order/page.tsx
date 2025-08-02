@@ -29,16 +29,29 @@ export default async function CreateOrderPage() {
     redirect("/login");
   }
 
-  // Obtener categorías y productos
+  // Obtener restaurant_id del usuario
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('restaurant_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.restaurant_id) {
+    redirect("/login");
+  }
+
+  // Obtener categorías y productos filtrados por restaurante
   const [categoriesResult, itemsResult] = await Promise.all([
     supabase
       .from("menu_categories")
       .select("*")
+      .eq("restaurant_id", profile.restaurant_id)
       .eq("is_available", true)
       .order("display_order"),
     supabase
       .from("menu_items")
       .select("*")
+      .eq("restaurant_id", profile.restaurant_id)
       .eq("is_available", true)
       .order("display_order"),
   ]);

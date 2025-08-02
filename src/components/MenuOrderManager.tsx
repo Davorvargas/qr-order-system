@@ -133,6 +133,24 @@ export default function MenuOrderManager({ categories, menuItems }: MenuOrderMan
   const saveOrder = async () => {
     setSaving(true);
     try {
+      // Get current user's restaurant_id for security
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert("Error: Usuario no autenticado");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.restaurant_id) {
+        alert("Error: No se pudo obtener el restaurante del usuario");
+        return;
+      }
+
       // Update category display_order
       const categoryUpdates = orderedCategories.map((category, index) => ({
         id: category.id,
@@ -143,7 +161,8 @@ export default function MenuOrderManager({ categories, menuItems }: MenuOrderMan
         await supabase
           .from("menu_categories")
           .update({ display_order: update.display_order })
-          .eq("id", update.id);
+          .eq("id", update.id)
+          .eq("restaurant_id", profile.restaurant_id);
       }
 
       // Update menu item display_order
@@ -152,7 +171,8 @@ export default function MenuOrderManager({ categories, menuItems }: MenuOrderMan
           await supabase
             .from("menu_items")
             .update({ display_order: i + 1 })
-            .eq("id", items[i].id);
+            .eq("id", items[i].id)
+            .eq("restaurant_id", profile.restaurant_id);
         }
       }
 

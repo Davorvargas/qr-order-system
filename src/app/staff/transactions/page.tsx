@@ -67,6 +67,18 @@ export default function TransactionsPage() {
     const fetchTransactions = async () => {
       setLoading(true);
 
+      // Get current user's restaurant_id
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.restaurant_id) {
+        setLoading(false);
+        return;
+      }
+
       // Determine which statuses to fetch based on the filter
       const statusesToFetch = includeCancelled
         ? ["completed", "cancelled"]
@@ -75,6 +87,7 @@ export default function TransactionsPage() {
       let query = supabase
         .from("orders")
         .select("id, created_at, customer_name, total_price, status") // Select status
+        .eq('restaurant_id', profile.restaurant_id) // Filter by restaurant
         .in("status", statusesToFetch) // Use 'in' filter
         .order("created_at", { ascending: false });
 

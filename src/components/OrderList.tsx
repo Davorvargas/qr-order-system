@@ -130,27 +130,28 @@ export default function OrderList({
   useEffect(() => {
     const fetchRestaurantAndPrinters = async () => {
       try {
-        // Obtener restaurant_id de la primera orden
-        if (orders.length > 0) {
-          const { data: tableData } = await supabase
-            .from("tables")
-            .select("restaurant_id")
-            .eq("id", orders[0].table_id)
-            .single();
+        // Get restaurant_id from current user's profile instead of orders
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-          if (tableData?.restaurant_id) {
-            setRestaurantId(tableData.restaurant_id);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('restaurant_id')
+          .eq('id', user.id)
+          .single();
 
-            // Obtener impresoras activas
-            const { data: printers } = await supabase
-              .from("printers")
-              .select("*")
-              .eq("restaurant_id", tableData.restaurant_id)
-              .eq("is_active", true)
-              .order("type");
+        if (profile?.restaurant_id) {
+          setRestaurantId(profile.restaurant_id);
 
-            setActivePrinters(printers || []);
-          }
+          // Obtener impresoras activas
+          const { data: printers } = await supabase
+            .from("printers")
+            .select("*")
+            .eq("restaurant_id", profile.restaurant_id)
+            .eq("is_active", true)
+            .order("type");
+
+          setActivePrinters(printers || []);
         }
       } catch (error) {
         console.error("Error fetching restaurant and printers:", error);
@@ -158,7 +159,7 @@ export default function OrderList({
     };
 
     fetchRestaurantAndPrinters();
-  }, [orders, supabase]);
+  }, [supabase]);
 
   // Función para obtener el icono según el tipo de impresora
   const getPrinterIcon = (type: string) => {
@@ -221,12 +222,26 @@ export default function OrderList({
         { event: "INSERT", schema: "public", table: "orders" },
         async (payload) => {
           await new Promise((resolve) => setTimeout(resolve, 500));
+          
+          // Get current user's restaurant_id to filter real-time updates
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('restaurant_id')
+            .eq('id', user.id)
+            .single();
+
+          if (!profile?.restaurant_id) return;
+
           const { data: newOrderDetails } = await supabase
             .from("orders")
             .select(
               "*, notes, table:tables(table_number), order_items(*, notes, menu_items(name))"
             )
             .eq("id", payload.new.id)
+            .eq('restaurant_id', profile.restaurant_id)
             .single();
           if (newOrderDetails) {
             setOrders((current) => [newOrderDetails as Order, ...current]);
@@ -362,11 +377,24 @@ export default function OrderList({
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      // Get current user and their restaurant_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.restaurant_id) return;
+
       const { data: ordersData, error } = await supabase
         .from("orders")
         .select(
           "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
         )
+        .eq('restaurant_id', profile.restaurant_id)
         .gte("created_at", today.toISOString())
         .order("created_at", { ascending: false });
 

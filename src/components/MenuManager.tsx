@@ -1,7 +1,7 @@
 // src/components/MenuManager.tsx
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
 import { ChevronDown, PlusCircle, Settings, Trash2 } from "lucide-react";
@@ -39,6 +39,27 @@ export default function MenuManager({
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [restaurantId, setRestaurantId] = useState<string | null>(null);
+
+  // Get current user's restaurant_id
+  useEffect(() => {
+    const fetchRestaurantId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.restaurant_id) {
+        setRestaurantId(profile.restaurant_id);
+      }
+    };
+
+    fetchRestaurantId();
+  }, [supabase]);
 
   // Group items by category for easy rendering
   const itemsByCategory = useMemo(() => {
@@ -53,12 +74,18 @@ export default function MenuManager({
   }, [menuItems]);
 
   const handleToggleAvailability = async (item: MenuItem) => {
+    if (!restaurantId) {
+      alert("Error: No se pudo verificar el restaurante");
+      return;
+    }
+
     setUpdatingId(item.id);
     const newStatus = !item.is_available;
     const { error } = await supabase
       .from("menu_items")
       .update({ is_available: newStatus })
-      .eq("id", item.id);
+      .eq("id", item.id)
+      .eq("restaurant_id", restaurantId);
     if (error) {
       alert(`Error: ${error.message}`);
       // Revert optimistic update on error if needed
@@ -73,11 +100,17 @@ export default function MenuManager({
   };
 
   const handleToggleCategoryAvailability = async (category: Category) => {
+    if (!restaurantId) {
+      alert("Error: No se pudo verificar el restaurante");
+      return;
+    }
+    
     const newStatus = !category.is_available;
     const { error } = await supabase
       .from("menu_categories")
       .update({ is_available: newStatus })
-      .eq("id", category.id);
+      .eq("id", category.id)
+      .eq("restaurant_id", restaurantId);
 
     if (error) {
       alert(`Error: ${error.message}`);
@@ -91,12 +124,17 @@ export default function MenuManager({
   };
 
   const handleAddCategory = async () => {
+    if (!restaurantId) {
+      alert("Error: No se pudo verificar el restaurante");
+      return;
+    }
+
     const name = prompt("Ingrese el nombre de la nueva categoría:");
     if (!name) return;
 
     const { data, error } = await supabase
       .from("menu_categories")
-      .insert({ name })
+      .insert({ name, restaurant_id: restaurantId })
       .select()
       .single();
 
@@ -109,6 +147,11 @@ export default function MenuManager({
   };
 
   const handleDeleteCategory = async (category: Category) => {
+    if (!restaurantId) {
+      alert("Error: No se pudo verificar el restaurante");
+      return;
+    }
+
     // Safety check: only allow deleting empty categories
     const itemsInGategory = itemsByCategory[category.id] || [];
     if (itemsInGategory.length > 0) {
@@ -129,7 +172,8 @@ export default function MenuManager({
     const { error } = await supabase
       .from("menu_categories")
       .delete()
-      .eq("id", category.id);
+      .eq("id", category.id)
+      .eq("restaurant_id", restaurantId);
 
     if (error) {
       alert(`Error: ${error.message}`);
@@ -142,6 +186,11 @@ export default function MenuManager({
   };
 
   const handleDeleteItem = async (itemId: number) => {
+    if (!restaurantId) {
+      alert("Error: No se pudo verificar el restaurante");
+      return;
+    }
+
     if (
       !window.confirm("¿Está seguro de que desea eliminar este plato del menú?")
     ) {
@@ -151,7 +200,8 @@ export default function MenuManager({
     const { error } = await supabase
       .from("menu_items")
       .delete()
-      .eq("id", itemId);
+      .eq("id", itemId)
+      .eq("restaurant_id", restaurantId);
 
     if (error) {
       alert(`Error: ${error.message}`);

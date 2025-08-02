@@ -73,6 +73,18 @@ export default function OrderDetailModal({
 
     setLoading(true);
     try {
+      // Get current user's restaurant_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.restaurant_id) return;
+
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -93,6 +105,7 @@ export default function OrderDetailModal({
           )
         `)
         .eq("id", orderId)
+        .eq('restaurant_id', profile.restaurant_id)
         .single();
 
       if (error) {
@@ -104,6 +117,7 @@ export default function OrderDetailModal({
       const { data: cashRegisterData } = await supabase
         .from("cash_registers")
         .select("id, opened_at, status, opened_by")
+        .eq("restaurant_id", profile.restaurant_id)
         .lte("opened_at", data.created_at)
         .or(`closed_at.is.null,closed_at.gte.${data.created_at}`)
         .order("opened_at", { ascending: false })
