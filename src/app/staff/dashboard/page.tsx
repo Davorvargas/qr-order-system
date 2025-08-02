@@ -37,11 +37,32 @@ export default function StaffDashboardPage() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
+      // Obtener el restaurant_id del usuario actual
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      // Obtener el restaurant_id del perfil del usuario
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('restaurant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.restaurant_id) {
+        setLoading(false);
+        return;
+      }
+
+      // Filtrar órdenes por restaurant_id
       const { data: orders, error } = await supabase
         .from("orders")
         .select(
           "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
         )
+        .eq('restaurant_id', profile.restaurant_id)
         .gte("created_at", today.toISOString())
         .order("created_at", { ascending: false });
 

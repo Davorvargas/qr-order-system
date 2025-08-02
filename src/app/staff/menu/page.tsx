@@ -35,14 +35,36 @@ export default function MenuPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        // Obtener el restaurant_id del usuario actual
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // Obtener el restaurant_id del perfil del usuario
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('restaurant_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile?.restaurant_id) {
+          setLoading(false);
+          return;
+        }
+
+        // Filtrar por restaurant_id
         const { data: menuItemsData, error: itemsError } = await supabase
           .from("menu_items")
           .select("*")
+          .eq('restaurant_id', profile.restaurant_id)
           .order("display_order");
 
         const { data: categoriesData, error: categoriesError } = await supabase
           .from("menu_categories")
           .select("*")
+          .eq('restaurant_id', profile.restaurant_id)
           .order("display_order");
 
         if (itemsError || categoriesError) {

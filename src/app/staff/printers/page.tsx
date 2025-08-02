@@ -12,33 +12,18 @@ export default async function PrintersPage() {
     cookies: () => cookieStore,
   });
 
-  // Get the current user's restaurant_id
-  // First try to get from tables, then from restaurants directly
+  // Get the current user's restaurant_id from profile
   let restaurantId: string | null = null;
 
-  // Try to get restaurant_id from tables first
-  const { data: tables } = await supabase
-    .from("tables")
-    .select("restaurant_id")
-    .limit(1);
-
-  if (tables && tables.length > 0) {
-    restaurantId = tables[0].restaurant_id;
-  } else {
-    // If no tables, get the first restaurant
-    const { data: restaurants, error: restaurantsError } = await supabase
-      .from("restaurants")
-      .select("id")
-      .limit(1);
-
-    if (restaurantsError) {
-      console.error("Error fetching restaurants:", restaurantsError);
-      return <div>Error loading restaurant data.</div>;
-    }
-
-    if (restaurants && restaurants.length > 0) {
-      restaurantId = restaurants[0].id;
-    }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('restaurant_id')
+      .eq('id', user.id)
+      .single();
+    
+    restaurantId = profile?.restaurant_id || null;
   }
 
   let content;

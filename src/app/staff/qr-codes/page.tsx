@@ -7,30 +7,18 @@ export const dynamic = "force-dynamic";
 export default async function QRCodesPage() {
   const supabase = await createClient();
 
-  // Get restaurant_id
+  // Get restaurant_id from user profile
   let restaurantId: string | null = null;
 
-  const { data: tables } = await supabase
-    .from("tables")
-    .select("restaurant_id")
-    .limit(1);
-
-  if (tables && tables.length > 0) {
-    restaurantId = tables[0].restaurant_id;
-  } else {
-    const { data: restaurants, error: restaurantsError } = await supabase
-      .from("restaurants")
-      .select("id")
-      .limit(1);
-
-    if (restaurantsError) {
-      console.error("Error fetching restaurants:", restaurantsError);
-      return <div>Error loading restaurant data.</div>;
-    }
-
-    if (restaurants && restaurants.length > 0) {
-      restaurantId = restaurants[0].id;
-    }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('restaurant_id')
+      .eq('id', user.id)
+      .single();
+    
+    restaurantId = profile?.restaurant_id || null;
   }
 
   if (!restaurantId) {
