@@ -5,6 +5,8 @@ import CreateOrder from "@/components/CreateOrder";
 interface Category {
   id: number;
   name: string;
+  is_available: boolean;
+  display_order: number;
 }
 
 interface MenuItem {
@@ -45,7 +47,8 @@ export default async function CreateOrderPage() {
     .from("menu_items")
     .select("*")
     .eq("restaurant_id", profile.restaurant_id)
-    .eq("is_available", true)
+    // Mostrar todos los items para el staff, incluyendo desactivados  
+    .order("category_id")
     .order("display_order");
 
   if (itemsError) {
@@ -53,24 +56,18 @@ export default async function CreateOrderPage() {
     return <div>Error loading menu items</div>;
   }
 
-  // Generar categorías únicas basadas en los category_id de los items
-  const categoryIds = [...new Set(items?.map(item => item.category_id).filter(id => id))];
-  
-  // Mapeo de category_id a nombres descriptivos
-  const categoryNames: Record<number, string> = {
-    41: 'Cafés en Máquina',
-    42: 'Especialidad Métodos', 
-    43: 'Bebidas Calientes',
-    44: 'Bebidas Frías',
-    45: 'Jugos',
-    46: 'Pastelería',
-    47: 'Nuestros Especiales'
-  };
-  
-  const categories: Category[] = categoryIds.map(id => ({
-    id: id as number,
-    name: categoryNames[id as number] || `Categoría ${id}`
-  }));
+  // Obtener categorías reales de la base de datos
+  const { data: categories, error: categoriesError } = await supabase
+    .from("menu_categories")
+    .select("*")
+    .eq("restaurant_id", profile.restaurant_id)
+    .eq("is_available", true) // Solo categorías disponibles
+    .order("display_order");
+
+  if (categoriesError) {
+    console.error("Error fetching categories:", categoriesError);
+    return <div>Error loading categories</div>;
+  }
 
   console.log('CreateOrder Debug:', {
     restaurant_id: profile.restaurant_id,

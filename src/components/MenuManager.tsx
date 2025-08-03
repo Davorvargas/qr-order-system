@@ -131,7 +131,7 @@ export default function MenuManager({
     
     const newStatus = !category.is_available;
     const { error } = await supabase
-      .from("categories")
+      .from("menu_categories")
       .update({ is_available: newStatus })
       .eq("id", category.id)
       .eq("restaurant_id", restaurantId);
@@ -157,7 +157,7 @@ export default function MenuManager({
     if (!name) return;
 
     const { data, error } = await supabase
-      .from("categories")
+      .from("menu_categories")
       .insert({ name, restaurant_id: restaurantId })
       .select()
       .single();
@@ -194,7 +194,7 @@ export default function MenuManager({
     }
 
     const { error } = await supabase
-      .from("categories")
+      .from("menu_categories")
       .delete()
       .eq("id", category.id)
       .eq("restaurant_id", restaurantId);

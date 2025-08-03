@@ -59,35 +59,22 @@ export default function MenuPage() {
           .from("menu_items")
           .select("*")
           .eq('restaurant_id', profile.restaurant_id)
+          .order("category_id")
           .order("display_order");
 
-        // Generar categorías basadas en los category_id de los items
-        const categoryIds = [...new Set(menuItemsData?.map(item => item.category_id).filter(id => id))];
-        
-        const categoryNames: Record<number, string> = {
-          41: 'Cafés en Máquina',
-          42: 'Especialidad Métodos', 
-          43: 'Bebidas Calientes',
-          44: 'Bebidas Frías',
-          45: 'Jugos',
-          46: 'Pastelería',
-          47: 'Nuestros Especiales'
-        };
-        
-        const generatedCategories = categoryIds.map(id => ({
-          id: id as number,
-          name: categoryNames[id as number] || `Categoría ${id}`,
-          is_available: true,
-          display_order: id as number,
-          restaurant_id: profile.restaurant_id
-        }));
+        // Obtener categorías reales de la base de datos
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("menu_categories")
+          .select("*")
+          .eq('restaurant_id', profile.restaurant_id)
+          .order("display_order");
 
-        if (itemsError) {
+        if (itemsError || categoriesError) {
           setError("Error loading menu data");
-          console.error("Error:", itemsError);
+          console.error("Error:", itemsError || categoriesError);
         } else {
           setMenuItems(menuItemsData || []);
-          setCategories(generatedCategories);
+          setCategories(categoriesData || []);
         }
       } catch (err) {
         setError("Error loading menu data");

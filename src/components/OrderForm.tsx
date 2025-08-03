@@ -256,20 +256,25 @@ export default function OrderForm({
             </h2>
             <div className="flex flex-col">
               {(itemsByCategory[category.id] || []).map((item) => (
-                <div key={item.id} className="bg-white border-b">
+                <div key={item.id} className="bg-white border-b relative">
                   {item.image_url ? (
                     // --- CON IMAGEN ---
                     <div
                       className={`flex gap-4 p-4 ${
-                        !item.is_available ? "opacity-60" : ""
+                        !item.is_available ? "opacity-40 bg-gray-50" : ""
                       }`}
                     >
                       <div
-                        className="flex-grow cursor-pointer"
-                        onClick={() => handleItemClick(item)}
+                        className={`flex-grow ${item.is_available ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                        onClick={() => item.is_available && handleItemClick(item)}
                       >
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
+                          {!item.is_available && (
+                            <span className="ml-2 px-2 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-full">
+                              No disponible
+                            </span>
+                          )}
                         </h3>
                         <p className="text-gray-600 text-sm my-1 line-clamp-2">
                           {item.description}
@@ -277,6 +282,11 @@ export default function OrderForm({
                         <p className="text-sm font-bold text-gray-800 mt-2">
                           Bs {(item.price ?? 0).toFixed(2)}
                         </p>
+                        {!item.is_available && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Temporalmente agotado
+                          </p>
+                        )}
                       </div>
                       <div className="flex-shrink-0 w-28 h-28 relative">
                         <Image
@@ -291,15 +301,20 @@ export default function OrderForm({
                     // --- SIN IMAGEN ---
                     <div
                       className={`flex items-center gap-4 p-4 ${
-                        !item.is_available ? "opacity-60" : ""
+                        !item.is_available ? "opacity-40 bg-gray-50" : ""
                       }`}
                     >
                       <div
-                        className="flex-grow cursor-pointer"
-                        onClick={() => handleItemClick(item)}
+                        className={`flex-grow ${item.is_available ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                        onClick={() => item.is_available && handleItemClick(item)}
                       >
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
+                          {!item.is_available && (
+                            <span className="ml-2 px-2 py-1 text-xs font-medium text-red-600 bg-red-100 rounded-full">
+                              No disponible
+                            </span>
+                          )}
                         </h3>
                         <p className="text-gray-600 text-sm my-1 line-clamp-2">
                           {item.description}
@@ -307,6 +322,11 @@ export default function OrderForm({
                         <p className="text-sm font-bold text-gray-800 mt-2">
                           Bs {(item.price ?? 0).toFixed(2)}
                         </p>
+                        {!item.is_available && (
+                          <p className="text-xs text-red-500 mt-1">
+                            Temporalmente agotado
+                          </p>
+                        )}
                       </div>
                       <div className="flex-shrink-0">
                         <button
