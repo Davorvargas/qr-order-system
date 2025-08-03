@@ -130,7 +130,8 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       setShowGenerateModal(false);
       alert(`✅ ${count} mesas creadas exitosamente`);
     } catch (error) {
-      alert(`❌ Error creando mesas: ${error.message}`);
+      console.error('Error creating tables:', error);
+      alert(`❌ Error creando mesas: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -154,7 +155,8 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       setAddMorePrefix("Mesa");
       alert(`✅ ${count} mesas adicionales creadas exitosamente`);
     } catch (error) {
-      alert(`❌ Error creando mesas adicionales: ${error.message}`);
+      console.error('Error creating additional tables:', error);
+      alert(`❌ Error creando mesas adicionales: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     }
   };
 
@@ -406,7 +408,10 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   <span>Agregar Más</span>
                 </button>
                 <button
-                  onClick={downloadAllQRCodes}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    await downloadAllQRCodes();
+                  }}
                   className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                   title={`Descargar ${tables.length} códigos QR completos`}
                 >
@@ -469,14 +474,20 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                         <span>Vista Previa</span>
                       </button>
                       <button
-                        onClick={() => downloadQRCode(table)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadQRCode(table);
+                        }}
                         className="flex items-center justify-center space-x-2 text-green-600 hover:bg-green-50 px-3 py-2 rounded transition-colors"
                       >
                         <Download size={16} />
                         <span>Descargar</span>
                       </button>
                       <button
-                        onClick={() => printQRCode(table)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          printQRCode(table);
+                        }}
                         className="flex items-center justify-center space-x-2 text-gray-600 hover:bg-gray-50 px-3 py-2 rounded transition-colors"
                       >
                         <Printer size={16} />
@@ -564,13 +575,19 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
               
               <div className="flex space-x-3">
                 <button
-                  onClick={() => downloadQRCode(selectedTable)}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    await downloadQRCode(selectedTable);
+                  }}
                   className="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >
                   Descargar
                 </button>
                 <button
-                  onClick={() => printQRCode(selectedTable)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    printQRCode(selectedTable);
+                  }}
                   className="flex-1 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                 >
                   Imprimir
@@ -662,7 +679,10 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 Cancelar
               </button>
               <button
-                onClick={generateTables}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await generateTables();
+                }}
                 disabled={creating}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -742,7 +762,10 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 Cancelar
               </button>
               <button
-                onClick={addMoreTables}
+                onClick={async (e) => {
+                  e.preventDefault();
+                  await addMoreTables();
+                }}
                 disabled={creating}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
