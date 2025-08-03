@@ -7,6 +7,7 @@ import ProductGrid from "./ProductGrid";
 import OrderPanel from "./OrderPanel";
 import MenuItemDetailModal from "../MenuItemDetailModal";
 import CustomProductModal from "../CustomProductModal";
+import ProductModalWithModifiers from "../ProductModalWithModifiers";
 import type { MenuItem } from "@/types/MenuItem";
 
 interface Category {
@@ -16,7 +17,7 @@ interface Category {
 
 interface Table {
   id: string;
-  table_number: number;
+  table_number: string;
 }
 
 interface OrderItemDetail {
@@ -25,6 +26,9 @@ interface OrderItemDetail {
   price: number | null;
   notes: string;
   isCustom?: boolean;
+  originalItemId?: number;
+  selectedModifiers?: Record<string, string[]>;
+  modifierDetails?: string;
 }
 
 interface OrderState {
@@ -53,8 +57,12 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Modal de detalle de producto
+  // Modal de detalle de producto (legacy)
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  
+  // Modal de producto con modificadores (nuevo)
+  const [selectedItemWithModifiers, setSelectedItemWithModifiers] = useState<MenuItem | null>(null);
+  const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
   
   // Modal de producto personalizado
   const [isCustomProductModalOpen, setIsCustomProductModalOpen] = useState(false);
@@ -67,19 +75,54 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   // Fetch available tables
   useEffect(() => {
     const fetchTables = async () => {
-      const { data: tables, error } = await supabase
-        .from('tables')
-        .select('id, table_number')
-        .order('table_number');
-      
-      if (error) {
-        console.error('Error fetching tables:', error);
-      } else {
-        setAvailableTables(tables || []);
-        // Set first table as default
-        if (tables && tables.length > 0) {
-          setSelectedTableId(tables[0].id);
+      try {
+        // Get current user's restaurant_id first
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          console.error('Authentication error:', authError?.message || 'No user found');
+          return;
         }
+
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('restaurant_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError.message);
+          return;
+        }
+
+        if (!profile?.restaurant_id) {
+          console.error('No restaurant_id found for user');
+          return;
+        }
+
+        // Fetch tables only for this restaurant
+        const { data: tables, error: tablesError } = await supabase
+          .from('tables')
+          .select('id, table_number')
+          .eq('restaurant_id', profile.restaurant_id);
+        
+        if (tablesError) {
+          console.error('Error fetching tables:', tablesError.message);
+        } else {
+          // Sort tables numerically by table_number
+          const sortedTables = (tables || []).sort((a, b) => {
+            const numA = parseInt(a.table_number, 10);
+            const numB = parseInt(b.table_number, 10);
+            return numA - numB;
+          });
+          
+          setAvailableTables(sortedTables);
+          // Set first table as default
+          if (sortedTables.length > 0) {
+            setSelectedTableId(sortedTables[0].id);
+          }
+        }
+      } catch (error) {
+        console.error('Unexpected error in fetchTables:', error);
       }
     };
     
@@ -90,18 +133,40 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const selectedTable = availableTables.find(table => table.id === selectedTableId);
   const selectedTableNumber = selectedTable?.table_number;
 
+  // Verificar si un producto tiene modificadores
+  const checkHasModifiers = async (item: MenuItem): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      const result = await response.json();
+      return result.success && result.data && result.data.length > 0;
+    } catch (error) {
+      console.error('Error checking modifiers:', error);
+      return false;
+    }
+  };
+
   // Handlers para productos
-  const handleAddItem = (item: MenuItem) => {
-    setOrderItems((prev) => ({
-      ...prev,
-      [item.id]: {
-        quantity: (prev[item.id]?.quantity || 0) + 1,
-        name: item.name,
-        price: item.price,
-        notes: prev[item.id]?.notes || "",
-        isCustom: false,
-      },
-    }));
+  const handleAddItem = async (item: MenuItem) => {
+    // Verificar si el producto tiene modificadores
+    const hasModifiers = await checkHasModifiers(item);
+    
+    if (hasModifiers) {
+      // Abrir modal de modificadores
+      setSelectedItemWithModifiers(item);
+      setIsModifierModalOpen(true);
+    } else {
+      // Agregar directo al carrito (comportamiento actual)
+      setOrderItems((prev) => ({
+        ...prev,
+        [item.id]: {
+          quantity: (prev[item.id]?.quantity || 0) + 1,
+          name: item.name,
+          price: item.price,
+          notes: prev[item.id]?.notes || "",
+          isCustom: false,
+        },
+      }));
+    }
   };
 
   // Handler para productos personalizados
@@ -121,8 +186,45 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
     }));
   };
 
-  const handleItemClick = (item: MenuItem) => {
-    setSelectedItem(item);
+  const handleItemClick = async (item: MenuItem) => {
+    // Verificar si el producto tiene modificadores
+    const hasModifiers = await checkHasModifiers(item);
+    
+    if (hasModifiers) {
+      // Abrir modal de modificadores
+      setSelectedItemWithModifiers(item);
+      setIsModifierModalOpen(true);
+    } else {
+      // Abrir modal de detalle legacy
+      setSelectedItem(item);
+    }
+  };
+
+  // Handler para productos con modificadores
+  const handleAddToCartWithModifiers = (
+    item: MenuItem,
+    quantity: number,
+    notes: string,
+    selectedModifiers: Record<string, string[]>,
+    totalPrice: number
+  ) => {
+    // Crear un ID único para este item con modificadores
+    const modifierHash = JSON.stringify(selectedModifiers);
+    const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    setOrderItems((prev) => ({
+      ...prev,
+      [uniqueId]: {
+        quantity: quantity,
+        name: item.name,
+        price: totalPrice / quantity, // Precio unitario con modificadores
+        notes: notes,
+        isCustom: false,
+        originalItemId: item.id,
+        selectedModifiers: selectedModifiers,
+        modifierDetails: modifierHash, // Para identificar combinaciones únicas
+      },
+    }));
   };
 
   const handleAddToCartFromModal = (
@@ -349,6 +451,17 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isOpen={isCustomProductModalOpen}
         onClose={() => setIsCustomProductModalOpen(false)}
         onAdd={handleAddCustomProduct}
+      />
+      
+      {/* Modal de producto con modificadores */}
+      <ProductModalWithModifiers
+        isOpen={isModifierModalOpen}
+        onClose={() => {
+          setIsModifierModalOpen(false);
+          setSelectedItemWithModifiers(null);
+        }}
+        item={selectedItemWithModifiers}
+        onAddToCart={handleAddToCartWithModifiers}
       />
     </div>
   );

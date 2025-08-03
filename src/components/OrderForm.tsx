@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/client";
 import FloatingCart from "./FloatingCart";
 import OrderSummaryModal from "./OrderSummaryModal";
 import MenuItemDetailModal from "./MenuItemDetailModal";
+import ProductModalWithModifiers from "./ProductModalWithModifiers";
 import { Plus } from "lucide-react"; // Importar el icono Plus
 import type { MenuItem } from "@/types/MenuItem";
 
@@ -50,6 +51,10 @@ export default function OrderForm({
 
   // Nuevo estado para el modal de detalle
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  
+  // Estados para modal de modificadores
+  const [selectedItemWithModifiers, setSelectedItemWithModifiers] = useState<MenuItem | null>(null);
+  const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
 
   // --- MEMOS & HELPER FUNCTIONS ---
   const itemsByCategory = useMemo(() => {
@@ -69,24 +74,62 @@ export default function OrderForm({
     }, 0);
   }, [orderItems]);
 
-  const handleItemClick = (item: MenuItem) => {
-    setSelectedItem(item);
+  // Verificar si un producto tiene modificadores
+  const checkHasModifiers = async (item: MenuItem): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      
+      if (!response.ok) {
+        console.warn('Modifiers API not available, falling back to simple mode');
+        return false;
+      }
+      
+      const result = await response.json();
+      return result.success && result.data && result.data.length > 0;
+    } catch (error) {
+      console.warn('Error checking modifiers, falling back to simple mode:', error);
+      return false;
+    }
+  };
+
+  const handleItemClick = async (item: MenuItem) => {
+    // Verificar si el producto tiene modificadores
+    const hasModifiers = await checkHasModifiers(item);
+    
+    if (hasModifiers) {
+      // Abrir modal de modificadores
+      setSelectedItemWithModifiers(item);
+      setIsModifierModalOpen(true);
+    } else {
+      // Abrir modal de detalle legacy
+      setSelectedItem(item);
+    }
   };
 
   const handleCloseDetailModal = () => {
     setSelectedItem(null);
   };
 
-  const handleQuickAdd = (itemToAdd: MenuItem) => {
-    setOrderItems((prev) => ({
-      ...prev,
-      [itemToAdd.id]: {
-        quantity: (prev[itemToAdd.id]?.quantity || 0) + 1,
-        name: itemToAdd.name,
-        price: itemToAdd.price,
-        notes: prev[itemToAdd.id]?.notes || "", // Preservar notas existentes si se vuelve a añadir
-      },
-    }));
+  const handleQuickAdd = async (itemToAdd: MenuItem) => {
+    // Verificar si el producto tiene modificadores
+    const hasModifiers = await checkHasModifiers(itemToAdd);
+    
+    if (hasModifiers) {
+      // Abrir modal de modificadores
+      setSelectedItemWithModifiers(itemToAdd);
+      setIsModifierModalOpen(true);
+    } else {
+      // Agregar directo al carrito
+      setOrderItems((prev) => ({
+        ...prev,
+        [itemToAdd.id]: {
+          quantity: (prev[itemToAdd.id]?.quantity || 0) + 1,
+          name: itemToAdd.name,
+          price: itemToAdd.price,
+          notes: prev[itemToAdd.id]?.notes || "", // Preservar notas existentes si se vuelve a añadir
+        },
+      }));
+    }
   };
 
   const handleAddToCartFromModal = (
@@ -104,6 +147,29 @@ export default function OrderForm({
         notes: prev[item.id]?.notes
           ? `${prev[item.id].notes}; ${notes}`
           : notes,
+      },
+    }));
+  };
+
+  // Handler para productos con modificadores
+  const handleAddToCartWithModifiers = (
+    item: MenuItem,
+    quantity: number,
+    notes: string,
+    selectedModifiers: Record<string, string[]>,
+    totalPrice: number
+  ) => {
+    // Crear un ID único para este item con modificadores
+    const modifierHash = JSON.stringify(selectedModifiers);
+    const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    setOrderItems((prev) => ({
+      ...prev,
+      [uniqueId]: {
+        quantity: quantity,
+        name: item.name,
+        price: totalPrice / quantity, // Precio unitario con modificadores
+        notes: notes,
       },
     }));
   };
@@ -136,12 +202,26 @@ export default function OrderForm({
       customer_name: customerName.trim(),
       total_price: totalPrice,
       notes, // Usar la nota global real
-      order_items: Object.entries(orderItems).map(([itemId, details]) => ({
-        menu_item_id: parseInt(itemId, 10),
-        quantity: details.quantity,
-        price_at_order: details.price,
-        notes: details.notes, // <-- ENVIAR LAS NOTAS POR ÍTEM
-      })),
+      order_items: Object.entries(orderItems).map(([itemId, details]) => {
+        // Handle items with modifiers (these have string IDs)
+        if (typeof itemId === 'string' && itemId.includes('_')) {
+          return {
+            menu_item_id: parseInt(itemId.split('_')[0], 10),
+            quantity: details.quantity,
+            price_at_order: details.price,
+            notes: details.notes,
+            // Include modifier information in notes for now
+            modifier_details: JSON.stringify(details)
+          };
+        }
+        // Handle regular items
+        return {
+          menu_item_id: parseInt(itemId, 10),
+          quantity: details.quantity,
+          price_at_order: details.price,
+          notes: details.notes,
+        };
+      }),
     };
 
     const { data, error } = await supabase.functions.invoke("place-order", {
@@ -272,6 +352,17 @@ export default function OrderForm({
         onClose={handleCloseDetailModal}
         item={selectedItem}
         onAddToCart={handleAddToCartFromModal}
+      />
+      
+      {/* Modal de producto con modificadores */}
+      <ProductModalWithModifiers
+        isOpen={isModifierModalOpen}
+        onClose={() => {
+          setIsModifierModalOpen(false);
+          setSelectedItemWithModifiers(null);
+        }}
+        item={selectedItemWithModifiers}
+        onAddToCart={handleAddToCartWithModifiers}
       />
     </div>
   );

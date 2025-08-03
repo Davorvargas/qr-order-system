@@ -40,34 +40,44 @@ export default async function CreateOrderPage() {
     redirect("/login");
   }
 
-  // Obtener categorías y productos filtrados por restaurante
-  const [categoriesResult, itemsResult] = await Promise.all([
-    supabase
-      .from("menu_categories")
-      .select("*")
-      .eq("restaurant_id", profile.restaurant_id)
-      .eq("is_available", true)
-      .order("display_order"),
-    supabase
-      .from("menu_items")
-      .select("*")
-      .eq("restaurant_id", profile.restaurant_id)
-      .eq("is_available", true)
-      .order("display_order"),
-  ]);
+  // Obtener productos filtrados por restaurante
+  const { data: items, error: itemsError } = await supabase
+    .from("menu_items")
+    .select("*")
+    .eq("restaurant_id", profile.restaurant_id)
+    .eq("is_available", true)
+    .order("display_order");
 
-  if (categoriesResult.error) {
-    console.error("Error fetching categories:", categoriesResult.error);
-    return <div>Error loading categories</div>;
-  }
-
-  if (itemsResult.error) {
-    console.error("Error fetching menu items:", itemsResult.error);
+  if (itemsError) {
+    console.error("Error fetching menu items:", itemsError);
     return <div>Error loading menu items</div>;
   }
 
-  const categories: Category[] = categoriesResult.data || [];
-  const items: MenuItem[] = itemsResult.data || [];
+  // Generar categorías únicas basadas en los category_id de los items
+  const categoryIds = [...new Set(items?.map(item => item.category_id).filter(id => id))];
+  
+  // Mapeo de category_id a nombres descriptivos
+  const categoryNames: Record<number, string> = {
+    41: 'Cafés en Máquina',
+    42: 'Especialidad Métodos', 
+    43: 'Bebidas Calientes',
+    44: 'Bebidas Frías',
+    45: 'Jugos',
+    46: 'Pastelería',
+    47: 'Nuestros Especiales'
+  };
+  
+  const categories: Category[] = categoryIds.map(id => ({
+    id: id as number,
+    name: categoryNames[id as number] || `Categoría ${id}`
+  }));
+
+  console.log('CreateOrder Debug:', {
+    restaurant_id: profile.restaurant_id,
+    categories: categories.length,
+    items: items.length,
+    sampleItems: items.slice(0, 3).map(i => i.name)
+  });
 
   return (
     <div className="h-[calc(100vh-2rem)] -m-8">

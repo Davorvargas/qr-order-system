@@ -8,6 +8,7 @@ import { Database } from "@/lib/database.types";
 import ConfirmCompletionModal from "./ConfirmCompletionModal";
 import ConfirmCancelModal from "./ConfirmCancelModal";
 import PaymentMethodModal from "./PaymentMethodModal";
+import ModifyOrderModal from "./ModifyOrderModal";
 import {
   Clock,
   Printer,
@@ -19,6 +20,7 @@ import {
   CookingPot,
   GlassWater,
   Receipt,
+  Edit,
 } from "lucide-react";
 
 type Printer = Database["public"]["Tables"]["printers"]["Row"];
@@ -120,6 +122,7 @@ export default function OrderList({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isModifyModalOpen, setIsModifyModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Nuevo estado para impresoras activas
@@ -372,6 +375,23 @@ export default function OrderList({
     fetchOrders();
   };
 
+  const handleOpenModifyModal = (order: Order) => {
+    setSelectedOrder(order);
+    setIsModifyModalOpen(true);
+  };
+
+  const handleCloseModifyModal = () => {
+    setIsModifyModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleOrderUpdated = () => {
+    setIsModifyModalOpen(false);
+    setSelectedOrder(null);
+    // Refresh orders after modification
+    fetchOrders();
+  };
+
   const fetchOrders = async () => {
     try {
       const today = new Date();
@@ -608,6 +628,15 @@ export default function OrderList({
                             ))}
                           </div>
                         )}
+                        {(order.status === "pending" || order.status === "in_progress") && (
+                          <button
+                            onClick={() => handleOpenModifyModal(order)}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200"
+                          >
+                            <Edit size={16} />
+                            Modificar Pedido
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenConfirmModal(order)}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
@@ -657,6 +686,14 @@ export default function OrderList({
           restaurantId={restaurantId}
           onClose={handleClosePaymentModal}
           onPaymentComplete={handlePaymentComplete}
+        />
+      )}
+      {isModifyModalOpen && selectedOrder && (
+        <ModifyOrderModal
+          isOpen={isModifyModalOpen}
+          order={selectedOrder}
+          onClose={handleCloseModifyModal}
+          onOrderUpdated={handleOrderUpdated}
         />
       )}
     </div>

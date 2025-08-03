@@ -15,7 +15,7 @@ interface OrderState {
 
 interface Table {
   id: string;
-  table_number: number;
+  table_number: string;
 }
 
 interface OrderPanelProps {
@@ -29,6 +29,7 @@ interface OrderPanelProps {
   onUpdateItemNotes: (itemId: number, notes: string) => void;
   onConfirmOrder: () => void;
   isLoading: boolean;
+  selectedTableNumber?: string;
   availableTables?: Table[];
   selectedTableId?: string;
   onTableChange?: (tableId: string) => void;
@@ -45,6 +46,7 @@ export default function OrderPanel({
   onUpdateItemNotes,
   onConfirmOrder,
   isLoading,
+  selectedTableNumber,
   availableTables,
   selectedTableId,
   onTableChange,

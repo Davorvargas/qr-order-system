@@ -58,23 +58,36 @@ export default function MenuPage() {
       setTableNumber(tableData.table_number);
       const restaurantId = tableData.restaurant_id;
 
-      // 2. Obtener categorías solo para ese restaurante
-      const { data: categoriesData } = await supabase
-        .from("menu_categories")
-        .select("id, name")
-        .eq("is_available", true)
-        .eq("restaurant_id", restaurantId)
-        .order("display_order");
-
-      // 3. Obtener platos solo para ese restaurante
+      // 2. Obtener platos solo para ese restaurante
       const { data: menuItemsData } = await supabase
         .from("menu_items")
         .select("*")
         .eq("restaurant_id", restaurantId)
+        .eq("is_available", true)
         .order("display_order");
 
-      if (categoriesData) setAllCategories(categoriesData);
-      if (menuItemsData) setAllMenuItems(menuItemsData);
+      // 3. Generar categorías basadas en los category_id de los items
+      if (menuItemsData) {
+        const categoryIds = [...new Set(menuItemsData.map(item => item.category_id).filter(id => id))];
+        
+        const categoryNames: Record<number, string> = {
+          41: 'Cafés en Máquina',
+          42: 'Especialidad Métodos', 
+          43: 'Bebidas Calientes',
+          44: 'Bebidas Frías',
+          45: 'Jugos',
+          46: 'Pastelería',
+          47: 'Nuestros Especiales'
+        };
+        
+        const generatedCategories = categoryIds.map(id => ({
+          id: id as number,
+          name: categoryNames[id as number] || `Categoría ${id}`
+        }));
+
+        setAllCategories(generatedCategories);
+        setAllMenuItems(menuItemsData);
+      }
     };
 
     getMenuData();

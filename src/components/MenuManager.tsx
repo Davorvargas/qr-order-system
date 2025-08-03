@@ -4,8 +4,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
-import { ChevronDown, PlusCircle, Settings, Trash2 } from "lucide-react";
+import { ChevronDown, PlusCircle, Settings, Trash2, Sliders } from "lucide-react";
 import MenuItemFormModal from "./MenuItemFormModal";
+import ModifierManager from "./ModifierManager";
 
 // --- TYPE DEFINITIONS ---
 type Category = { id: number; name: string; is_available: boolean };
@@ -40,6 +41,11 @@ export default function MenuManager({
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  
+  // Estados para el gestor de modificadores
+  const [isModifierManagerOpen, setIsModifierManagerOpen] = useState(false);
+  const [selectedItemForModifiers, setSelectedItemForModifiers] = useState<MenuItem | null>(null);
+  const [itemsWithModifiers, setItemsWithModifiers] = useState<Set<number>>(new Set());
 
   // Get current user's restaurant_id
   useEffect(() => {
@@ -55,11 +61,29 @@ export default function MenuManager({
 
       if (profile?.restaurant_id) {
         setRestaurantId(profile.restaurant_id);
+        fetchItemsWithModifiers(profile.restaurant_id);
       }
     };
 
     fetchRestaurantId();
   }, [supabase]);
+
+  // Función para obtener qué productos tienen modificadores
+  const fetchItemsWithModifiers = async (restaurantId: string) => {
+    try {
+      const { data: modifierGroups } = await supabase
+        .from('modifier_groups')
+        .select('menu_item_id')
+        .eq('restaurant_id', restaurantId);
+
+      if (modifierGroups) {
+        const itemIds = new Set(modifierGroups.map(group => group.menu_item_id));
+        setItemsWithModifiers(itemIds);
+      }
+    } catch (error) {
+      console.error('Error fetching items with modifiers:', error);
+    }
+  };
 
   // Group items by category for easy rendering
   const itemsByCategory = useMemo(() => {
@@ -107,7 +131,7 @@ export default function MenuManager({
     
     const newStatus = !category.is_available;
     const { error } = await supabase
-      .from("menu_categories")
+      .from("categories")
       .update({ is_available: newStatus })
       .eq("id", category.id)
       .eq("restaurant_id", restaurantId);
@@ -133,7 +157,7 @@ export default function MenuManager({
     if (!name) return;
 
     const { data, error } = await supabase
-      .from("menu_categories")
+      .from("categories")
       .insert({ name, restaurant_id: restaurantId })
       .select()
       .single();
@@ -170,7 +194,7 @@ export default function MenuManager({
     }
 
     const { error } = await supabase
-      .from("menu_categories")
+      .from("categories")
       .delete()
       .eq("id", category.id)
       .eq("restaurant_id", restaurantId);
@@ -232,6 +256,20 @@ export default function MenuManager({
     } else {
       // We were adding, so add the new item
       setMenuItems((current) => [...current, savedItem]);
+    }
+  };
+
+  const handleManageModifiers = (item: MenuItem) => {
+    setSelectedItemForModifiers(item);
+    setIsModifierManagerOpen(true);
+  };
+
+  const handleCloseModifierManager = () => {
+    setIsModifierManagerOpen(false);
+    setSelectedItemForModifiers(null);
+    // Refrescar la lista de productos con modificadores
+    if (restaurantId) {
+      fetchItemsWithModifiers(restaurantId);
     }
   };
 
@@ -315,8 +353,16 @@ export default function MenuManager({
                             ) : (
                               <div className="w-12 h-12 bg-gray-200 rounded-md flex-shrink-0" />
                             )}
-                            <div>
-                              <h3 className="font-semibold">{item.name}</h3>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <h3 className="font-semibold">{item.name}</h3>
+                                {itemsWithModifiers.has(item.id) && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800">
+                                    <Sliders size={12} className="mr-1" />
+                                    Modificadores
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-sm text-gray-500">
                                 Bs {item.price?.toFixed(2)}
                               </p>
@@ -339,14 +385,23 @@ export default function MenuManager({
                               </span>
                             </label>
                             <button
+                              onClick={() => handleManageModifiers(item)}
+                              className="text-gray-400 hover:text-purple-600"
+                              title="Gestionar Modificadores"
+                            >
+                              <Sliders size={18} />
+                            </button>
+                            <button
                               onClick={() => handleEditItemClick(item)}
                               className="text-gray-400 hover:text-blue-600"
+                              title="Editar Producto"
                             >
                               <Settings size={18} />
                             </button>
                             <button
                               onClick={() => handleDeleteItem(item.id)}
                               className="text-gray-400 hover:text-red-600"
+                              title="Eliminar Producto"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -391,6 +446,17 @@ export default function MenuManager({
         itemToEdit={editingItem}
         categoryId={editingCategory?.id ?? null}
       />
+      
+      {/* Modal de gestión de modificadores */}
+      {selectedItemForModifiers && restaurantId && (
+        <ModifierManager
+          isOpen={isModifierManagerOpen}
+          onClose={handleCloseModifierManager}
+          menuItemId={selectedItemForModifiers.id}
+          menuItemName={selectedItemForModifiers.name}
+          restaurantId={restaurantId}
+        />
+      )}
     </div>
   );
 }
