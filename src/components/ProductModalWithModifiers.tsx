@@ -77,7 +77,14 @@ export default function ProductModalWithModifiers({
     
     setLoading(true);
     try {
-      const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      // Intentar primero con la API pública
+      let response = await fetch(`/api/public-modifiers?menuItemId=${item.id}`);
+      
+      // Si falla, intentar con la API privada (para usuarios autenticados)
+      if (!response.ok) {
+        response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      }
+      
       const result = await response.json();
       
       if (result.success) {

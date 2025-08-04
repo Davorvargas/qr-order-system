@@ -87,7 +87,13 @@ export default function OrderForm({
   // Verificar si un producto tiene modificadores
   const checkHasModifiers = async (item: MenuItem): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      // Intentar primero con la API pública
+      let response = await fetch(`/api/public-modifiers?menuItemId=${item.id}`);
+      
+      // Si falla, intentar con la API privada (para usuarios autenticados)
+      if (!response.ok) {
+        response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      }
       
       if (!response.ok) {
         console.warn('Modifiers API not available, falling back to simple mode');

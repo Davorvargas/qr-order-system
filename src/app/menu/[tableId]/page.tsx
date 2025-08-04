@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import OrderForm from "@/components/OrderForm";
 import CategoryNav from "@/components/CategoryNav";
@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 interface Category {
   id: number;
   name: string;
+  display_order?: number;
 }
 interface MenuItem {
   id: number;
@@ -19,6 +20,7 @@ interface MenuItem {
   category_id: number | null;
   is_available: boolean;
   image_url: string | null;
+  display_order?: number;
 }
 
 export default function MenuPage() {
@@ -27,83 +29,115 @@ export default function MenuPage() {
   const [tableNumber, setTableNumber] = useState<string>("");
   const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<Category[]>(
+    []
+  );
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
   const isScrollingRef = useRef(false);
 
   useEffect(() => {
     if (!tableId) {
       console.error("No tableId provided");
+      setError("No se proporcionó ID de mesa");
+      setIsLoading(false);
       return;
     }
 
     console.log("TableId received:", tableId, "Type:", typeof tableId);
 
     const getMenuData = async () => {
-      const supabase = createClient();
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      // 1. Obtener el ID del restaurante a partir del ID de la mesa
-      const { data: tableData, error: tableError } = await supabase
-        .from("tables")
-        .select("table_number, restaurant_id")
-        .eq("id", tableId)
-        .single();
+        const supabase = createClient();
 
-      if (tableError || !tableData) {
-        console.error("Error fetching table data:", tableError);
-        console.error("Table ID being searched:", tableId);
-        return;
+        // 1. Obtener el ID del restaurante a partir del ID de la mesa
+        const { data: tableData, error: tableError } = await supabase
+          .from("tables")
+          .select("table_number, restaurant_id")
+          .eq("id", tableId)
+          .single();
+
+        if (tableError || !tableData) {
+          console.error("Error fetching table data:", tableError);
+          console.error("Table ID being searched:", tableId);
+          setError("No se pudo encontrar la mesa");
+          return;
+        }
+
+        setTableNumber(tableData.table_number);
+        const restaurantId = tableData.restaurant_id;
+
+        // 2. Obtener platos solo para ese restaurante, ordenados correctamente
+        const { data: menuItemsData, error: menuItemsError } = await supabase
+          .from("menu_items")
+          .select("*")
+          .eq("restaurant_id", restaurantId)
+          .order("category_id")
+          .order("display_order");
+
+        if (menuItemsError) {
+          console.error("Error fetching menu items:", menuItemsError);
+          setError("Error al cargar el menú");
+          return;
+        }
+
+        // 3. Obtener categorías disponibles de la base de datos
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("menu_categories")
+          .select("id, name, display_order")
+          .eq("is_available", true)
+          .eq("restaurant_id", restaurantId)
+          .order("display_order");
+
+        if (categoriesError) {
+          console.error("Error fetching categories:", categoriesError);
+          setError("Error al cargar las categorías");
+          return;
+        }
+
+        setAllCategories(categoriesData || []);
+        setAllMenuItems(menuItemsData || []);
+
+        // 4. Calcular categorías disponibles
+        if (menuItemsData && categoriesData) {
+          const itemCategoryIds = new Set(
+            menuItemsData.map((item) => item.category_id)
+          );
+          const filteredCategories = categoriesData
+            .filter((category) => itemCategoryIds.has(category.id))
+            .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+
+          setAvailableCategories(filteredCategories);
+
+          // Establecer la primera categoría como activa
+          if (filteredCategories.length > 0 && activeCategoryId === null) {
+            setActiveCategoryId(filteredCategories[0].id);
+          }
+        }
+      } catch (error) {
+        console.error("Unexpected error:", error);
+        setError("Error inesperado al cargar el menú");
+      } finally {
+        setIsLoading(false);
       }
-
-      setTableNumber(tableData.table_number);
-      const restaurantId = tableData.restaurant_id;
-
-      // 2. Obtener platos solo para ese restaurante, ordenados correctamente
-      const { data: menuItemsData } = await supabase
-        .from("menu_items")
-        .select("*")
-        .eq("restaurant_id", restaurantId)
-        // No filtrar por is_available aquí - queremos mostrar todos pero disabled
-        .order("category_id")
-        .order("display_order");
-
-      // 3. Obtener categorías disponibles de la base de datos
-      const { data: categoriesData } = await supabase
-        .from("menu_categories")
-        .select("id, name")
-        .eq("is_available", true)
-        .eq("restaurant_id", restaurantId)
-        .order("display_order");
-
-      if (categoriesData) setAllCategories(categoriesData);
-      if (menuItemsData) setAllMenuItems(menuItemsData);
     };
 
     getMenuData();
-  }, [tableId]);
-
-  const availableCategories = useMemo(() => {
-    if (!allMenuItems || allMenuItems.length === 0 || !allCategories || allCategories.length === 0) return [];
-    const itemCategoryIds = new Set(
-      allMenuItems.map((item) => item.category_id)
-    );
-    return allCategories
-      .filter((category) => itemCategoryIds.has(category.id))
-      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)); // Asegurar orden
-  }, [allCategories, allMenuItems]);
-
-  useEffect(() => {
-    if (availableCategories.length > 0 && activeCategoryId === null) {
-      setActiveCategoryId(availableCategories[0].id);
-    }
-  }, [availableCategories, activeCategoryId]);
+  }, [tableId, activeCategoryId]);
 
   useEffect(() => {
     const handleScroll = () => {
-      if (isScrollingRef.current) return;
+      if (isScrollingRef.current || availableCategories.length === 0) return;
+
       const categoryElements = availableCategories.map((cat) =>
         document.getElementById(`category-${cat.id}`)
       );
+
       let currentActiveId = activeCategoryId;
       for (const el of categoryElements) {
         if (el) {
@@ -114,11 +148,17 @@ export default function MenuPage() {
           }
         }
       }
-      setActiveCategoryId(currentActiveId);
+
+      if (currentActiveId !== activeCategoryId) {
+        setActiveCategoryId(currentActiveId);
+      }
     };
+
     const mainElement = mainRef.current;
-    mainElement?.addEventListener("scroll", handleScroll);
-    return () => mainElement?.removeEventListener("scroll", handleScroll);
+    if (mainElement) {
+      mainElement.addEventListener("scroll", handleScroll);
+      return () => mainElement.removeEventListener("scroll", handleScroll);
+    }
   }, [availableCategories, activeCategoryId]);
 
   const handleCategorySelect = (id: number) => {
@@ -132,6 +172,45 @@ export default function MenuPage() {
       isScrollingRef.current = false;
     }, 1000);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-lg">Cargando menú...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (availableCategories.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-gray-600">
+            No hay productos disponibles en este momento.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
