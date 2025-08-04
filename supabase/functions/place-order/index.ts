@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       throw new Error('order_items cannot be empty')
     }
     
-    const { table_id, customer_name, total_price, notes, order_items } = requestBody
+    const { table_id, customer_name, total_price, notes, order_items, source } = requestBody
 
     // Create a Supabase client with the Auth context of the user that called the function.
     // This way your row-level-security policies are applied.
@@ -105,6 +105,7 @@ Deno.serve(async (req) => {
       notes: notes,
       status: initialStatus,
       restaurant_id: restaurantId,
+      source: source || 'customer_qr', // Default to customer_qr if not specified
     }
     console.log('📝 Order data:', JSON.stringify(orderInsertData, null, 2))
     
@@ -124,17 +125,16 @@ Deno.serve(async (req) => {
     // Insert order_items and get their IDs for modifier insertion
     console.log('📋 Inserting order items...')
     
-    // Handle custom products by creating unique menu items for each one
+    // Handle both regular and custom products
     const itemsToInsert = []
     for (const item of order_items) {
       if (item.menu_item_id === null) {
-        // This is a custom product - create a unique menu item for it
-        console.log('🔧 Creating unique menu item for custom product...')
+        // This is a custom product - store all info directly in order_items without creating menu_item
+        console.log('🔧 Processing custom product without creating menu_item...')
         
         // Extract custom product info from notes
         let customProductName = 'Producto Especial'
-        let customProductPrice = item.price_at_order
-        let originalNotes = ''
+        let originalNotes = item.notes || ''
         
         if (item.notes) {
           try {
@@ -146,39 +146,24 @@ Deno.serve(async (req) => {
           } catch (e) {
             // If notes aren't JSON, use them as the product name
             customProductName = item.notes.substring(0, 50) // Limit length
+            originalNotes = item.notes
           }
         }
         
-        console.log(`📝 Creating menu item: "${customProductName}" - Bs ${customProductPrice}`)
+        console.log(`📝 Custom product: "${customProductName}" - Bs ${item.price_at_order}`)
         
-        // Create a unique menu item for this custom product
-        const { data: newCustomItem, error: createError } = await supabaseClient
-          .from('menu_items')
-          .insert({
-            name: customProductName,
-            price: customProductPrice,
-            restaurant_id: restaurantId,
-            category_id: null, // No category for custom products
-            is_available: false, // Mark as unavailable so it doesn't show in regular menu
-            description: `Producto especial creado el ${new Date().toLocaleDateString('es-ES')} para orden #${orderId}`
-          })
-          .select('id')
-          .single()
-        
-        if (createError) {
-          console.error('❌ Error creating custom product menu item:', createError)
-          throw new Error(`No se pudo crear el producto especial: ${createError.message}`)
-        }
-        
-        const customMenuItemId = newCustomItem.id
-        console.log('✅ Created custom product menu item with ID:', customMenuItemId)
-        
+        // Store custom product directly in order_items with menu_item_id = null
+        // The product name and details will be preserved in the notes field
         itemsToInsert.push({
           order_id: orderId,
-          menu_item_id: customMenuItemId,
+          menu_item_id: null, // Keep null for custom products
           quantity: item.quantity,
           price_at_order: item.price_at_order,
-          notes: originalNotes || null, // Store only the user's notes, not the JSON
+          notes: JSON.stringify({
+            type: 'custom_product',
+            name: customProductName,
+            original_notes: originalNotes
+          })
         })
       } else {
         // Regular menu item

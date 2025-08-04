@@ -42,9 +42,6 @@ export default function StaffDashboardPage() {
 
   useEffect(() => {
     const getInitialData = async () => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
       // Obtener el restaurant_id del usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -62,6 +59,27 @@ export default function StaffDashboardPage() {
       if (!profile?.restaurant_id) {
         setLoading(false);
         return;
+      }
+
+      // Buscar la última caja cerrada para determinar desde cuándo mostrar pedidos
+      const { data: lastClosedCash } = await supabase
+        .from('cash_registers')
+        .select('closed_at')
+        .eq('restaurant_id', profile.restaurant_id)
+        .eq('status', 'closed')
+        .order('closed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Determinar fecha de inicio para filtrar pedidos
+      let startDate;
+      if (lastClosedCash?.closed_at) {
+        // Si hay una caja cerrada, mostrar pedidos desde esa fecha
+        startDate = new Date(lastClosedCash.closed_at);
+      } else {
+        // Si no hay cajas cerradas, mostrar pedidos del día actual
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
       }
 
       // Filtrar órdenes por restaurant_id e incluir modificadores
@@ -85,7 +103,8 @@ export default function StaffDashboardPage() {
           )
         `)
         .eq('restaurant_id', profile.restaurant_id)
-        .gte("created_at", today.toISOString())
+        .eq('archived', false)
+        .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: false });
 
       if (error) {

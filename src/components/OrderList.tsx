@@ -21,8 +21,52 @@ import {
   GlassWater,
   Receipt,
   Edit,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { formatModifierNotes } from "../utils/formatModifiers";
+import { getItemName } from "../utils/getItemName";
+
+// Audio notification hook
+const useAudioNotification = () => {
+  const playNotification = () => {
+    try {
+      // Crear un sonido simple usando Web Audio API
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // Crear un sonido de notificación simple (3 tonos)
+      const playTone = (frequency: number, duration: number, delay: number) => {
+        setTimeout(() => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+          oscillator.type = 'sine';
+          
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+          
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + duration);
+        }, delay);
+      };
+      
+      // Secuencia de tonos: Do - Mi - Sol
+      playTone(523.25, 0.2, 0);    // Do
+      playTone(659.25, 0.2, 200);  // Mi  
+      playTone(783.99, 0.3, 400);  // Sol
+      
+    } catch (error) {
+      console.log('Audio notification not available:', error);
+      // Fallback: mostrar notificación visual si el audio falla
+    }
+  };
+  
+  return playNotification;
+};
 
 type Printer = Database["public"]["Tables"]["printers"]["Row"];
 
@@ -115,11 +159,20 @@ export default function OrderList({
 }) {
   const supabase = createClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const playNotification = useAudioNotification();
   const [activeStatus, setActiveStatus] =
     useState<OrderWorkflowStatus>("pending");
   const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [updatingOrderId, setUpdatingOrderId] = useState<number | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    // Cargar configuración de sonido desde localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('orderSoundEnabled');
+      return saved !== null ? JSON.parse(saved) : true;
+    }
+    return true;
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -193,30 +246,23 @@ export default function OrderList({
     }
   };
 
-  // Función para verificar si un pedido está listo para pasar a "En Proceso"
+  // Función simplificada para una sola impresora
   const isOrderReadyForProgress = (order: Order) => {
-    // Si no hay impresoras activas, el pedido está listo
-    if (activePrinters.length === 0) return true;
-
-    // Verificar que todas las impresoras activas hayan impreso
-    return activePrinters.every((printer) => {
-      switch (printer.type) {
-        case "kitchen":
-          return order.kitchen_printed;
-        case "drink":
-          return order.drink_printed;
-        case "receipt":
-          return order.receipt_printed;
-        default:
-          return true;
-      }
-    });
+    // Solo verificar que el ticket de cocina esté impreso
+    return order.kitchen_printed;
   };
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+
+  // Guardar configuración de sonido en localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orderSoundEnabled', JSON.stringify(soundEnabled));
+    }
+  }, [soundEnabled]);
 
   useEffect(() => {
     const channel = supabase
@@ -263,6 +309,11 @@ export default function OrderList({
             .single();
           if (newOrderDetails) {
             setOrders((current) => [newOrderDetails as Order, ...current]);
+            // Reproducir sonido de notificación para nuevo pedido (si está habilitado)
+            if (soundEnabled) {
+              playNotification();
+              console.log('🔊 Nuevo pedido recibido! Reproduciendo notificación sonora');
+            }
           }
         }
       )
@@ -311,10 +362,6 @@ export default function OrderList({
         endpoint = "/api/print-drink-order";
         successMessage = "Comanda de bar enviada";
         break;
-      case "receipt":
-        endpoint = "/api/print-drink-order"; // Los recibos usan el mismo endpoint
-        successMessage = "Recibo enviado";
-        break;
       default:
         endpoint = "/api/print-kitchen-order";
         successMessage = "Comanda enviada";
@@ -328,31 +375,8 @@ export default function OrderList({
       });
 
       if (res.ok) {
-        // Actualizar el estado de impresión en la base de datos
-        const updateData: {
-          kitchen_printed?: boolean;
-          drink_printed?: boolean;
-          receipt_printed?: boolean;
-        } = {};
-        if (printerType === "kitchen") {
-          updateData.kitchen_printed = true;
-        } else if (printerType === "drink") {
-          updateData.drink_printed = true;
-        } else if (printerType === "receipt") {
-          updateData.receipt_printed = true;
-        }
-
-        await supabase.from("orders").update(updateData).eq("id", orderId);
-
-        // Verificar si el pedido debe pasar a "En Proceso"
-        const order = orders.find((o) => o.id === orderId);
-        if (order && order.status === "pending") {
-          const updatedOrder = { ...order, ...updateData };
-          if (isOrderReadyForProgress(updatedOrder)) {
-            await handleUpdateStatus(orderId, "in_progress");
-          }
-        }
-
+        // El API y el servicio de impresión manejan el estado de la base de datos
+        // Solo mostrar mensaje de éxito
         alert(successMessage);
       } else {
         alert("Error al enviar la comanda");
@@ -412,9 +436,6 @@ export default function OrderList({
 
   const fetchOrders = async () => {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
       // Get current user and their restaurant_id
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -426,6 +447,27 @@ export default function OrderList({
         .single();
 
       if (!profile?.restaurant_id) return;
+
+      // Buscar la última caja cerrada para determinar desde cuándo mostrar pedidos
+      const { data: lastClosedCash } = await supabase
+        .from('cash_registers')
+        .select('closed_at')
+        .eq('restaurant_id', profile.restaurant_id)
+        .eq('status', 'closed')
+        .order('closed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Determinar fecha de inicio para filtrar pedidos
+      let startDate;
+      if (lastClosedCash?.closed_at) {
+        // Si hay una caja cerrada, mostrar pedidos desde esa fecha
+        startDate = new Date(lastClosedCash.closed_at);
+      } else {
+        // Si no hay cajas cerradas, mostrar pedidos del día actual
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+      }
 
       const { data: ordersData, error } = await supabase
         .from("orders")
@@ -447,7 +489,8 @@ export default function OrderList({
           )
         `)
         .eq('restaurant_id', profile.restaurant_id)
-        .gte("created_at", today.toISOString())
+        .eq('archived', false)
+        .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -478,7 +521,11 @@ export default function OrderList({
 
   const handleConfirmCompletion = async () => {
     if (!selectedOrder) return;
+    
+    // Actualizar estado del pedido a completado
     await handleUpdateStatus(selectedOrder.id, "completed");
+    
+    
     handleCloseConfirmModal();
   };
 
@@ -527,23 +574,38 @@ export default function OrderList({
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="mb-6">
-        <div className="flex border-b border-gray-200">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveStatus(tab.key)}
-              className={`px-4 py-2 text-sm font-medium transition-colors ${
-                activeStatus === tab.key
-                  ? "border-b-2 border-blue-600 text-blue-600"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {tab.label}
-              <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-full">
-                {orderCounts[tab.key]}
-              </span>
-            </button>
-          ))}
+        <div className="flex justify-between items-center border-b border-gray-200">
+          <div className="flex">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveStatus(tab.key)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  activeStatus === tab.key
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab.label}
+                <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-gray-200 text-gray-700 rounded-full">
+                  {orderCounts[tab.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+          
+          {/* Botón de control de sonido */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`p-2 rounded-lg transition-colors ${
+              soundEnabled
+                ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+            }`}
+            title={soundEnabled ? "Desactivar sonido de notificaciones" : "Activar sonido de notificaciones"}
+          >
+            {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+          </button>
         </div>
       </div>
 
@@ -574,21 +636,13 @@ export default function OrderList({
                   </span>
                 </div>
 
+                {/* Indicador simplificado para una sola impresora */}
                 <div className="my-4 flex flex-col gap-2">
-                  {activePrinters.map((printer) => (
-                    <PrintStatusIndicator
-                      key={printer.id}
-                      label={getPrinterLabel(printer.type)}
-                      printed={
-                        printer.type === "kitchen"
-                          ? order.kitchen_printed
-                          : printer.type === "drink"
-                          ? order.drink_printed
-                          : order.receipt_printed // Los recibos tienen su propio campo
-                      }
-                      icon={getPrinterIcon(printer.type)}
-                    />
-                  ))}
+                  <PrintStatusIndicator
+                    label="Ticket Impreso"
+                    printed={order.kitchen_printed}
+                    icon={<Printer size={16} />}
+                  />
                 </div>
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
@@ -597,7 +651,7 @@ export default function OrderList({
                       <li key={item.id} className="flex justify-between">
                         <span>
                           {item.quantity}x{" "}
-                          {item.menu_items?.name || "Item borrado"}
+                          {getItemName(item)}
                           {item.order_item_modifiers && item.order_item_modifiers.length > 0 && (
                             <span className="block text-xs text-blue-600 ml-2">
                               {item.order_item_modifiers.map((mod, index) => (
@@ -663,18 +717,16 @@ export default function OrderList({
                   order.status !== "cancelled" && (
                     <div className="mt-5 pt-4 border-t border-gray-100">
                       <div className="flex flex-col gap-3">
+                        {/* Botón simplificado para una sola impresora */}
                         {activePrinters.length > 0 && (
                           <div className="flex gap-3">
-                            {activePrinters.map((printer) => (
-                              <ReprintButton
-                                key={printer.id}
-                                label={getPrinterLabel(printer.type)}
-                                onClick={() =>
-                                  handlePrint(order.id, printer.type)
-                                }
-                                disabled={updatingOrderId === order.id}
-                              />
-                            ))}
+                            <ReprintButton
+                              label="Imprimir Ticket"
+                              onClick={() =>
+                                handlePrint(order.id, "kitchen")
+                              }
+                              disabled={updatingOrderId === order.id}
+                            />
                           </div>
                         )}
                         {(order.status === "pending" || order.status === "in_progress") && (

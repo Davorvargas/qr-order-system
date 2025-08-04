@@ -38,6 +38,7 @@ export default function ProductGrid({
   onItemClick,
 }: ProductGridProps) {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  
 
   // Filtrar items por búsqueda
   const filteredItems = searchTerm
@@ -58,6 +59,7 @@ export default function ProductGrid({
       }
       return (a.display_order || 0) - (b.display_order || 0);
     });
+
 
   // Contar items por categoría
   const categoriesWithCount = categories.map(category => ({
@@ -128,6 +130,7 @@ function ProductCard({
   onAddItem: (item: MenuItem) => void;
   onItemClick: (item: MenuItem) => void;
 }) {
+  
   return (
     <div
       className={`bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow ${

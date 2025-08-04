@@ -101,6 +101,7 @@ export default function PaymentMethodModal({
 
       if (orderError) throw orderError;
 
+
       onPaymentComplete();
       onClose();
       setSelectedMethod("");

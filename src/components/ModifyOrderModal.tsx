@@ -5,6 +5,7 @@ import { X, Plus, Minus, Trash2, Save, Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { Order, OrderItem } from "@/app/staff/dashboard/page";
 import CustomProductModal from "./CustomProductModal";
+import { getItemName } from "@/utils/getItemName";
 
 interface MenuItem {
   id: number;
@@ -73,16 +74,32 @@ export default function ModifyOrderModal({
   const fetchMenuData = async () => {
     setLoading(true);
     try {
+      // Primero obtener el restaurant_id de la orden
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .select("restaurant_id")
+        .eq("id", order.id)
+        .single();
+
+      if (orderError) {
+        console.error("Error getting restaurant_id:", orderError);
+        return;
+      }
+
+      const restaurantId = orderData.restaurant_id;
+
       const [menuResult, categoriesResult] = await Promise.all([
         supabase
           .from("menu_items")
           .select("*")
           .eq("is_available", true)
+          .eq("restaurant_id", restaurantId)
           .order("display_order"),
         supabase
           .from("menu_categories")
           .select("*")
           .eq("is_available", true)
+          .eq("restaurant_id", restaurantId)
           .order("display_order"),
       ]);
 
@@ -425,7 +442,7 @@ export default function ModifyOrderModal({
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900 text-sm">
-                            {item.menu_items?.name}
+                            {getItemName(item)}
                             {item.isNew && (
                               <span className="ml-2 px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
                                 Nuevo

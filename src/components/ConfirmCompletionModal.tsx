@@ -3,6 +3,7 @@
 
 import { Order } from "@/app/staff/dashboard/page";
 import { CheckCircle2, X } from "lucide-react";
+import { getItemName } from "@/utils/getItemName";
 
 interface ConfirmCompletionModalProps {
   isOpen: boolean;
@@ -67,7 +68,7 @@ export default function ConfirmCompletionModal({
                 className="flex justify-between items-baseline text-sm"
               >
                 <span className="text-gray-800">
-                  {item.quantity} x {item.menu_items?.name ?? "Item"}
+                  {item.quantity} x {getItemName(item)}
                 </span>
               </li>
             ))}

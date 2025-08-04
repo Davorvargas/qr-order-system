@@ -4,16 +4,18 @@ import { useState, useEffect } from "react";
 import { X, Printer, Clock, User, FileText, MapPin, CreditCard, QrCode, DollarSign } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
+import { getItemName } from "@/utils/getItemName";
+import { formatModifierNotes } from "@/utils/formatModifiers";
 
 interface OrderItem {
   id: number;
   quantity: number;
   price_at_order: number | null;
   notes: string | null;
-  menu_item: {
+  menu_items: {
     name: string;
     description: string | null;
-  };
+  } | null;
 }
 
 interface OrderDetail {
@@ -101,7 +103,7 @@ export default function OrderDetailModal({
             quantity,
             price_at_order,
             notes,
-            menu_item:menu_items(name, description)
+            menu_items(name, description)
           )
         `)
         .eq("id", orderId)
@@ -231,8 +233,8 @@ export default function OrderDetailModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
@@ -247,7 +249,7 @@ export default function OrderDetailModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+        <div className="flex-1 p-6 overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-gray-500">Cargando detalles...</div>
@@ -308,7 +310,7 @@ export default function OrderDetailModal({
                   <div>
                     <p className="text-sm text-gray-600">Origen</p>
                     <p className="font-medium capitalize">
-                      {orderDetail.source === "customer_qr" ? "Cliente QR" : "Staff"}
+                      {orderDetail.source === "customer_qr" ? "Cliente QR" : orderDetail.source === "staff_placed" ? "Staff Dashboard" : "Staff"}
                     </p>
                   </div>
 
@@ -384,21 +386,31 @@ export default function OrderDetailModal({
                   Productos Pedidos
                 </h3>
                 <div className="space-y-3">
-                  {orderDetail.order_items.map((item) => (
+                  {orderDetail.order_items.map((item) => {
+                    const itemName = getItemName(item);
+                    const modifierText = formatModifierNotes(item.notes);
+                    
+                    return (
                     <div
                       key={item.id}
                       className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                     >
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">
-                          {item.menu_item.name}
+                          {itemName}
                         </h4>
-                        {item.menu_item.description && (
+                        {item.menu_items?.description && (
                           <p className="text-sm text-gray-600 mt-1">
-                            {item.menu_item.description}
+                            {item.menu_items.description}
                           </p>
                         )}
-                        {item.notes && (
+                        {modifierText && (
+                          <div className="mt-2 p-2 bg-blue-100 rounded text-sm">
+                            <span className="font-medium text-blue-800">Modificadores: </span>
+                            <span className="text-blue-700">{modifierText}</span>
+                          </div>
+                        )}
+                        {item.notes && !modifierText && (
                           <div className="mt-2 p-2 bg-yellow-100 rounded text-sm">
                             <span className="font-medium text-yellow-800">Nota: </span>
                             <span className="text-yellow-700">{item.notes}</span>
@@ -425,7 +437,8 @@ export default function OrderDetailModal({
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -448,7 +461,7 @@ export default function OrderDetailModal({
 
         {/* Footer */}
         {orderDetail && (
-          <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
             <div className="text-sm text-gray-600">
               Pedido #{orderDetail.id} • {orderDetail.order_items.length} productos
             </div>

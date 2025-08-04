@@ -47,7 +47,10 @@ export default async function CreateOrderPage() {
     .from("menu_items")
     .select("*")
     .eq("restaurant_id", profile.restaurant_id)
-    // Mostrar todos los items para el staff, incluyendo desactivados  
+    // Excluir productos especiales viejos que no deben aparecer en dashboard
+    .not("description", "like", "%Producto especial%")
+    .not("name", "like", "[ELIMINADO]%")
+    // Mostrar todos los items normales para el staff, incluyendo desactivados  
     .order("category_id")
     .order("display_order");
 
@@ -69,12 +72,6 @@ export default async function CreateOrderPage() {
     return <div>Error loading categories</div>;
   }
 
-  console.log('CreateOrder Debug:', {
-    restaurant_id: profile.restaurant_id,
-    categories: categories.length,
-    items: items.length,
-    sampleItems: items.slice(0, 3).map(i => i.name)
-  });
 
   return (
     <div className="h-[calc(100vh-2rem)] -m-8">

@@ -133,7 +133,9 @@ def print_kitchen_ticket(order):
         mesa_str = table_number if table_number else 'Mesa desconocida'
 
         p.set(align='center', bold=True, width=2, height=2)
-        p.text("COCINA\n")
+        p.text("SENDEROS\n")
+        p.set(align='center', bold=False, width=1, height=1)
+        p.text("RECIBO\n")
         p.set(align='left', bold=False, width=1, height=1)
         p.text("----------------------------------------\n")
         p.set(bold=True)
@@ -156,13 +158,21 @@ def print_kitchen_ticket(order):
         p.set(bold=False)
         p.text("----------------------------------------\n")
 
-        # Imprimir platos (order_items)
+        # Imprimir platos (order_items) con precios
+        total_order = 0
         for item in order.get('order_items', []):
             print(f"[DEBUG] Item de orden: {item}")
             quantity = item.get('quantity', 0)
             item_name = item.get('menu_items', {}).get('name', 'Producto no encontrado')
-            p.set(width=2, height=2)
+            price_per_unit = item.get('price_at_order', 0) or item.get('menu_items', {}).get('price', 0) or 0
+            item_total = price_per_unit * quantity
+            total_order += item_total
+            
+            # Línea del producto con precio
+            p.set(width=1, height=1, bold=True)
             p.text(f"{quantity}x {item_name}\n")
+            p.set(width=1, height=1, bold=False)
+            p.text(f"    Bs. {price_per_unit:.2f} c/u = Bs. {item_total:.2f}\n")
 
             # Notas por ítem (formateadas para legibilidad)
             item_notes = item.get('notes')
@@ -182,13 +192,25 @@ def print_kitchen_ticket(order):
                 p.set(width=1, height=1, bold=False, align='left')
                 p.text(f"{formatted_global_notes}\n")
 
-        p.text("\n")
+        # Imprimir total
+        p.text("----------------------------------------\n")
+        p.set(width=2, height=2, bold=True, align='center')
+        p.text(f"TOTAL: Bs. {total_order:.2f}\n")
+        p.set(width=1, height=1, bold=False, align='left')
+        p.text("----------------------------------------\n")
+        
+        # Footer
+        p.set(align='center', bold=False)
+        p.text("Gracias por su visita\n")
+        p.text("SENDEROS\n")
+
+        p.text("\n\n")
         p.cut()
         p.close()
-        print(f"[OK] Comanda de cocina para el pedido #{order['id']} impresa correctamente.")
+        print(f"[OK] Recibo con precios para el pedido #{order['id']} impreso correctamente.")
         return True
     except Exception as e:
-        print(f"[ERROR] No se pudo imprimir la comanda de cocina para el pedido #{order['id']}: {e}")
+        print(f"[ERROR] No se pudo imprimir el recibo para el pedido #{order['id']}: {e}")
         return False
 
 def print_single_order(order_id):
@@ -204,54 +226,183 @@ def print_single_order(order_id):
     else:
         print(f"[ERROR] No se encontró el pedido con ID {order_id} para la impresión manual.")
 
+def print_cash_register_report(report_data):
+    """Imprime un reporte de cierre de caja en formato 80mm."""
+    try:
+        print(f"[DEBUG] Imprimiendo reporte de cierre de caja: {report_data}")
+        p = Usb(VENDOR_ID, PRODUCT_ID, profile="TM-T88V")
+
+        # Header
+        p.set(align='center', bold=True, width=2, height=2)
+        p.text("SENDEROS\n")
+        p.set(align='center', bold=False, width=1, height=1)
+        p.text("REPORTE DE CIERRE\n")
+        p.set(align='left', bold=False, width=1, height=1)
+        p.text("----------------------------------------\n")
+        
+        # Información general
+        p.set(bold=True)
+        p.text(f"Cajero: {report_data.get('cashierName', 'N/A')}\n")
+        p.set(bold=False)
+        
+        # Fechas
+        opening_time = report_data.get('openingTime')
+        closing_time = report_data.get('closingTime')
+        if opening_time:
+            try:
+                from dateutil import parser
+                dt = parser.parse(opening_time) if isinstance(opening_time, str) else opening_time
+                opening_str = dt.strftime('%d/%m/%Y %H:%M')
+            except Exception:
+                opening_str = str(opening_time)
+        else:
+            opening_str = "N/A"
+            
+        if closing_time:
+            try:
+                from dateutil import parser
+                dt = parser.parse(closing_time) if isinstance(closing_time, str) else closing_time
+                closing_str = dt.strftime('%d/%m/%Y %H:%M')
+            except Exception:
+                closing_str = str(closing_time)
+        else:
+            closing_str = "N/A"
+            
+        p.text(f"Apertura: {opening_str}\n")
+        p.text(f"Cierre: {closing_str}\n")
+        p.text("----------------------------------------\n")
+        
+        # Resumen de ventas
+        p.set(bold=True)
+        p.text("RESUMEN DE VENTAS\n")
+        p.set(bold=False)
+        p.text(f"Ventas Totales: Bs {report_data.get('totalSales', 0):.2f}\n")
+        
+        # Solo mostrar estadísticas si no es histórico
+        if not report_data.get('isHistorical', False):
+            p.text(f"Transacciones: {report_data.get('transactionCount', 0)}\n")
+            p.text(f"Pedidos Completados: {report_data.get('completedOrders', 0)}\n")
+            p.text(f"Pedidos Cancelados: {report_data.get('cancelledOrders', 0)}\n")
+        else:
+            p.text("Transacciones: N/A\n")
+            p.text("Pedidos Completados: N/A\n")
+            p.text("Pedidos Cancelados: N/A\n")
+        
+        p.text("----------------------------------------\n")
+        
+        # Desglose por método de pago
+        p.set(bold=True)
+        p.text("DESGLOSE POR PAGO\n")
+        p.set(bold=False)
+        p.text(f"Efectivo: Bs {report_data.get('totalCash', 0):.2f}\n")
+        p.text(f"QR: Bs {report_data.get('totalQr', 0):.2f}\n")
+        p.text(f"Tarjeta: Bs {report_data.get('totalCard', 0):.2f}\n")
+        p.text("----------------------------------------\n")
+        
+        # Control de efectivo
+        p.set(bold=True)
+        p.text("CONTROL DE EFECTIVO\n")
+        p.set(bold=False)
+        p.text(f"Apertura: Bs {report_data.get('openingAmount', 0):.2f}\n")
+        p.text(f"Ventas Efectivo: Bs {report_data.get('totalCash', 0):.2f}\n")
+        p.text(f"Esperado: Bs {report_data.get('expectedCash', 0):.2f}\n")
+        p.text(f"Real: Bs {report_data.get('actualCash', 0):.2f}\n")
+        
+        # Diferencia
+        difference = report_data.get('difference', 0)
+        p.set(bold=True)
+        if difference >= 0:
+            p.text(f"DIFERENCIA: +Bs {difference:.2f}\n")
+        else:
+            p.text(f"DIFERENCIA: -Bs {abs(difference):.2f}\n")
+        p.set(bold=False)
+        
+        p.text("----------------------------------------\n")
+        
+        # Footer
+        p.set(align='center', bold=False)
+        p.text("Reporte generado automáticamente\n")
+        p.text("Sistema QR Order\n")
+        
+        if report_data.get('isHistorical', False):
+            p.text("⚠️ REPORTE HISTÓRICO\n")
+            p.text("Datos limitados\n")
+        
+        p.text("\n\n")
+        p.cut()
+        p.close()
+        print(f"[OK] Reporte de cierre de caja impreso correctamente.")
+        return True
+    except Exception as e:
+        print(f"[ERROR] No se pudo imprimir el reporte de cierre de caja: {e}")
+        return False
+
 def process_new_orders():
     global supabase
     if not supabase:
         supabase = load_environment()
-    print("[INFO] Iniciando el servicio de impresión de cocina...")
+    print("[INFO] Iniciando el servicio de impresión de recibos para SENDEROS...")
+    
+    # ID del restaurante Senderos
+    senderos_restaurant_id = 'b333ede7-f67e-43d6-8652-9a918737d6e3'
+    print(f"[INFO] Monitoreando pedidos del restaurante Senderos: {senderos_restaurant_id}")
     
     while running:
         try:
-            # Ahora busca CUALQUIER orden que no esté impresa para la cocina.
-            # Esto incluye nuevas y las que se marcaron para reimprimir.
-            response = supabase.table('orders').select('*, notes, order_items(*, notes, menu_items(*))').eq('kitchen_printed', False).order('id').execute()
+            # Procesar reportes de cierre de caja primero (prioridad alta)
+            print_jobs_response = supabase.table('print_jobs').select('*').eq('status', 'pending').eq('job_type', 'cash_register_report').order('created_at').execute()
+            
+            if print_jobs_response.data:
+                print(f"[+] Se encontraron {len(print_jobs_response.data)} reportes de cierre de caja para imprimir.")
+                for job in print_jobs_response.data:
+                    if print_cash_register_report(job['data']):
+                        # Marcar como completado
+                        update_response = supabase.table('print_jobs').update({
+                            'status': 'completed',
+                            'completed_at': datetime.now().isoformat()
+                        }).eq('id', job['id']).execute()
+                        
+                        if update_response.data:
+                            print(f"[OK] Reporte de cierre de caja procesado y marcado como completado.")
+                        else:
+                            print(f"[ERROR] No se pudo marcar el reporte como completado.")
+                    else:
+                        # Marcar como fallido
+                        update_response = supabase.table('print_jobs').update({
+                            'status': 'failed',
+                            'error_message': 'Error de impresión'
+                        }).eq('id', job['id']).execute()
+                        print(f"[ERROR] Reporte de cierre de caja falló y fue marcado como fallido.")
+            
+            # Buscar pedidos que no estén impresos (sistema de una sola impresora)
+            # Filtrar solo pedidos del restaurante Senderos
+            response = supabase.table('orders').select('*, notes, order_items(*, notes, menu_items(*))').eq('kitchen_printed', False).eq('restaurant_id', senderos_restaurant_id).order('id').execute()
             
             new_orders = response.data
             
             if new_orders:
-                print(f"[+] Se encontraron {len(new_orders)} pedidos para la cocina.")
+                print(f"[+] Se encontraron {len(new_orders)} pedidos para imprimir.")
                 for order in new_orders:
-                    # Se añade una comprobación del estado para no reimprimir completados/cancelados
+                    # Solo imprimir pedidos pendientes o en proceso
                     if order['status'] in ['pending', 'in_progress']:
                         if print_kitchen_ticket(order):
-                            print(f"[INFO] Marcando pedido #{order['id']} como impreso en cocina...")
+                            print(f"[INFO] Marcando pedido #{order['id']} como impreso...")
                             
-                            # Actualizar 'kitchen_printed'.
-                            update_response = supabase.table('orders').update({'kitchen_printed': True}).eq('id', order['id']).execute()
+                            # Actualizar ambos campos para simplificar (una sola impresora)
+                            update_response = supabase.table('orders').update({
+                                'kitchen_printed': True,
+                                'drink_printed': True,
+                                'status': 'in_progress'
+                            }).eq('id', order['id']).execute()
 
-                            # Comprobar si la actualización fue exitosa.
                             if update_response.data:
-                                # Re-fetch the order to get the most up-to-date status.
-                                refetch_response = supabase.table('orders').select('*').eq('id', order['id']).single().execute()
-
-                                if refetch_response.data:
-                                    updated_order = refetch_response.data
-                                    print(f"[OK] Pedido #{order['id']} marcado como impreso en cocina.")
-
-                                    # Comprobar si la otra impresora también ha terminado.
-                                    if updated_order.get('drink_printed'):
-                                        print(f"[INFO] Ambas impresoras terminaron. Moviendo pedido #{order['id']} a 'En Proceso'.")
-                                        supabase.table('orders').update({'status': 'in_progress'}).eq('id', order['id']).execute()
-                                    else:
-                                        print(f"[INFO] Esperando la impresión de bebidas para el pedido #{order['id']}.")
-                                else:
-                                    print(f"[ERROR] No se pudo re-obtener el estado del pedido #{order['id']} después de actualizar.")
+                                print(f"[OK] Pedido #{order['id']} impreso y movido a 'En Proceso'.")
                             else:
                                 print(f"[ERROR] FALLO AL ACTUALIZAR la base de datos para el pedido #{order['id']}. Respuesta: {update_response}")
                         else:
                             print(f"[ERROR] No se marcará el pedido #{order['id']} como impreso debido a un fallo de impresión.")
             else:
-                print("[INFO] Buscando nuevos pedidos para la cocina...      ", end='\r')
+                print("[INFO] Buscando nuevos pedidos y reportes...      ", end='\r')
 
         except Exception as e:
             print(f"\n[ERROR] Ocurrió un error en el bucle principal: {e}")
@@ -273,9 +424,10 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
-    print("[INFO] === SERVICIO DE IMPRESIÓN SIMPLE ===")
+    print("[INFO] === SERVICIO DE IMPRESIÓN SENDEROS ===")
     print("[INFO] Star Micronics BSC10 (USB 0519:000b)")
-    print("[INFO] Sin sistema de colas - Impresión directa")
+    print("[INFO] Impresión con precios - Una sola impresora")
+    print("[INFO] Manejo de pedidos y reportes de cierre de caja")
     
     # Cargar configuración
     supabase = load_environment()
@@ -286,8 +438,8 @@ def main():
         print("[ERROR] No se puede continuar sin impresora funcionando")
         sys.exit(1)
     
-    # La lógica de 'last_checked_order_id' ya no es necesaria.
-    print("[INFO] Iniciando monitoreo de todas las órdenes pendientes.")
+    # Sistema simplificado para una sola impresora
+    print("[INFO] Iniciando monitoreo de pedidos para SENDEROS.")
     
     # Procesar órdenes (bucle infinito)
     process_new_orders()

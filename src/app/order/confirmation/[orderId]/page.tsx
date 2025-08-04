@@ -2,6 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
 import { formatModifierNotes } from "@/utils/formatModifiers";
+import { getItemName } from "@/utils/getItemName";
 
 export default async function Page({
   params,
@@ -47,26 +48,7 @@ export default async function Page({
               <li key={item.id} className="border-b border-gray-100 pb-2 last:border-b-0">
                 <div className="flex justify-between items-baseline">
                   <span className="font-medium">
-                    {item.quantity} x {(() => {
-                      // Handle custom products
-                      if (item.menu_items?.name) {
-                        return item.menu_items.name;
-                      }
-                      
-                      // Extract custom product name from notes if available
-                      if (item.notes && item.notes.startsWith('{')) {
-                        try {
-                          const parsedNotes = JSON.parse(item.notes);
-                          if (parsedNotes.type === 'custom_product' && parsedNotes.name) {
-                            return parsedNotes.name;
-                          }
-                        } catch (e) {
-                          // If parsing fails, fall back to default
-                        }
-                      }
-                      
-                      return "Plato";
-                    })()}
+                    {item.quantity} x {getItemName(item)}
                   </span>
                   <span className="font-mono">
                     Bs {((item.price_at_order ?? 0) * item.quantity).toFixed(2)}
