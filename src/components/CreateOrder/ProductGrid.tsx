@@ -47,10 +47,17 @@ export default function ProductGrid({
       )
     : items;
 
-  // Filtrar por categoría seleccionada o búsqueda
-  const displayItems = selectedCategory && !searchTerm
+  // Filtrar por categoría seleccionada o búsqueda y ordenar correctamente
+  const displayItems = (selectedCategory && !searchTerm
     ? filteredItems.filter(item => item.category_id === selectedCategory)
-    : filteredItems;
+    : filteredItems)
+    .sort((a, b) => {
+      // Primero ordenar por category_id, luego por display_order
+      if (a.category_id !== b.category_id) {
+        return (a.category_id || 0) - (b.category_id || 0);
+      }
+      return (a.display_order || 0) - (b.display_order || 0);
+    });
 
   // Contar items por categoría
   const categoriesWithCount = categories.map(category => ({

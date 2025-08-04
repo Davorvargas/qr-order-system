@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { QrCode, Download, Printer, Eye, RefreshCw, Plus } from "lucide-react";
+import { QrCode, Download, Printer, Eye, RefreshCw, Plus, Edit2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface QRTable {
@@ -29,6 +29,11 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
   const [addMorePrefix, setAddMorePrefix] = useState<string>("Mesa");
   const [creating, setCreating] = useState(false);
   
+  // States for editing table names
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingTable, setEditingTable] = useState<QRTable | null>(null);
+  const [newTableName, setNewTableName] = useState<string>("");
+  
   const supabase = createClient();
   
   // Cargar mesas reales de la base de datos
@@ -52,11 +57,24 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       }
       
       if (tablesData) {
-        const formattedTables: QRTable[] = tablesData.map(table => ({
-          id: table.id,
-          tableNumber: table.table_number,
-          displayName: `Mesa ${table.table_number}`
-        }));
+        const formattedTables: QRTable[] = tablesData.map(table => {
+          const tableNum = table.table_number;
+          let displayName: string;
+          
+          // If table_number is just a number, add "Mesa" prefix
+          if (/^\d+$/.test(tableNum)) {
+            displayName = `Mesa ${tableNum}`;
+          } else {
+            // If table_number already contains text, use it as is
+            displayName = tableNum;
+          }
+          
+          return {
+            id: table.id,
+            tableNumber: tableNum,
+            displayName: displayName
+          };
+        });
         
         setTables(formattedTables);
       }
@@ -74,7 +92,9 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       
       const tablesToCreate = [];
       for (let i = 0; i < count; i++) {
-        const tableNumber = (startNum + i).toString();
+        const tableNumber = prefix.toLowerCase() === 'mesa' 
+          ? (startNum + i).toString() 
+          : `${prefix} ${startNum + i}`;
         tablesToCreate.push({
           table_number: tableNumber,
           restaurant_id: restaurantId
@@ -163,6 +183,56 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
   const getNextTableNumber = () => {
     const currentNumbers = tables.map(t => parseInt(t.tableNumber)).filter(n => !isNaN(n));
     return currentNumbers.length > 0 ? Math.max(...currentNumbers) + 1 : 1;
+  };
+
+  const openEditModal = (table: QRTable) => {
+    setEditingTable(table);
+    setNewTableName(table.tableNumber);
+    setShowEditModal(true);
+  };
+
+  const updateTableName = async () => {
+    if (!editingTable || !newTableName.trim()) {
+      alert("Por favor ingresa un nombre válido para la mesa");
+      return;
+    }
+
+    try {
+      setCreating(true);
+      
+      const { error } = await supabase
+        .from('tables')
+        .update({ table_number: newTableName.trim() })
+        .eq('id', editingTable.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Actualizar la lista de mesas localmente
+      setTables(prevTables => 
+        prevTables.map(table => 
+          table.id === editingTable.id 
+            ? {
+                ...table,
+                tableNumber: newTableName.trim(),
+                displayName: newTableName.trim()
+              }
+            : table
+        )
+      );
+      
+      setShowEditModal(false);
+      setEditingTable(null);
+      setNewTableName("");
+      alert("¡Nombre de mesa actualizado exitosamente!");
+      
+    } catch (error) {
+      console.error('Error updating table name:', error);
+      alert(`Error al actualizar el nombre: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const generateQRUrl = (table: QRTable) => {
@@ -464,6 +534,13 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                     </div>
                     <div className="flex flex-col space-y-2">
                       <button
+                        onClick={() => openEditModal(table)}
+                        className="flex items-center justify-center space-x-2 text-orange-600 hover:bg-orange-50 px-3 py-2 rounded transition-colors"
+                      >
+                        <Edit2 size={16} />
+                        <span>Editar Nombre</span>
+                      </button>
+                      <button
                         onClick={() => {
                           setSelectedTable(table);
                           setShowPreview(true);
@@ -639,7 +716,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   value={tablePrefix}
                   onChange={(e) => setTablePrefix(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mesa"
+                  placeholder="Ej: Mesa, Terraza, VIP, Barra..."
                   disabled={creating}
                 />
               </div>
@@ -742,7 +819,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                     value={addMorePrefix}
                     onChange={(e) => setAddMorePrefix(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Mesa"
+                    placeholder="Ej: Mesa, Terraza, VIP..."
                     disabled={creating}
                   />
                 </div>
@@ -770,6 +847,83 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {creating ? "Creando..." : `Añadir ${additionalTables}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Table Name Modal */}
+      {showEditModal && editingTable && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-lg font-semibold">Editar Nombre de Mesa</h3>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingTable(null);
+                  setNewTableName("");
+                }}
+                className="text-gray-400 hover:text-gray-600"
+                disabled={creating}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <div className="text-sm text-blue-800">
+                  <strong>Mesa actual:</strong> {editingTable.displayName}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nuevo nombre para la mesa
+                </label>
+                <input
+                  type="text"
+                  value={newTableName}
+                  onChange={(e) => setNewTableName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Terraza 1, VIP, Zona Fumadores, Barra 3..."
+                  disabled={creating}
+                  maxLength={50}
+                />
+                <div className="text-xs text-gray-500 mt-1">
+                  Máximo 50 caracteres
+                </div>
+              </div>
+              
+              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
+                <strong>Vista previa:</strong> "{newTableName || editingTable.tableNumber}"
+              </div>
+              
+              <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                <strong>Nota:</strong> El QR code seguirá funcionando, solo cambiará el nombre mostrado.
+              </div>
+            </div>
+            
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingTable(null);
+                  setNewTableName("");
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                disabled={creating}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={updateTableName}
+                disabled={creating || !newTableName.trim()}
+                className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creating ? "Actualizando..." : "Actualizar Nombre"}
               </button>
             </div>
           </div>

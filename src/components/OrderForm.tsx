@@ -22,6 +22,10 @@ interface OrderItemDetail {
   name: string;
   price: number | null;
   notes: string;
+  isCustom?: boolean;
+  originalItemId?: number;
+  selectedModifiers?: Record<string, string[]>;
+  modifierDetails?: string;
 }
 interface OrderState {
   [itemId: number]: OrderItemDetail;
@@ -65,6 +69,12 @@ export default function OrderForm({
         grouped[item.category_id].push(item);
       }
     });
+    
+    // Ordenar items dentro de cada categoría por display_order
+    Object.keys(grouped).forEach(categoryId => {
+      grouped[parseInt(categoryId)].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    });
+    
     return grouped;
   }, [items]);
 
@@ -163,6 +173,14 @@ export default function OrderForm({
     const modifierHash = JSON.stringify(selectedModifiers);
     const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
+    console.log('🔍 OrderForm: Adding item with modifiers:', {
+      itemId: item.id,
+      uniqueId,
+      selectedModifiers,
+      notes,
+      totalPrice
+    });
+    
     setOrderItems((prev) => ({
       ...prev,
       [uniqueId]: {
@@ -170,6 +188,10 @@ export default function OrderForm({
         name: item.name,
         price: totalPrice / quantity, // Precio unitario con modificadores
         notes: notes,
+        isCustom: false,
+        originalItemId: item.id,
+        selectedModifiers: selectedModifiers,
+        modifierDetails: modifierHash,
       },
     }));
   };
@@ -203,15 +225,23 @@ export default function OrderForm({
       total_price: totalPrice,
       notes, // Usar la nota global real
       order_items: Object.entries(orderItems).map(([itemId, details]) => {
+        console.log(`🔍 OrderForm: Processing item ${itemId}:`, {
+          name: details.name,
+          hasSelectedModifiers: !!details.selectedModifiers,
+          selectedModifiers: details.selectedModifiers,
+          isStringId: typeof itemId === 'string',
+          notes: details.notes
+        });
+        
         // Handle items with modifiers (these have string IDs)
         if (typeof itemId === 'string' && itemId.includes('_')) {
           return {
             menu_item_id: parseInt(itemId.split('_')[0], 10),
             quantity: details.quantity,
             price_at_order: details.price,
-            notes: details.notes,
-            // Include modifier information in notes for now
-            modifier_details: JSON.stringify(details)
+            notes: details.selectedModifiers 
+              ? JSON.stringify({ selectedModifiers: details.selectedModifiers, original_notes: details.notes.trim() || "" })
+              : details.notes,
           };
         }
         // Handle regular items
@@ -223,6 +253,8 @@ export default function OrderForm({
         };
       }),
     };
+    
+    console.log('🚀 OrderForm: Sending order payload:', JSON.stringify(payload, null, 2));
 
     const { data, error } = await supabase.functions.invoke("place-order", {
       body: payload,

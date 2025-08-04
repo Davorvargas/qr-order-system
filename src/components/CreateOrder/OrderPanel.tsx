@@ -7,6 +7,10 @@ interface OrderItemDetail {
   name: string;
   price: number | null;
   notes: string;
+  isCustom?: boolean;
+  originalItemId?: number;
+  selectedModifiers?: Record<string, string[]>;
+  modifierDetails?: string;
 }
 
 interface OrderState {
@@ -80,6 +84,19 @@ export default function OrderPanel({
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <h4 className="font-medium text-sm text-gray-900">{item.name}</h4>
+                    
+                    {/* Show modifiers if available */}
+                    {item.selectedModifiers && Object.keys(item.selectedModifiers).length > 0 && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        {Object.entries(item.selectedModifiers).map(([groupName, options]) => (
+                          <div key={groupName} className="flex items-center gap-1">
+                            <span className="font-medium">{groupName}:</span>
+                            <span>{options.join(", ")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between text-xs text-gray-600 mt-1">
                       <span>Bs. {(item.price ?? 0).toFixed(2)} c/u</span>
                       <span className="font-semibold text-purple-700">

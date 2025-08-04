@@ -1,0 +1,15 @@
+[1mdiff --git a/src/app/menu/[tableId]/page.tsx b/src/app/menu/[tableId]/page.tsx[m
+[1mindex 2d28b51..e3d7a2b 100644[m
+[1m--- a/src/app/menu/[tableId]/page.tsx[m
+[1m+++ b/src/app/menu/[tableId]/page.tsx[m
+[36m@@ -87,7 +87,9 @@[m [mexport default function MenuPage() {[m
+     const itemCategoryIds = new Set([m
+       allMenuItems.map((item) => item.category_id)[m
+     );[m
+[31m-    return allCategories.filter((category) => itemCategoryIds.has(category.id));[m
+[32m+[m[32m    return allCategories[m
+[32m+[m[32m      .filter((category) => itemCategoryIds.has(category.id))[m
+[32m+[m[32m      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)); // Asegurar orden[m
+   }, [allCategories, allMenuItems]);[m
+ [m
+   useEffect(() => {[m

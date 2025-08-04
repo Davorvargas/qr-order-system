@@ -87,7 +87,9 @@ export default function MenuPage() {
     const itemCategoryIds = new Set(
       allMenuItems.map((item) => item.category_id)
     );
-    return allCategories.filter((category) => itemCategoryIds.has(category.id));
+    return allCategories
+      .filter((category) => itemCategoryIds.has(category.id))
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0)); // Asegurar orden
   }, [allCategories, allMenuItems]);
 
   useEffect(() => {

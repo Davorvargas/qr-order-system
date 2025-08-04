@@ -10,6 +10,13 @@ export type OrderItem = {
   quantity: number;
   menu_items: { name: string; price: number | null } | null;
   notes?: string;
+  order_item_modifiers?: {
+    id: string;
+    price_at_order: number;
+    modifier_id: string;
+    modifiers: { name: string; price_modifier: number | null };
+    modifier_groups: { name: string };
+  }[];
 };
 
 export type Order = {
@@ -24,6 +31,7 @@ export type Order = {
   source: string;
   kitchen_printed: boolean;
   drink_printed: boolean;
+  receipt_printed: boolean;
   notes?: string;
 };
 
@@ -56,12 +64,26 @@ export default function StaffDashboardPage() {
         return;
       }
 
-      // Filtrar órdenes por restaurant_id
+      // Filtrar órdenes por restaurant_id e incluir modificadores
       const { data: orders, error } = await supabase
         .from("orders")
-        .select(
-          "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
-        )
+        .select(`
+          *, 
+          notes, 
+          table:tables(table_number, restaurant_id), 
+          order_items(
+            *, 
+            notes, 
+            menu_items(name, price),
+            order_item_modifiers(
+              id,
+              price_at_order,
+              modifier_id,
+              modifiers(name, price_modifier),
+              modifier_groups(name)
+            )
+          )
+        `)
         .eq('restaurant_id', profile.restaurant_id)
         .gte("created_at", today.toISOString())
         .order("created_at", { ascending: false });

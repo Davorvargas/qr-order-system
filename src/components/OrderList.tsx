@@ -22,6 +22,7 @@ import {
   Receipt,
   Edit,
 } from "lucide-react";
+import { formatModifierNotes } from "../utils/formatModifiers";
 
 type Printer = Database["public"]["Tables"]["printers"]["Row"];
 
@@ -205,7 +206,7 @@ export default function OrderList({
         case "drink":
           return order.drink_printed;
         case "receipt":
-          return order.drink_printed; // Los recibos usan el mismo campo que drink
+          return order.receipt_printed;
         default:
           return true;
       }
@@ -240,9 +241,23 @@ export default function OrderList({
 
           const { data: newOrderDetails } = await supabase
             .from("orders")
-            .select(
-              "*, notes, table:tables(table_number), order_items(*, notes, menu_items(name))"
-            )
+            .select(`
+              *, 
+              notes, 
+              table:tables(table_number), 
+              order_items(
+                *, 
+                notes, 
+                menu_items(name),
+                order_item_modifiers(
+                  id,
+                  price_at_order,
+                  modifier_id,
+                  modifiers(name, price_modifier),
+                  modifier_groups(name)
+                )
+              )
+            `)
             .eq("id", payload.new.id)
             .eq('restaurant_id', profile.restaurant_id)
             .single();
@@ -317,11 +332,14 @@ export default function OrderList({
         const updateData: {
           kitchen_printed?: boolean;
           drink_printed?: boolean;
+          receipt_printed?: boolean;
         } = {};
         if (printerType === "kitchen") {
           updateData.kitchen_printed = true;
-        } else if (printerType === "drink" || printerType === "receipt") {
+        } else if (printerType === "drink") {
           updateData.drink_printed = true;
+        } else if (printerType === "receipt") {
+          updateData.receipt_printed = true;
         }
 
         await supabase.from("orders").update(updateData).eq("id", orderId);
@@ -411,9 +429,23 @@ export default function OrderList({
 
       const { data: ordersData, error } = await supabase
         .from("orders")
-        .select(
-          "*, notes, table:tables(table_number, restaurant_id), order_items(*, notes, menu_items(name, price))"
-        )
+        .select(`
+          *, 
+          notes, 
+          table:tables(table_number, restaurant_id), 
+          order_items(
+            *, 
+            notes, 
+            menu_items(name, price),
+            order_item_modifiers(
+              id,
+              price_at_order,
+              modifier_id,
+              modifiers(name, price_modifier),
+              modifier_groups(name)
+            )
+          )
+        `)
         .eq('restaurant_id', profile.restaurant_id)
         .gte("created_at", today.toISOString())
         .order("created_at", { ascending: false });
@@ -442,6 +474,12 @@ export default function OrderList({
     if (!selectedOrder) return;
     await handleUpdateStatus(selectedOrder.id, "cancelled");
     handleCloseCancelModal();
+  };
+
+  const handleConfirmCompletion = async () => {
+    if (!selectedOrder) return;
+    await handleUpdateStatus(selectedOrder.id, "completed");
+    handleCloseConfirmModal();
   };
 
   const filteredOrders = useMemo(() => {
@@ -546,7 +584,7 @@ export default function OrderList({
                           ? order.kitchen_printed
                           : printer.type === "drink"
                           ? order.drink_printed
-                          : order.drink_printed // Recibos usan el mismo campo que drink
+                          : order.receipt_printed // Los recibos tienen su propio campo
                       }
                       icon={getPrinterIcon(printer.type)}
                     />
@@ -560,9 +598,20 @@ export default function OrderList({
                         <span>
                           {item.quantity}x{" "}
                           {item.menu_items?.name || "Item borrado"}
+                          {item.order_item_modifiers && item.order_item_modifiers.length > 0 && (
+                            <span className="block text-xs text-blue-600 ml-2">
+                              {item.order_item_modifiers.map((mod, index) => (
+                                <span key={mod.id}>
+                                  {index > 0 && ", "}
+                                  {mod.modifier_groups.name}: {mod.modifiers.name}
+                                  {mod.price_at_order > 0 && ` (+${mod.price_at_order})`}
+                                </span>
+                              ))}
+                            </span>
+                          )}
                           {item.notes && (
                             <span className="block text-xs text-gray-500 ml-2 whitespace-pre-wrap">
-                              📝 {item.notes}
+                              📝 {formatModifierNotes(item.notes)}
                             </span>
                           )}
                         </span>

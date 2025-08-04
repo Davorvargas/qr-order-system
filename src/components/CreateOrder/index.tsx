@@ -310,25 +310,78 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       total_price: totalPrice,
       notes: generalNotes.trim() || null,
       source: 'staff_placed' as const,
-      order_items: Object.entries(orderItems).map(([itemId, details]) => ({
-        menu_item_id: details.isCustom ? null : parseInt(itemId, 10),
-        quantity: details.quantity,
-        price_at_order: details.price,
-        notes: details.isCustom ? JSON.stringify({ type: "custom_product", name: details.name, original_notes: details.notes.trim() || "" }) : details.notes.trim() || null,
-      })),
+      order_items: Object.entries(orderItems).map(([itemId, details]) => {
+        console.log(`🔍 Processing item ${itemId}:`, {
+          name: details.name,
+          hasSelectedModifiers: !!details.selectedModifiers,
+          selectedModifiers: details.selectedModifiers,
+          isCustom: details.isCustom,
+          notes: details.notes
+        });
+        
+        return {
+          menu_item_id: details.isCustom ? null : (details.originalItemId || parseInt(itemId, 10)),
+          quantity: details.quantity,
+          price_at_order: details.price,
+          notes: details.isCustom 
+            ? JSON.stringify({ type: "custom_product", name: details.name, original_notes: details.notes.trim() || "" })
+            : details.selectedModifiers 
+              ? JSON.stringify({ selectedModifiers: details.selectedModifiers, original_notes: details.notes.trim() || "" })
+              : details.notes.trim() || null,
+        };
+      }),
     };
 
     try {
-      console.log('Sending order payload:', JSON.stringify(payload, null, 2));
+      console.log('🚀 Sending order payload:', JSON.stringify(payload, null, 2));
+      
+      // Check if any items have modifiers
+      const itemsWithModifiers = payload.order_items.filter(item => 
+        item.notes && item.notes.includes('selectedModifiers')
+      );
+      console.log(`🔍 Items with modifiers in payload: ${itemsWithModifiers.length}`);
+      if (itemsWithModifiers.length > 0) {
+        console.log('🔍 Modifier items details:', itemsWithModifiers.map(item => ({
+          menu_item_id: item.menu_item_id,
+          notes: item.notes
+        })));
+      }
       
       // Get the current session to ensure we have a valid token
       const { data: sessionData } = await supabase.auth.getSession();
       console.log('Current session:', sessionData.session ? 'Valid' : 'Invalid');
       console.log('Access token present:', sessionData.session?.access_token ? 'Yes' : 'No');
       
-      const { data, error } = await supabase.functions.invoke("place-order", {
-        body: payload,
-      });
+      let data, error;
+      try {
+        const response = await supabase.functions.invoke("place-order", {
+          body: payload,
+        });
+        data = response.data;
+        error = response.error;
+      } catch (invokeError) {
+        console.error('Function invoke failed:', invokeError);
+        
+        // Try to get the actual response if available
+        if (invokeError.response) {
+          try {
+            const errorText = await invokeError.response.text();
+            console.error('Error response body:', errorText);
+            const errorData = JSON.parse(errorText);
+            setSubmitError(`Error del servidor: ${errorData.error || invokeError.message}`);
+            if (errorData.details) {
+              console.error('Detailed error:', errorData.details);
+            }
+          } catch (parseError) {
+            console.error('Could not parse error response:', parseError);
+            setSubmitError(`Error del servidor: ${invokeError.message}`);
+          }
+        } else {
+          setSubmitError(`Error del servidor: ${invokeError.message}`);
+        }
+        setIsLoading(false);
+        return;
+      }
 
       console.log('Edge Function response:', { data, error });
 
@@ -347,11 +400,29 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       }
     } catch (error) {
       console.error('Catch block error:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : typeof error === 'string' 
-        ? error 
-        : "Error desconocido";
+      
+      // Try to extract more information from the error
+      let errorMessage = "Error desconocido";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check if there's additional context in the error
+        if ('context' in error && error.context) {
+          console.error('Error context:', error.context);
+        }
+        
+        // Check for response body in fetch errors
+        if ('cause' in error && error.cause) {
+          console.error('Error cause:', error.cause);
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object') {
+        console.error('Error object keys:', Object.keys(error));
+        errorMessage = JSON.stringify(error);
+      }
+      
       setSubmitError(`Error: ${errorMessage}`);
     }
 

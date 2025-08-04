@@ -103,8 +103,8 @@ export default function TransactionsPage() {
           .lte("created_at", endOfYesterday().toISOString());
       } else if (activeRange === "This Week") {
         query = query
-          .gte("created_at", startOfWeek(now).toISOString())
-          .lte("created_at", endOfWeek(now).toISOString());
+          .gte("created_at", startOfWeek(now, { weekStartsOn: 1 }).toISOString())
+          .lte("created_at", endOfWeek(now, { weekStartsOn: 1 }).toISOString());
       } else if (activeRange === "This Month") {
         query = query
           .gte("created_at", startOfMonth(now).toISOString())

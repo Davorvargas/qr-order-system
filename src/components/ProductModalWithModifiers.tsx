@@ -171,7 +171,29 @@ export default function ProductModalWithModifiers({
   const handleAddToCart = () => {
     if (!item || !validateSelections()) return;
     
-    onAddToCart(item, quantity, notes, selectedModifiers, totalPrice);
+    // Convert modifier IDs to names for the Edge Function
+    const modifiersByName: Record<string, string[]> = {};
+    
+    Object.entries(selectedModifiers).forEach(([groupId, modifierIds]) => {
+      const group = modifierGroups.find(g => g.id === groupId);
+      if (group) {
+        const modifierNames = modifierIds.map(modId => {
+          const modifier = group.modifiers.find(m => m.id === modId);
+          return modifier?.name || '';
+        }).filter(name => name !== '');
+        
+        if (modifierNames.length > 0) {
+          modifiersByName[group.name] = modifierNames;
+        }
+      }
+    });
+    
+    console.log('🔍 Converting modifiers from IDs to names:', {
+      originalIds: selectedModifiers,
+      convertedNames: modifiersByName
+    });
+    
+    onAddToCart(item, quantity, notes, modifiersByName, totalPrice);
     handleClose();
   };
 

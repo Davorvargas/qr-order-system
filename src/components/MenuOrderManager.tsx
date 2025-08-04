@@ -151,30 +151,51 @@ export default function MenuOrderManager({ categories, menuItems }: MenuOrderMan
         return;
       }
 
-      // Update category display_order
-      const categoryUpdates = orderedCategories.map((category, index) => ({
-        id: category.id,
-        display_order: index + 1
-      }));
+      // Update categories using individual updates (can't use upsert due to IDENTITY column)
+      console.log('🔍 Updating categories with display_order...');
 
-      for (const update of categoryUpdates) {
-        await supabase
+      for (let i = 0; i < orderedCategories.length; i++) {
+        const category = orderedCategories[i];
+        const { error: categoryError } = await supabase
           .from("menu_categories")
-          .update({ display_order: update.display_order })
-          .eq("id", update.id)
-          .eq("restaurant_id", profile.restaurant_id);
-      }
-
-      // Update menu item display_order
-      for (const [, items] of Object.entries(orderedItems)) {
-        for (let i = 0; i < items.length; i++) {
-          await supabase
-            .from("menu_items")
-            .update({ display_order: i + 1 })
-            .eq("id", items[i].id)
-            .eq("restaurant_id", profile.restaurant_id);
+          .update({
+            display_order: i + 1,
+            is_available: category.is_available
+          })
+          .eq('id', category.id);
+          
+        if (categoryError) {
+          console.error(`Error updating category ${category.id}:`, categoryError);
+          throw categoryError;
         }
       }
+      
+      console.log('✅ Categories updated successfully');
+
+      // Update menu items using individual updates (can't use upsert due to IDENTITY column)
+      console.log('🔍 Updating menu items with display_order...');
+      
+      let updateCount = 0;
+      for (const [, items] of Object.entries(orderedItems)) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          const { error: itemError } = await supabase
+            .from("menu_items")
+            .update({
+              display_order: i + 1,
+              is_available: item.is_available
+            })
+            .eq('id', item.id);
+            
+          if (itemError) {
+            console.error(`Error updating item ${item.id}:`, itemError);
+            throw itemError;
+          }
+          updateCount++;
+        }
+      }
+      
+      console.log(`✅ Updated ${updateCount} menu items successfully`);
 
       alert("¡Orden guardado exitosamente!");
     } catch (error) {

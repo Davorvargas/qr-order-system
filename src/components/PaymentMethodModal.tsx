@@ -31,13 +31,6 @@ export default function PaymentMethodModal({
     useState<CashRegister | null>(null);
   const [user, setUser] = useState<User | null>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchActiveCashRegister();
-      fetchUser();
-    }
-  }, [isOpen, restaurantId, fetchActiveCashRegister, fetchUser]);
-
   const fetchUser = async () => {
     const {
       data: { user },
@@ -63,6 +56,13 @@ export default function PaymentMethodModal({
       console.error("Error fetching active cash register:", error);
     }
   };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchActiveCashRegister();
+      fetchUser();
+    }
+  }, [isOpen, restaurantId]);
 
   const handlePayment = async () => {
     if (!selectedMethod) {

@@ -1,6 +1,7 @@
 // src/app/order/confirmation/[orderId]/page.tsx
 import { createClient } from "@/utils/supabase/server";
 import { notFound } from "next/navigation";
+import { formatModifierNotes } from "@/utils/formatModifiers";
 
 export default async function Page({
   params,
@@ -41,15 +42,57 @@ export default async function Page({
         </div>
         <div>
           <h2 className="font-bold mb-2 text-gray-800">Resumen del Pedido</h2>
-          <ul className="space-y-1 text-gray-700">
+          <ul className="space-y-2 text-gray-700">
             {order.order_items.map((item) => (
-              <li key={item.id} className="flex justify-between items-baseline">
-                <span>
-                  {item.quantity} x {item.menu_items?.name ?? "Plato"}
-                </span>
-                <span className="font-mono">
-                  Bs {((item.price_at_order ?? 0) * item.quantity).toFixed(2)}
-                </span>
+              <li key={item.id} className="border-b border-gray-100 pb-2 last:border-b-0">
+                <div className="flex justify-between items-baseline">
+                  <span className="font-medium">
+                    {item.quantity} x {(() => {
+                      // Handle custom products
+                      if (item.menu_items?.name) {
+                        return item.menu_items.name;
+                      }
+                      
+                      // Extract custom product name from notes if available
+                      if (item.notes && item.notes.startsWith('{')) {
+                        try {
+                          const parsedNotes = JSON.parse(item.notes);
+                          if (parsedNotes.type === 'custom_product' && parsedNotes.name) {
+                            return parsedNotes.name;
+                          }
+                        } catch (e) {
+                          // If parsing fails, fall back to default
+                        }
+                      }
+                      
+                      return "Plato";
+                    })()}
+                  </span>
+                  <span className="font-mono">
+                    Bs {((item.price_at_order ?? 0) * item.quantity).toFixed(2)}
+                  </span>
+                </div>
+                
+                {/* Show modifiers */}
+                {item.order_item_modifiers && item.order_item_modifiers.length > 0 && (
+                  <div className="ml-4 mt-1 text-sm text-blue-600">
+                    {item.order_item_modifiers.map((mod, index) => (
+                      <div key={mod.id} className="flex justify-between">
+                        <span>• {mod.modifier_groups.name}: {mod.modifiers.name}</span>
+                        {mod.price_at_order > 0 && (
+                          <span className="font-mono">+Bs {mod.price_at_order.toFixed(2)}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Show item notes (for custom products or regular notes) */}
+                {item.notes && (
+                  <div className="ml-4 mt-1 text-sm text-gray-500">
+                    📝 {formatModifierNotes(item.notes)}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -84,6 +127,14 @@ interface OrderItem {
   quantity: number;
   price_at_order: number | null;
   menu_items: { name: string } | null;
+  notes?: string | null;
+  order_item_modifiers?: {
+    id: string;
+    price_at_order: number;
+    modifier_id: string;
+    modifiers: { name: string; price_modifier: number | null };
+    modifier_groups: { name: string };
+  }[];
 }
 interface Order {
   id: number;
@@ -103,7 +154,17 @@ async function getOrderDetails(
     .select(
       `
       id, customer_name, table_id, total_price, notes,
-      order_items ( id, quantity, price_at_order, menu_items ( name ) ),
+      order_items ( 
+        id, quantity, price_at_order, notes,
+        menu_items ( name ),
+        order_item_modifiers(
+          id,
+          price_at_order,
+          modifier_id,
+          modifiers(name, price_modifier),
+          modifier_groups(name)
+        )
+      ),
       tables!orders_table_id_fkey ( table_number )
     `
     )

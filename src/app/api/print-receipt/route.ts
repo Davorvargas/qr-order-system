@@ -27,7 +27,14 @@ export async function POST(req: NextRequest) {
           quantity,
           price_at_order,
           notes,
-          menu_item:menu_items(name, description)
+          menu_item:menu_items(name, description, price),
+          order_item_modifiers(
+            id,
+            price_at_order,
+            modifier_id,
+            modifiers(name, price_modifier),
+            modifier_groups(name)
+          )
         )
       `)
       .eq("id", orderId)
@@ -41,15 +48,25 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Aquí podrías integrar con el servicio de impresión
-    // Por ahora, simplemente devolvemos éxito
-    // En un futuro, esto se conectaría al servicio de Python para imprimir en formato 80mm
+    // Actualizar la bandera de impresión de recibo
+    const { error: updateError } = await supabase
+      .from("orders")
+      .update({ receipt_printed: false }) // Reset para que la impresora lo detecte
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error("Error al resetear 'receipt_printed':", updateError);
+      return NextResponse.json(
+        { error: "Error de base de datos al solicitar la impresión del recibo" },
+        { status: 500 }
+      );
+    }
 
     console.log("Reimprimiendo recibo para pedido:", orderId);
     console.log("Datos del pedido:", orderData);
 
     return NextResponse.json({
-      message: "Recibo enviado a reimpresión exitosamente",
+      message: "Recibo enviado a impresión exitosamente",
       orderId: orderId,
     });
 
