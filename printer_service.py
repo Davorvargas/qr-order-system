@@ -12,6 +12,7 @@ import os
 import time
 import signal
 import sys
+import json
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -26,6 +27,55 @@ PRODUCT_ID = 0x000b
 # Control de ejecución
 running = True
 supabase = None
+
+def format_modifier_notes(notes):
+    """
+    Formatea las notas de modificadores para impresión legible.
+    Convierte JSON como:
+    {"selectedModifiers":{"Tipo de Preparación":["Con leche"],"Temperatura":["Frío"]},"original_notes":"prueba"}
+    
+    En texto legible:
+    "Tipo de Preparación: Con leche, Temperatura: Frío\nprueba"
+    """
+    if not notes:
+        return ""
+    
+    # Si no es JSON, devolver tal como está
+    if not notes.strip().startswith('{'):
+        return notes
+    
+    try:
+        parsed_notes = json.loads(notes)
+        
+        # Manejar notas de modificadores
+        if 'selectedModifiers' in parsed_notes:
+            modifier_lines = []
+            for group, options in parsed_notes['selectedModifiers'].items():
+                if isinstance(options, list) and options:
+                    modifier_lines.append(f"{group}: {'/'.join(options)}")
+            
+            modifier_text = ", ".join(modifier_lines)
+            
+            # Agregar notas originales si existen
+            if parsed_notes.get('original_notes'):
+                return f"{modifier_text}\n{parsed_notes['original_notes']}"
+            
+            return modifier_text
+        
+        # Manejar productos especiales
+        if parsed_notes.get('type') == 'custom_product' and parsed_notes.get('original_notes'):
+            return parsed_notes['original_notes']
+        
+        # Manejar otras notas con original_notes
+        if parsed_notes.get('original_notes'):
+            return parsed_notes['original_notes']
+        
+        # Si no podemos parsear la estructura, devolver el JSON original
+        return notes
+        
+    except (json.JSONDecodeError, KeyError, TypeError):
+        # Si falla el parsing, devolver las notas tal como están
+        return notes
 
 def signal_handler(sig, frame):
     """Maneja la señal de interrupción para salida limpia"""
@@ -114,19 +164,23 @@ def print_kitchen_ticket(order):
             p.set(width=2, height=2)
             p.text(f"{quantity}x {item_name}\n")
 
-            # Notas por ítem
+            # Notas por ítem (formateadas para legibilidad)
             item_notes = item.get('notes')
             if item_notes:
-                p.set(width=1, height=1, bold=False, align='left')
-                p.text(f"  >> {item_notes}\n")
+                formatted_notes = format_modifier_notes(item_notes)
+                if formatted_notes:
+                    p.set(width=1, height=1, bold=False, align='left')
+                    p.text(f"  >> {formatted_notes}\n")
 
-        # Imprimir nota global si existe
+        # Imprimir nota global si existe (formateada)
         global_notes = order.get('notes')
         if global_notes:
-            p.set(width=1, height=1, bold=True, align='left')
-            p.text("\n--- Nota del pedido ---\n")
-            p.set(width=1, height=1, bold=False, align='left')
-            p.text(f"{global_notes}\n")
+            formatted_global_notes = format_modifier_notes(global_notes)
+            if formatted_global_notes:
+                p.set(width=1, height=1, bold=True, align='left')
+                p.text("\n--- Nota del pedido ---\n")
+                p.set(width=1, height=1, bold=False, align='left')
+                p.text(f"{formatted_global_notes}\n")
 
         p.text("\n")
         p.cut()
