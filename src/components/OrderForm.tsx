@@ -279,6 +279,7 @@ export default function OrderForm({
     );
 
     try {
+      console.log("🔍 Attempting to call public Edge Function...");
       // Try the public Edge Function first (for unauthenticated users)
       const { data, error } = await supabase.functions.invoke(
         "place-order-public",
@@ -287,13 +288,17 @@ export default function OrderForm({
         }
       );
 
+      console.log("📡 Public function response:", { data, error });
+
       if (error) {
-        console.log("Public function failed, trying authenticated function...");
+        console.log("⚠️ Public function failed, trying authenticated function...");
         // Fallback to authenticated function if public fails
         const { data: authData, error: authError } =
           await supabase.functions.invoke("place-order", {
             body: payload,
           });
+
+        console.log("📡 Authenticated function response:", { authData, authError });
 
         if (authError) {
           setSubmitError(authError.message);
@@ -301,10 +306,11 @@ export default function OrderForm({
           router.push(`/order/confirmation/${authData.order_id}`);
         }
       } else {
+        console.log("✅ Public function succeeded!");
         router.push(`/order/confirmation/${data.order_id}`);
       }
     } catch (error) {
-      console.error("Error placing order:", error);
+      console.error("❌ Error placing order:", error);
       setSubmitError(
         "Error al enviar el pedido. Por favor, inténtalo de nuevo."
       );
