@@ -636,14 +636,16 @@ export default function OrderList({
                   </span>
                 </div>
 
-                {/* Indicador simplificado para una sola impresora */}
-                <div className="my-4 flex flex-col gap-2">
-                  <PrintStatusIndicator
-                    label="Ticket Impreso"
-                    printed={order.kitchen_printed}
-                    icon={<Printer size={16} />}
-                  />
-                </div>
+                {/* Indicador simplificado para una sola impresora - Solo mostrar si hay impresoras activas */}
+                {activePrinters.length > 0 && (
+                  <div className="my-4 flex flex-col gap-2">
+                    <PrintStatusIndicator
+                      label="Ticket Impreso"
+                      printed={order.kitchen_printed}
+                      icon={<Printer size={16} />}
+                    />
+                  </div>
+                )}
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
                   <ul className="space-y-2 text-sm text-gray-700">

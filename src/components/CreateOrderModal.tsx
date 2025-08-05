@@ -48,7 +48,7 @@ export default function CreateOrderModal({
   const [isLoading, setIsLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [openCategoryId, setOpenCategoryId] = useState<number | null>(
-    categories[0]?.id ?? null
+    categories.length > 0 ? categories[0].id : null
   );
 
   // Memos
