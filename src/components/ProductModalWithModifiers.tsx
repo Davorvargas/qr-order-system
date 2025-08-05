@@ -85,17 +85,25 @@ export default function ProductModalWithModifiers({
 
     setLoading(true);
     try {
+      console.log('🔍 Loading modifiers for item:', item.id);
+      
       // Intentar primero con la API pública
       let response = await fetch(`/api/public-modifiers?menuItemId=${item.id}`);
+      console.log('📡 Public API response status:', response.status);
+      console.log('📡 Public API response headers:', Object.fromEntries(response.headers.entries()));
 
       // Si falla, intentar con la API privada (para usuarios autenticados)
       if (!response.ok) {
+        console.log('⚠️ Public API failed, trying private API...');
         response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+        console.log('📡 Private API response status:', response.status);
       }
 
       const result = await response.json();
+      console.log('📦 API response:', result);
 
       if (result.success) {
+        console.log('✅ Modifiers loaded successfully:', result.data);
         setModifierGroups(result.data);
 
         // Seleccionar opciones por defecto

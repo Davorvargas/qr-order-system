@@ -4,17 +4,22 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔍 Public modifiers API called');
     const supabase = await createClient();
+    console.log('📡 Supabase client created');
     const { searchParams } = new URL(request.url);
     const menuItemId = searchParams.get('menuItemId');
 
     if (!menuItemId) {
+      console.log('❌ No menuItemId provided');
       return NextResponse.json(
         { error: 'menuItemId parameter is required' },
         { status: 400 }
       );
     }
 
+    console.log('🔍 Looking for menu item:', menuItemId);
+    
     // Obtener el restaurant_id del menu_item
     const { data: menuItem, error: menuItemError } = await supabase
       .from('menu_items')
@@ -22,13 +27,18 @@ export async function GET(request: NextRequest) {
       .eq('id', parseInt(menuItemId))
       .single();
 
+    console.log('📦 Menu item query result:', { menuItem, error: menuItemError });
+
     if (menuItemError || !menuItem) {
+      console.log('❌ Menu item not found:', menuItemError);
       return NextResponse.json(
         { error: 'Menu item not found' },
         { status: 404 }
       );
     }
 
+    console.log('🔍 Looking for modifier groups for restaurant:', menuItem.restaurant_id);
+    
     // Obtener grupos de modificadores con sus opciones (acceso público)
     const { data: modifierGroups, error } = await supabase
       .from('modifier_groups')
@@ -52,14 +62,20 @@ export async function GET(request: NextRequest) {
       .order('display_order')
       .order('display_order', { foreignTable: 'modifiers' });
 
+    console.log('📦 Modifier groups query result:', { 
+      modifierGroups: modifierGroups?.length || 0, 
+      error 
+    });
+
     if (error) {
-      console.error('Error fetching modifiers:', error);
+      console.error('❌ Error fetching modifiers:', error);
       return NextResponse.json(
         { error: 'Failed to fetch modifiers' },
         { status: 500 }
       );
     }
 
+    console.log('✅ Returning modifier groups:', modifierGroups?.length || 0);
     return NextResponse.json({
       success: true,
       data: modifierGroups || []
