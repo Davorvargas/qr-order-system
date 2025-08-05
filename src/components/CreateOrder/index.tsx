@@ -155,24 +155,26 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
     }
   };
 
-    // Handlers para productos
+  // Handlers para productos
   const handleAddItem = async (item: MenuItem) => {
     // Verificar si el producto tiene modificadores
     const hasModifiers = await checkHasModifiers(item);
-    
+
     if (hasModifiers) {
       // Buscar si ya existe un item con este producto en el carrito
-      const existingItemId = Object.keys(orderItems).find(key => {
+      const foundItemId = Object.keys(orderItems).find((key) => {
         const existingItem = orderItems[parseInt(key)];
-        return existingItem.originalItemId === item.id || parseInt(key) === item.id;
+        return (
+          existingItem.originalItemId === item.id || parseInt(key) === item.id
+        );
       });
 
-      if (existingItemId) {
+      if (foundItemId) {
         // Si existe, abrir el modal con los datos existentes para editar
-        const existingItem = orderItems[parseInt(existingItemId)];
+        const existingItem = orderItems[parseInt(foundItemId)];
         setSelectedItemWithModifiers({
           ...item,
-          existingItemId: parseInt(existingItemId),
+          existingItemId: parseInt(foundItemId),
           existingQuantity: existingItem.quantity,
           existingNotes: existingItem.notes,
           existingModifiers: existingItem.selectedModifiers || {},
@@ -239,7 +241,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   ) => {
     // Crear un hash para identificar combinaciones únicas de modificadores
     const modifierHash = JSON.stringify(selectedModifiers);
-    
+
     setOrderItems((prev) => {
       // Si se está editando un item existente
       if (existingItemId && prev[existingItemId]) {
@@ -257,7 +259,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       }
 
       // Buscar si ya existe un item con el mismo producto y modificadores
-      const existingItemId = Object.keys(prev).find(key => {
+      const existingItemKey = Object.keys(prev).find((key) => {
         const existingItem = prev[parseInt(key)];
         return (
           existingItem.originalItemId === item.id &&
@@ -266,19 +268,21 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         );
       });
 
-      if (existingItemId) {
+      if (existingItemKey) {
         // Si existe, incrementar la cantidad
-        const existingItem = prev[parseInt(existingItemId)];
+        const existingItem = prev[parseInt(existingItemKey)];
         return {
           ...prev,
-          [existingItemId]: {
+          [existingItemKey]: {
             ...existingItem,
             quantity: existingItem.quantity + quantity,
           },
         };
       } else {
         // Si no existe, crear uno nuevo
-        const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const uniqueId = `${item.id}_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
         return {
           ...prev,
           [uniqueId]: {
