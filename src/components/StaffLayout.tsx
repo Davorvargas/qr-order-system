@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import GlobalNotificationService from "./GlobalNotificationService";
 
 const NavLink = ({
   href,
@@ -67,6 +68,9 @@ export default function StaffLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
+      {/* Global Notification Service - Runs silently in background */}
+      <GlobalNotificationService />
+      
       {/* Hamburger Menu Button - Always visible */}
       <div className={`fixed top-4 z-50 transition-all duration-300 ${
         isSidebarOpen ? "left-60" : "left-4"

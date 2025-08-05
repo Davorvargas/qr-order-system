@@ -27,46 +27,7 @@ import {
 import { formatModifierNotes } from "../utils/formatModifiers";
 import { getItemName } from "../utils/getItemName";
 
-// Audio notification hook
-const useAudioNotification = () => {
-  const playNotification = () => {
-    try {
-      // Crear un sonido simple usando Web Audio API
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Crear un sonido de notificación simple (3 tonos)
-      const playTone = (frequency: number, duration: number, delay: number) => {
-        setTimeout(() => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-          oscillator.type = 'sine';
-          
-          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
-          
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + duration);
-        }, delay);
-      };
-      
-      // Secuencia de tonos: Do - Mi - Sol
-      playTone(523.25, 0.2, 0);    // Do
-      playTone(659.25, 0.2, 200);  // Mi  
-      playTone(783.99, 0.3, 400);  // Sol
-      
-    } catch (error) {
-      console.log('Audio notification not available:', error);
-      // Fallback: mostrar notificación visual si el audio falla
-    }
-  };
-  
-  return playNotification;
-};
+// Nota: Audio notification hook movido a GlobalNotificationService
 
 type Printer = Database["public"]["Tables"]["printers"]["Row"];
 
@@ -159,7 +120,7 @@ export default function OrderList({
 }) {
   const supabase = createClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
-  const playNotification = useAudioNotification();
+  // Nota: audioNotifications ahora está en GlobalNotificationService
   const [activeStatus, setActiveStatus] =
     useState<OrderWorkflowStatus>("pending");
   const [expandedCardIds, setExpandedCardIds] = useState<number[]>([]);
@@ -309,11 +270,7 @@ export default function OrderList({
             .single();
           if (newOrderDetails) {
             setOrders((current) => [newOrderDetails as Order, ...current]);
-            // Reproducir sonido de notificación para nuevo pedido (si está habilitado)
-            if (soundEnabled) {
-              playNotification();
-              console.log('🔊 Nuevo pedido recibido! Reproduciendo notificación sonora');
-            }
+            // Nota: Sonido manejado por GlobalNotificationService
           }
         }
       )
@@ -321,13 +278,20 @@ export default function OrderList({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         (payload) => {
-          setOrders((current) =>
-            current.map((order) =>
-              order.id === payload.new.id
-                ? { ...order, ...(payload.new as Order) }
-                : order
-            )
-          );
+          setOrders((current) => {
+            const updatedOrders = current.map((order) => {
+              if (order.id === payload.new.id) {
+                const oldStatus = order.status;
+                const newStatus = (payload.new as Order).status;
+                
+                // Nota: Sonidos de cambio de estado manejados por GlobalNotificationService
+                
+                return { ...order, ...(payload.new as Order) };
+              }
+              return order;
+            });
+            return updatedOrders;
+          });
         }
       )
       .subscribe();
@@ -336,6 +300,8 @@ export default function OrderList({
       supabase.removeChannel(channel);
     };
   }, [supabase]);
+
+  // Nota: Listener de impresoras movido a GlobalNotificationService
 
   const handleUpdateStatus = async (orderId: number, newStatus: string) => {
     setUpdatingOrderId(orderId);
