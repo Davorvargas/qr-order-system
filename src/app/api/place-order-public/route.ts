@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
         total_price,
         notes,
         status: initialStatus,
-        source: source || 'customer_qr'
+        source: source || 'customer_qr',
+        kitchen_printed: false,  // Marcar para impresión
+        drink_printed: false     // Marcar para impresión
       })
       .select('id')
       .single();
