@@ -135,14 +135,15 @@ export default function MenuPage() {
         setAllCategories(categoriesData || []);
         setAllMenuItems(menuItemsData || []);
 
+        // TODO: Comentado temporalmente para usar solo la imagen de fondo del restaurante
         // Get featured images from menu items only if no restaurant background images
-        if (menuItemsData && featuredImages.length === 0) {
-          const featured = menuItemsData
-            .filter((item) => item.image_url)
-            .slice(0, 3)
-            .map((item) => item.image_url!);
-          setFeaturedImages(featured);
-        }
+        // if (menuItemsData && featuredImages.length === 0) {
+        //   const featured = menuItemsData
+        //     .filter((item) => item.image_url)
+        //     .slice(0, 3)
+        //     .map((item) => item.image_url!);
+        //   setFeaturedImages(featured);
+        // }
 
         // 4. Calcular categorías disponibles
         if (menuItemsData && categoriesData) {
@@ -294,10 +295,10 @@ export default function MenuPage() {
       />
 
       {/* Content container que se ajusta al header */}
-      <div 
+      <div
         className="transition-all duration-300"
-        style={{ 
-          marginTop: isHeaderScrolled ? '64px' : '192px' 
+        style={{
+          marginTop: isHeaderScrolled ? "64px" : "192px",
         }}
       >
         <CategoryNav
@@ -309,9 +310,11 @@ export default function MenuPage() {
         <main
           ref={mainRef}
           className="flex flex-col items-center p-4 md:p-8"
-          style={{ 
-            overflowY: "scroll", 
-            height: isHeaderScrolled ? "calc(100vh - 120px)" : "calc(100vh - 248px)"
+          style={{
+            overflowY: "scroll",
+            height: isHeaderScrolled
+              ? "calc(100vh - 120px)"
+              : "calc(100vh - 248px)",
           }}
         >
           <OrderForm

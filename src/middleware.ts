@@ -56,14 +56,19 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
+  // Check if the request is for Supabase Storage (external URL)
+  const isSupabaseStorage = request.nextUrl.href.includes('supabase.co/storage');
+
   // if user is not signed in and the current path is not /login, redirect the user to /login
   // But allow access to menu and order confirmation pages for customers
+  // Also allow access to Supabase Storage URLs
   if (!user && 
       !request.nextUrl.pathname.startsWith('/login') && 
       !request.nextUrl.pathname.startsWith('/menu') &&
       !request.nextUrl.pathname.startsWith('/order/confirmation') &&
       !request.nextUrl.pathname.startsWith('/admin') &&
-      !request.nextUrl.pathname.startsWith('/api/')) {
+      !request.nextUrl.pathname.startsWith('/api/') &&
+      !isSupabaseStorage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -81,8 +86,9 @@ export const config = {
      * - menu (customer menu pages)
      * - order/confirmation (order confirmation pages for customers)
      * - api (API routes)
+     * - Supabase Storage URLs (storage.v1.object.public)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|images|menu|order/confirmation|admin|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images|menu|order/confirmation|admin|api|storage).*)',
   ],
 }
