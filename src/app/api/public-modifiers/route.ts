@@ -1,12 +1,18 @@
 // src/app/api/public-modifiers/route.ts
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Public modifiers API called');
-    const supabase = await createClient();
-    console.log('📡 Supabase client created');
+    
+    // Create anonymous Supabase client
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    
+    console.log('📡 Anonymous Supabase client created');
     const { searchParams } = new URL(request.url);
     const menuItemId = searchParams.get('menuItemId');
 
