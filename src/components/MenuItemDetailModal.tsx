@@ -58,58 +58,63 @@ export default function MenuItemDetailModal({
     >
       <div
         ref={modalContentRef}
-        className="bg-white rounded-t-2xl w-full max-w-lg mx-auto flex flex-col relative animate-slide-up max-h-[95vh] overflow-hidden"
+        className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh]"
       >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-white bg-black bg-opacity-50 hover:bg-opacity-70 rounded-full p-2 z-10 backdrop-blur-sm transition-all"
+          className="absolute top-4 right-4 text-gray-600 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-2 z-10 shadow-md transition-all"
         >
           <X size={20} />
         </button>
 
-        {/* Image */}
-        <div className="w-full aspect-[4/3] flex-shrink-0 relative">
-          {item.image_url ? (
-            <Image
-              src={item.image_url}
-              alt={item.name}
-              fill
-              className="object-cover rounded-t-2xl"
-              sizes="(max-width: 768px) 100vw, 400px"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-200 rounded-t-2xl flex items-center justify-center">
-              <span className="text-4xl text-gray-400">🍽️</span>
+        {/* Scrollable content area */}
+        <div className="overflow-y-auto flex-grow">
+          {/* Image */}
+          <div className="w-full bg-white px-6 py-6">
+            {item.image_url ? (
+              <Image
+                src={item.image_url}
+                alt={item.name}
+                width={500}
+                height={300}
+                className="w-full h-auto object-contain max-h-[40vh] mx-auto block rounded-lg"
+                sizes="(max-width: 768px) 100vw, 400px"
+                priority
+                style={{ backgroundColor: 'white' }}
+              />
+            ) : (
+              <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-4xl text-gray-400">🍽️</span>
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="px-6 pb-6">
+            <h2 className="text-2xl font-bold mb-2 text-gray-900">{item.name}</h2>
+            {item.description && (
+              <p className="text-gray-600 mb-4 text-sm leading-relaxed">{item.description}</p>
+            )}
+            <p className="text-xl font-bold mb-6 text-gray-900">Bs {item.price?.toFixed(2)}</p>
+
+            {/* Notes Section */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold text-gray-800 mb-3">
+                Notas para este producto
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ej. Sin cebolla, término medio, etc."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={3}
+                maxLength={200}
+              />
+              <p className="mt-1 text-xs text-gray-500 text-right">
+                {notes.length}/200 caracteres
+              </p>
             </div>
-          )}
-        </div>
-
-        {/* Content */}
-        <div className="p-6 flex-grow overflow-y-auto">
-          <h2 className="text-2xl font-bold mb-2 text-gray-900">{item.name}</h2>
-          {item.description && (
-            <p className="text-gray-600 mb-4 text-sm leading-relaxed">{item.description}</p>
-          )}
-          <p className="text-xl font-bold mb-6 text-gray-900">Bs {item.price?.toFixed(2)}</p>
-
-          {/* Notes Section */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-800 mb-3">
-              Notas para este producto
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej. Sin cebolla, término medio, etc."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              rows={3}
-              maxLength={200}
-            />
-            <p className="mt-1 text-xs text-gray-500 text-right">
-              {notes.length}/200 caracteres
-            </p>
           </div>
         </div>
 

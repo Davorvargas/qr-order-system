@@ -9,6 +9,7 @@ interface MenuHeaderProps {
   logoUrl?: string;
   primaryColor?: string;
   secondaryColor?: string;
+  isScrolled?: boolean;
 }
 
 export default function MenuHeader({
@@ -18,76 +19,61 @@ export default function MenuHeader({
   logoUrl,
   primaryColor = "#1e40af",
   secondaryColor = "#fbbf24",
+  isScrolled = false,
 }: MenuHeaderProps) {
+  const backgroundImage = "/images/senderos-background.jpeg";
+  const logoImage = logoUrl || "/images/senderos-logo.jpg";
+
+  if (isScrolled) {
+    // Header contraído - logo maximizado con color de fondo del logo
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50 h-16 shadow-lg transition-all duration-300" style={{backgroundColor: '#E8D3B8'}}>
+        <div className="flex items-center justify-center h-full px-2">
+          <div className="w-14 h-14 rounded-full shadow-lg overflow-hidden">
+            <Image
+              src={logoImage}
+              alt={`Logo ${restaurantName}`}
+              width={56}
+              height={56}
+              className="object-cover"
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Header expandido - imagen de fondo + logo + mesa info
   return (
-    <div className="w-full">
-      {/* Header with food images and branding */}
-      <div className="relative h-48 bg-gradient-to-r from-gray-50 to-gray-100 overflow-hidden">
-        {/* Food images background */}
-        <div className="absolute inset-0 flex">
-          {featuredImages.length > 0 ? (
-            featuredImages.map((image, index) => (
-              <div key={index} className="flex-1 relative">
-                <Image
-                  src={image}
-                  alt={`Featured dish ${index + 1}`}
-                  fill
-                  className="object-cover opacity-60"
-                />
-              </div>
-            ))
-          ) : (
-            // Placeholder food images with gradients
-            <>
-              <div className="flex-1 bg-gradient-to-br from-green-100 to-green-200 flex items-center justify-center">
-                <span className="text-6xl">🥗</span>
-              </div>
-              <div className="flex-1 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-                <span className="text-6xl">🍝</span>
-              </div>
-              <div className="flex-1 bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
-                <span className="text-6xl">🍖</span>
-              </div>
-            </>
-          )}
-        </div>
+    <div className="fixed top-0 left-0 right-0 z-50 h-48 bg-white shadow-sm transition-all duration-300">
+      {/* Imagen de fondo */}
+      <div className="relative h-28 w-full overflow-hidden">
+        <Image
+          src={backgroundImage}
+          alt="Cuñapes Senderos"
+          fill
+          className="object-cover object-center"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-white/60"></div>
+      </div>
 
-        {/* Restaurant branding overlay - centered logo */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div 
-            className="px-8 py-4 rounded-full shadow-lg"
-            style={{ 
-              backgroundColor: `${secondaryColor}dd`,
-              backdropFilter: 'blur(10px)'
-            }}
-          >
-            {logoUrl ? (
-              <Image
-                src={logoUrl}
-                alt={restaurantName}
-                width={120}
-                height={60}
-                className="object-contain"
-              />
-            ) : (
-              <h1 
-                className="text-2xl font-bold"
-                style={{ color: primaryColor }}
-              >
-                {restaurantName}
-              </h1>
-            )}
-          </div>
+      {/* Logo circular aún más grande */}
+      <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
+        <div className="w-24 h-24 rounded-full shadow-xl overflow-hidden">
+          <Image
+            src={logoImage}
+            alt={`Logo ${restaurantName}`}
+            width={96}
+            height={96}
+            className="object-cover"
+          />
         </div>
+      </div>
 
-        {/* Table number overlay */}
-        <div className="absolute bottom-4 left-4">
-          <div className="bg-white bg-opacity-80 px-3 py-1 rounded-full">
-            <span className="text-sm font-medium text-gray-700">
-              Mesa {tableNumber}
-            </span>
-          </div>
-        </div>
+      {/* Info de mesa más grande y centrada */}
+      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+        <p className="text-gray-700 text-lg font-semibold text-center">Mesa {tableNumber}</p>
       </div>
     </div>
   );

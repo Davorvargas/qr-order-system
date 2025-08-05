@@ -37,10 +37,16 @@ export default function MenuPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>("SENDEROS");
+  const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const [featuredImages, setFeaturedImages] = useState<string[]>([]);
   const [restaurantLogo, setRestaurantLogo] = useState<string>("");
   const [primaryColor, setPrimaryColor] = useState<string>("#1e40af");
   const [secondaryColor, setSecondaryColor] = useState<string>("#fbbf24");
+
+  // Debug log para ver cuando cambia el estado
+  useEffect(() => {
+    console.log("🔄 isHeaderScrolled state changed to:", isHeaderScrolled);
+  }, [isHeaderScrolled]);
   const mainRef = useRef<HTMLElement>(null);
   const isScrollingRef = useRef(false);
 
@@ -64,7 +70,9 @@ export default function MenuPage() {
         // 1. Obtener el ID del restaurante a partir del ID de la mesa
         const { data: tableData, error: tableError } = await supabase
           .from("tables")
-          .select("table_number, restaurant_id, restaurants(name, logo_url, background_images, primary_color, secondary_color)")
+          .select(
+            "table_number, restaurant_id, restaurants(name, logo_url, background_images, primary_color, secondary_color)"
+          )
           .eq("id", tableId)
           .single();
 
@@ -84,9 +92,12 @@ export default function MenuPage() {
           setRestaurantLogo(tableData.restaurants.logo_url || "");
           setPrimaryColor(tableData.restaurants.primary_color || "#1e40af");
           setSecondaryColor(tableData.restaurants.secondary_color || "#fbbf24");
-          
+
           // Use restaurant background images if available, otherwise use featured images from menu items
-          if (tableData.restaurants.background_images && tableData.restaurants.background_images.length > 0) {
+          if (
+            tableData.restaurants.background_images &&
+            tableData.restaurants.background_images.length > 0
+          ) {
             setFeaturedImages(tableData.restaurants.background_images);
           }
         }
@@ -161,7 +172,22 @@ export default function MenuPage() {
   useEffect(() => {
     let scrollTimeout: NodeJS.Timeout;
 
-    const handleScroll = () => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const scrollTop = target.scrollTop;
+      const shouldBeScrolled = scrollTop > 50;
+
+      // Solo actualizar el estado si realmente cambió
+      if (shouldBeScrolled !== isHeaderScrolled) {
+        console.log(
+          "📱 Updating header state from",
+          isHeaderScrolled,
+          "to",
+          shouldBeScrolled
+        );
+        setIsHeaderScrolled(shouldBeScrolled);
+      }
+
       if (isScrollingRef.current || availableCategories.length === 0) return;
 
       // Debounce para evitar demasiadas actualizaciones
@@ -196,7 +222,7 @@ export default function MenuPage() {
         clearTimeout(scrollTimeout);
       };
     }
-  }, [availableCategories, activeCategoryId]);
+  }, [availableCategories, activeCategoryId, isHeaderScrolled]);
 
   const handleCategorySelect = (id: number) => {
     if (id === activeCategoryId) return; // No hacer nada si ya está activa
@@ -261,25 +287,37 @@ export default function MenuPage() {
         logoUrl={restaurantLogo}
         primaryColor={primaryColor}
         secondaryColor={secondaryColor}
+        isScrolled={isHeaderScrolled}
       />
 
-      {/* Navigation and Content */}
-      <CategoryNav
-        categories={availableCategories}
-        activeCategoryId={activeCategoryId}
-        onCategorySelect={handleCategorySelect}
-      />
-      <main
-        ref={mainRef}
-        className="flex flex-col items-center p-4 md:p-8"
-        style={{ overflowY: "scroll", height: "calc(100vh - 12rem)" }}
+      {/* Content container que se ajusta al header */}
+      <div 
+        className="transition-all duration-300"
+        style={{ 
+          marginTop: isHeaderScrolled ? '64px' : '192px' 
+        }}
       >
-        <OrderForm
+        <CategoryNav
           categories={availableCategories}
-          items={allMenuItems}
-          tableId={tableId}
+          activeCategoryId={activeCategoryId}
+          onCategorySelect={handleCategorySelect}
+          isHeaderScrolled={isHeaderScrolled}
         />
-      </main>
+        <main
+          ref={mainRef}
+          className="flex flex-col items-center p-4 md:p-8"
+          style={{ 
+            overflowY: "scroll", 
+            height: isHeaderScrolled ? "calc(100vh - 120px)" : "calc(100vh - 248px)"
+          }}
+        >
+          <OrderForm
+            categories={availableCategories}
+            items={allMenuItems}
+            tableId={tableId}
+          />
+        </main>
+      </div>
     </div>
   );
 }

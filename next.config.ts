@@ -18,6 +18,10 @@ const nextConfig: NextConfig = {
         // This is your Supabase project hostname
         hostname: 'osvgapxefsqqhltkabku.supabase.co', 
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
     ],
   },
 };
