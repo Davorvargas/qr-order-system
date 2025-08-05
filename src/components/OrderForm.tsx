@@ -278,15 +278,38 @@ export default function OrderForm({
       JSON.stringify(payload, null, 2)
     );
 
-    const { data, error } = await supabase.functions.invoke("place-order", {
-      body: payload,
-    });
+    try {
+      // Try the public Edge Function first (for unauthenticated users)
+      const { data, error } = await supabase.functions.invoke(
+        "place-order-public",
+        {
+          body: payload,
+        }
+      );
 
-    if (error) {
-      setSubmitError(error.message);
-    } else {
-      router.push(`/order/confirmation/${data.order_id}`);
+      if (error) {
+        console.log("Public function failed, trying authenticated function...");
+        // Fallback to authenticated function if public fails
+        const { data: authData, error: authError } =
+          await supabase.functions.invoke("place-order", {
+            body: payload,
+          });
+
+        if (authError) {
+          setSubmitError(authError.message);
+        } else {
+          router.push(`/order/confirmation/${authData.order_id}`);
+        }
+      } else {
+        router.push(`/order/confirmation/${data.order_id}`);
+      }
+    } catch (error) {
+      console.error("Error placing order:", error);
+      setSubmitError(
+        "Error al enviar el pedido. Por favor, inténtalo de nuevo."
+      );
     }
+
     setIsLoading(false);
   };
   // --- END FUNCTIONS ---
