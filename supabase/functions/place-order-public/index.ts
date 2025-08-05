@@ -23,6 +23,9 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // Allow requests without authentication
+  console.log('🔓 Public function - no authentication required')
+
   try {
     console.log('🔄 Processing public place-order request...')
     

@@ -279,19 +279,21 @@ export default function OrderForm({
     );
 
     try {
-      console.log("🔍 Attempting to call public Edge Function...");
-      // Try the public Edge Function first (for unauthenticated users)
-      const { data, error } = await supabase.functions.invoke(
-        "place-order-public",
-        {
-          body: payload,
-        }
-      );
+      console.log("🔍 Attempting to call public API route...");
+      // Try the public API route first (for unauthenticated users)
+      const response = await fetch('/api/place-order-public', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
 
-      console.log("📡 Public function response:", { data, error });
+      const result = await response.json();
+      console.log("📡 Public API response:", { status: response.status, result });
 
-      if (error) {
-        console.log("⚠️ Public function failed, trying authenticated function...");
+      if (!response.ok) {
+        console.log("⚠️ Public API failed, trying authenticated function...");
         // Fallback to authenticated function if public fails
         const { data: authData, error: authError } =
           await supabase.functions.invoke("place-order", {
@@ -306,8 +308,8 @@ export default function OrderForm({
           router.push(`/order/confirmation/${authData.order_id}`);
         }
       } else {
-        console.log("✅ Public function succeeded!");
-        router.push(`/order/confirmation/${data.order_id}`);
+        console.log("✅ Public API succeeded!");
+        router.push(`/order/confirmation/${result.order_id}`);
       }
     } catch (error) {
       console.error("❌ Error placing order:", error);
