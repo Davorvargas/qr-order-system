@@ -470,9 +470,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
             const errorText = await invokeError.response.text();
             console.error("Error response body:", errorText);
             const errorData = JSON.parse(errorText);
-            setSubmitError(
-              `Error del servidor: ${errorData.error || invokeError.message}`
-            );
+            const errorMessage = errorData.error || invokeError.message;
+            console.error("Parsed error message:", errorMessage);
+            setSubmitError(`Error del servidor: ${errorMessage}`);
             if (errorData.details) {
               console.error("Detailed error:", errorData.details);
             }
@@ -481,7 +481,19 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
             setSubmitError(`Error del servidor: ${invokeError.message}`);
           }
         } else {
-          setSubmitError(`Error del servidor: ${invokeError.message}`);
+          // Try to extract error message from the FunctionsHttpError
+          let errorMessage = invokeError.message;
+          if (invokeError.context) {
+            try {
+              const context = JSON.parse(invokeError.context);
+              if (context.error) {
+                errorMessage = context.error;
+              }
+            } catch (e) {
+              console.error("Could not parse error context:", e);
+            }
+          }
+          setSubmitError(`Error del servidor: ${errorMessage}`);
         }
         setIsLoading(false);
         return;
