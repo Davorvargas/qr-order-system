@@ -27,7 +27,10 @@ export default function MenuHeader({
   if (isScrolled) {
     // Header contraído - logo maximizado con color de fondo del logo
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 h-16 shadow-lg transition-all duration-300" style={{backgroundColor: '#E8D3B8'}}>
+      <div
+        className="fixed top-0 left-0 right-0 z-50 h-16 shadow-lg transition-all duration-300"
+        style={{ backgroundColor: "#E8D3B8" }}
+      >
         <div className="flex items-center justify-center h-full px-2">
           <div className="w-14 h-14 rounded-full shadow-lg overflow-hidden">
             <Image
@@ -36,6 +39,7 @@ export default function MenuHeader({
               width={56}
               height={56}
               className="object-cover"
+              unoptimized
             />
           </div>
         </div>
@@ -54,6 +58,7 @@ export default function MenuHeader({
           fill
           className="object-cover object-center"
           priority
+          unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-white/60"></div>
       </div>
@@ -67,13 +72,16 @@ export default function MenuHeader({
             width={96}
             height={96}
             className="object-cover"
+            unoptimized
           />
         </div>
       </div>
 
       {/* Info de mesa más grande y centrada */}
       <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
-        <p className="text-gray-700 text-lg font-semibold text-center">Mesa {tableNumber}</p>
+        <p className="text-gray-700 text-lg font-semibold text-center">
+          Mesa {tableNumber}
+        </p>
       </div>
     </div>
   );
