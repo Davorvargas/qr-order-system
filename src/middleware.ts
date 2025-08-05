@@ -62,7 +62,8 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/login') && 
       !request.nextUrl.pathname.startsWith('/menu') &&
       !request.nextUrl.pathname.startsWith('/order/confirmation') &&
-      !request.nextUrl.pathname.startsWith('/admin')) {
+      !request.nextUrl.pathname.startsWith('/admin') &&
+      !request.nextUrl.pathname.startsWith('/api/')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -78,8 +79,9 @@ export const config = {
      * - favicon.ico (favicon file)
      * - menu (customer menu pages)
      * - order/confirmation (order confirmation pages for customers)
+     * - api (API routes)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|menu|order/confirmation|admin).*)',
+    '/((?!_next/static|_next/image|favicon.ico|menu|order/confirmation|admin|api).*)',
   ],
 }
