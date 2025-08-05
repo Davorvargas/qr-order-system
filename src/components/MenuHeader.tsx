@@ -23,13 +23,16 @@ export default function MenuHeader({
   secondaryColor = "#fbbf24",
   isScrolled = false,
 }: MenuHeaderProps) {
-  // URLs dinámicas basadas en restaurant_id usando Supabase Storage
-  const getRestaurantAssetUrl = (restaurantId: number, assetName: string) => {
-    return `https://osvgapxefsqqhltkabku.supabase.co/storage/v1/object/public/restaurant-assets/restaurants/${restaurantId}/${assetName}`;
-  };
+  // URLs temporales usando imágenes locales hasta que se configuren las políticas de Supabase
+  const defaultBackgroundImage = "/images/senderos-background.jpeg";
+  const defaultLogoImage = "/images/senderos-logo.jpg";
   
-  const defaultBackgroundImage = getRestaurantAssetUrl(restaurantId, 'background.jpeg');
-  const defaultLogoImage = getRestaurantAssetUrl(restaurantId, 'logo.jpg');
+  // TODO: Reactivar cuando se configuren las políticas de Storage
+  // const getRestaurantAssetUrl = (restaurantId: number, assetName: string) => {
+  //   return `https://osvgapxefsqqhltkabku.supabase.co/storage/v1/object/public/restaurant-assets/restaurants/${restaurantId}/${assetName}`;
+  // };
+  // const defaultBackgroundImage = getRestaurantAssetUrl(restaurantId, 'background.jpeg');
+  // const defaultLogoImage = getRestaurantAssetUrl(restaurantId, 'logo.jpg');
   
   const backgroundImage = featuredImages?.[0] || defaultBackgroundImage;
   const logoImage = logoUrl || defaultLogoImage;

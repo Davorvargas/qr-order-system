@@ -77,11 +77,12 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - images (static images)
      * - menu (customer menu pages)
      * - order/confirmation (order confirmation pages for customers)
      * - api (API routes)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|menu|order/confirmation|admin|api).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images|menu|order/confirmation|admin|api).*)',
   ],
 }
