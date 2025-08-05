@@ -33,7 +33,7 @@ export default function MenuManager({
   const [menuItems, setMenuItems] = useState(initialItems);
   const [menuCategories, setMenuCategories] = useState(categories);
   const [openCategoryId, setOpenCategoryId] = useState<number | null>(
-    categories[0]?.id ?? null
+    categories.length > 0 ? categories[0].id : null
   );
 
   const [updatingId, setUpdatingId] = useState<number | null>(null);
