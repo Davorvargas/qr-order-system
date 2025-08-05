@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Plus, Minus } from "lucide-react";
+import Image from "next/image";
 import { createClient } from "@/utils/supabase/client";
 
 // Tipos para modificadores
@@ -257,46 +258,71 @@ export default function ProductModalWithModifiers({
   if (!isOpen || !item) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">{item.name}</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex flex-col justify-end z-50">
+      <div className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh] overflow-hidden">
+        {/* Close Button */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 text-gray-600 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-3 z-10 shadow-md transition-all"
+          aria-label="Volver al menú"
+        >
+          <X size={24} />
+        </button>
 
-        {/* Content */}
-        <div className="p-6">
-          {/* Descripción del producto */}
-          {item.description && (
-            <p className="text-gray-600 mb-4">{item.description}</p>
-          )}
-
-          {/* Precio base */}
-          <div className="mb-6">
-            <span className="text-lg font-semibold text-gray-900">
-              Precio base: Bs. {item.price?.toFixed(2) || "0.00"}
-            </span>
+        {/* Scrollable content area */}
+        <div className="overflow-y-auto flex-grow">
+          {/* Image at top */}
+          <div className="w-full bg-white px-6 py-6">
+            {item.image_url ? (
+              <Image
+                src={item.image_url}
+                alt={item.name}
+                width={500}
+                height={300}
+                className="w-full h-auto object-contain max-h-[40vh] mx-auto block rounded-lg"
+                sizes="(max-width: 768px) 100vw, 400px"
+                priority
+                style={{ backgroundColor: 'white' }}
+                unoptimized
+              />
+            ) : (
+              <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                <span className="text-sm text-gray-500">Sin imagen</span>
+              </div>
+            )}
           </div>
 
-          {/* Loading modificadores */}
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-2">Cargando opciones...</span>
-            </div>
-          )}
+          {/* Header dentro del área scrollable */}
+          <div className="px-6 pb-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{item.name}</h2>
+            {/* Descripción del producto */}
+            {item.description && (
+              <p className="text-gray-600 mb-4">{item.description}</p>
+            )}
 
-          {/* Grupos de modificadores */}
-          {!loading &&
-            modifierGroups.map((group) => (
-              <div key={group.id} className="mb-6">
-                <h3 className="font-semibold text-gray-900 mb-3">
+            {/* Precio base */}
+            <div className="mb-6">
+              <span className="text-lg font-semibold text-gray-900">
+                Precio base: Bs. {item.price?.toFixed(2) || "0.00"}
+              </span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6">
+            {/* Loading modificadores */}
+            {loading && (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-2">Cargando opciones...</span>
+              </div>
+            )}
+
+            {/* Grupos de modificadores */}
+            {!loading &&
+              modifierGroups.map((group) => (
+                <div key={group.id} className="mb-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">
                   {group.name}
                   {group.is_required && (
                     <span className="text-red-500 ml-1">*</span>
@@ -351,92 +377,88 @@ export default function ProductModalWithModifiers({
               </div>
             ))}
 
-          {/* Errores de validación */}
-          {validationErrors.length > 0 && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-              {validationErrors.map((error, index) => (
-                <p key={index} className="text-red-600 text-sm">
-                  {error}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Notas especiales */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notas especiales (opcional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Sin azúcar, extra caliente, etc."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-              maxLength={200}
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              {notes.length}/200 caracteres
-            </p>
-          </div>
-
-          {/* Cantidad y precio total */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-3">
-              <span className="text-sm font-medium text-gray-700">
-                Cantidad:
-              </span>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                  disabled={quantity <= 1}
-                >
-                  <Minus size={16} />
-                </button>
-                <span className="w-12 text-center font-semibold">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  <Plus size={16} />
-                </button>
+            {/* Errores de validación */}
+            {validationErrors.length > 0 && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                {validationErrors.map((error, index) => (
+                  <p key={index} className="text-red-600 text-sm">
+                    {error}
+                  </p>
+                ))}
               </div>
+            )}
+
+            {/* Notas especiales */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notas especiales (opcional)
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ej: Sin azúcar, extra caliente, etc."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={3}
+                maxLength={200}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                {notes.length}/200 caracteres
+              </p>
             </div>
 
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Total:</p>
-              <p className="text-xl font-bold text-gray-900">
-                Bs. {totalPrice.toFixed(2)}
-              </p>
+            {/* Cantidad y precio total */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-700">
+                  Cantidad:
+                </span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                    disabled={quantity <= 1}
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <span className="w-12 text-center font-semibold">
+                    {quantity}
+                  </span>
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Total:</p>
+                <p className="text-xl font-bold text-gray-900">
+                  Bs. {totalPrice.toFixed(2)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex space-x-3 p-6 border-t border-gray-200">
+        {/* Footer Actions */}
+        <div className="p-6 bg-white border-t sticky bottom-0 flex items-center justify-between gap-4 flex-shrink-0">
           <button
             onClick={handleClose}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
-            Cancelar
+            {modifierGroups.length === 0 ? "Volver al menú" : "Cancelar"}
           </button>
           <button
             onClick={handleAddToCart}
             disabled={loading}
-            className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 flex items-center justify-center px-4 py-3 bg-black text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
           >
             {item?.existingItemId ? (
-              <>
-                <span>Actualizar - Bs. {totalPrice.toFixed(2)}</span>
-              </>
+              <span>Actualizar - Bs. {totalPrice.toFixed(2)}</span>
             ) : (
-              <>
-                <Plus size={16} />
-                <span>Agregar al carrito - Bs. {totalPrice.toFixed(2)}</span>
-              </>
+              <span>Agregar al carrito - Bs. {totalPrice.toFixed(2)}</span>
             )}
           </button>
         </div>

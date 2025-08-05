@@ -170,7 +170,7 @@ export default function OrderSummaryModal({
             disabled={
               isLoading || itemEntries.length === 0 || !customerName.trim()
             }
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
+            className="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isLoading ? "Realizando Pedido..." : "Realizar Pedido"}
           </button>

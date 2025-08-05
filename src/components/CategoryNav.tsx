@@ -48,7 +48,13 @@ export default function CategoryNav({
   }, [activeCategoryId]);
   
   return (
-    <nav className="sticky top-0 z-30 bg-white shadow-sm border-t border-gray-100">
+    <nav 
+      className="sticky bg-white shadow-sm border-t border-gray-100 transition-all duration-300"
+      style={{ 
+        top: isHeaderScrolled ? '64px' : '160px',
+        zIndex: 40
+      }}
+    >
       <div 
         ref={navRef}
         className="overflow-x-auto whitespace-nowrap px-4 flex scrollbar-hide"

@@ -63,7 +63,7 @@ export default function MenuHeader({
 
   // Header expandido - imagen de fondo + logo + mesa info
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 h-48 bg-white shadow-sm transition-all duration-300">
+    <div className="fixed top-0 left-0 right-0 z-50 h-40 bg-white shadow-sm transition-all duration-300">
       {/* Imagen de fondo */}
       <div className="relative h-28 w-full overflow-hidden">
         <Image
@@ -77,8 +77,11 @@ export default function MenuHeader({
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-white/60"></div>
       </div>
 
-      {/* Logo circular aún más grande */}
-      <div className="absolute top-16 left-1/2 transform -translate-x-1/2">
+      {/* Logo circular - 75% en imagen de fondo, 25% abajo */}
+      <div
+        className="absolute left-1/2 transform -translate-x-1/2"
+        style={{ top: "40px" }}
+      >
         <div className="w-24 h-24 rounded-full shadow-xl overflow-hidden">
           <Image
             src={logoImage}
@@ -91,8 +94,11 @@ export default function MenuHeader({
         </div>
       </div>
 
-      {/* Info de mesa más grande y centrada */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2">
+      {/* Info de mesa centrada entre logo y CategoryNav */}
+      <div
+        className="absolute left-1/2 transform -translate-x-1/2"
+        style={{ top: "132px" }}
+      >
         <p className="text-gray-700 text-lg font-semibold text-center">
           Mesa {tableNumber}
         </p>

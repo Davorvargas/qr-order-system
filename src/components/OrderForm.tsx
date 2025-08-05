@@ -347,18 +347,16 @@ export default function OrderForm({
                     <div
                       className={`flex gap-4 p-4 ${
                         !item.is_available ? "opacity-40 bg-gray-50" : ""
+                      } ${
+                        item.is_available
+                          ? "cursor-pointer hover:bg-gray-50"
+                          : "cursor-not-allowed"
                       }`}
+                      onClick={() =>
+                        item.is_available && handleItemClick(item)
+                      }
                     >
-                      <div
-                        className={`flex-grow ${
-                          item.is_available
-                            ? "cursor-pointer"
-                            : "cursor-not-allowed"
-                        }`}
-                        onClick={() =>
-                          item.is_available && handleItemClick(item)
-                        }
-                      >
+                      <div className="flex-grow">
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
                           {!item.is_available && (
@@ -393,18 +391,16 @@ export default function OrderForm({
                     <div
                       className={`flex items-center gap-4 p-4 ${
                         !item.is_available ? "opacity-40 bg-gray-50" : ""
+                      } ${
+                        item.is_available
+                          ? "cursor-pointer hover:bg-gray-50"
+                          : "cursor-not-allowed"
                       }`}
+                      onClick={() =>
+                        item.is_available && handleItemClick(item)
+                      }
                     >
-                      <div
-                        className={`flex-grow ${
-                          item.is_available
-                            ? "cursor-pointer"
-                            : "cursor-not-allowed"
-                        }`}
-                        onClick={() =>
-                          item.is_available && handleItemClick(item)
-                        }
-                      >
+                      <div className="flex-grow">
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
                           {!item.is_available && (

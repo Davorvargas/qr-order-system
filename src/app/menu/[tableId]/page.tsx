@@ -193,7 +193,7 @@ export default function MenuPage() {
 
       if (isScrollingRef.current || availableCategories.length === 0) return;
 
-      // Debounce para evitar demasiadas actualizaciones
+      // Reducir debounce para mayor responsividad
       clearTimeout(scrollTimeout);
       scrollTimeout = setTimeout(() => {
         const categoryElements = availableCategories.map((cat) =>
@@ -201,10 +201,14 @@ export default function MenuPage() {
         );
 
         let currentActiveId = activeCategoryId;
+        // Mejorar detección considerando el CategoryNav en el top
+        const navHeight = isHeaderScrolled ? 64 + 56 : 160 + 56; // header + nav height
+        
         for (const el of categoryElements) {
           if (el) {
             const rect = el.getBoundingClientRect();
-            if (rect.top >= 0 && rect.top <= window.innerHeight / 2) {
+            // Categoria activa si está visible después del nav
+            if (rect.top <= navHeight + 50 && rect.bottom > navHeight) {
               currentActiveId = parseInt(el.id.replace("category-", ""));
               break;
             }
@@ -214,7 +218,7 @@ export default function MenuPage() {
         if (currentActiveId !== activeCategoryId) {
           setActiveCategoryId(currentActiveId);
         }
-      }, 100); // 100ms de debounce
+      }, 50); // Reducir a 50ms para mejor responsividad
     };
 
     const mainElement = mainRef.current;
@@ -298,7 +302,7 @@ export default function MenuPage() {
       <div
         className="transition-all duration-300"
         style={{
-          marginTop: isHeaderScrolled ? "64px" : "192px",
+          marginTop: isHeaderScrolled ? "64px" : "160px",
         }}
       >
         <CategoryNav
@@ -314,7 +318,7 @@ export default function MenuPage() {
             overflowY: "scroll",
             height: isHeaderScrolled
               ? "calc(100vh - 120px)"
-              : "calc(100vh - 248px)",
+              : "calc(100vh - 216px)",
           }}
         >
           <OrderForm
@@ -322,6 +326,32 @@ export default function MenuPage() {
             items={allMenuItems}
             tableId={tableId}
           />
+          
+          {/* Footer promocional */}
+          <div className="mt-12 mb-8 w-full max-w-md mx-auto">
+            <div className="bg-white rounded-lg p-6 text-center border border-gray-200 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                ¿Te gusta este sistema?
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Lleva tu restaurante al siguiente nivel con nuestro sistema de pedidos QR
+              </p>
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-700">
+                  Contacto: 
+                  <a 
+                    href="tel:+61449173840" 
+                    className="text-black hover:text-gray-700 ml-1 font-semibold underline decoration-1 underline-offset-2"
+                  >
+                    +61 449 173 840
+                  </a>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Estamos en fase de pruebas • ¿Quieres ser parte del proyecto?
+                </p>
+              </div>
+            </div>
+          </div>
         </main>
       </div>
     </div>
