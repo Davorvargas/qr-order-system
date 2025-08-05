@@ -482,10 +482,13 @@ export default function QRCodeGenerator({
         ctx.lineWidth = 1;
         ctx.strokeRect(2, 2, (qrWidth * 3.78) - 4, (qrHeight * 3.78) - 4);
         
-        // Generar QR localmente para evitar problemas de CORS
+        // Generar QR directamente en el canvas para evitar problemas de CORS
         const qrUrl = generateQRUrl(table);
-        const qrDataURL = await QRCode.toDataURL(qrUrl, {
-          width: 400,
+        
+        // Crear un canvas temporal para el QR
+        const qrCanvas = document.createElement("canvas");
+        await QRCode.toCanvas(qrCanvas, qrUrl, {
+          width: 120,
           margin: 0,
           color: {
             dark: '#000000',
@@ -494,43 +497,35 @@ export default function QRCodeGenerator({
           errorCorrectionLevel: 'M'
         });
         
-        // Cargar QR generado localmente
-        await new Promise<void>((resolve) => {
-          const qrImage = new Image();
-          qrImage.onload = () => {
-            // QR centrado en la parte superior
-            const qrSize = 120; // Tamaño del QR en píxeles del canvas
-            const qrX = ((qrWidth * 3.78) - qrSize) / 2;
-            const qrY = 15;
-            
-            ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
-            
-            // Texto más grande y legible
-            ctx.fillStyle = "black";
-            ctx.textAlign = "center";
-            
-            // Título de la mesa - MÁS GRANDE
-            ctx.font = "bold 20px Arial";
-            ctx.fillText(table.displayName, (qrWidth * 3.78) / 2, qrY + qrSize + 25);
-            
-            // Texto principal - MÁS GRANDE Y LEGIBLE
-            ctx.font = "bold 16px Arial";
-            ctx.fillText("Escanea para ver el menú", (qrWidth * 3.78) / 2, qrY + qrSize + 50);
-            
-            // Texto secundario - MÁS GRANDE
-            ctx.font = "14px Arial";
-            const line1 = "Escanea este código QR";
-            const line2 = "con tu teléfono para ver";
-            const line3 = "el menú y hacer tu pedido";
-            
-            ctx.fillText(line1, (qrWidth * 3.78) / 2, qrY + qrSize + 75);
-            ctx.fillText(line2, (qrWidth * 3.78) / 2, qrY + qrSize + 95);
-            ctx.fillText(line3, (qrWidth * 3.78) / 2, qrY + qrSize + 115);
-            
-            resolve();
-          };
-          qrImage.src = qrDataURL; // Usar QR generado localmente
-        });
+        // QR centrado en la parte superior
+        const qrSize = 120;
+        const qrX = ((qrWidth * 3.78) - qrSize) / 2;
+        const qrY = 15;
+        
+        // Dibujar el QR canvas directamente
+        ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+        
+        // Texto más grande y legible
+        ctx.fillStyle = "black";
+        ctx.textAlign = "center";
+        
+        // Título de la mesa - MÁS GRANDE
+        ctx.font = "bold 20px Arial";
+        ctx.fillText(table.displayName, (qrWidth * 3.78) / 2, qrY + qrSize + 25);
+        
+        // Texto principal - MÁS GRANDE Y LEGIBLE
+        ctx.font = "bold 16px Arial";
+        ctx.fillText("Escanea para ver el menú", (qrWidth * 3.78) / 2, qrY + qrSize + 50);
+        
+        // Texto secundario - MÁS GRANDE
+        ctx.font = "14px Arial";
+        const line1 = "Escanea este código QR";
+        const line2 = "con tu teléfono para ver";
+        const line3 = "el menú y hacer tu pedido";
+        
+        ctx.fillText(line1, (qrWidth * 3.78) / 2, qrY + qrSize + 75);
+        ctx.fillText(line2, (qrWidth * 3.78) / 2, qrY + qrSize + 95);
+        ctx.fillText(line3, (qrWidth * 3.78) / 2, qrY + qrSize + 115);
         
         // Convertir canvas a imagen y agregar al PDF
         const imgData = canvas.toDataURL('image/png', 1.0);
