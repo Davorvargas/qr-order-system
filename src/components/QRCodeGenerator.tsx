@@ -9,8 +9,10 @@ import {
   RefreshCw,
   Plus,
   Edit2,
+  FileText,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import jsPDF from 'jspdf';
 
 interface QRTable {
   id: string;
@@ -404,6 +406,122 @@ export default function QRCodeGenerator({
     alert(`¡${tables.length} códigos QR descargados exitosamente!`);
   };
 
+  const downloadQRsPDF = async () => {
+    if (tables.length === 0) {
+      alert("No hay mesas disponibles para descargar");
+      return;
+    }
+
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Configuración para 9 QRs por página (3x3)
+      const qrWidth = 65; // mm
+      const qrHeight = 81.25; // mm
+      const marginX = 5; // mm
+      const marginY = 10; // mm
+      const spacingX = (210 - 2 * marginX) / 3; // A4 width = 210mm
+      const spacingY = (297 - 2 * marginY) / 3; // A4 height = 297mm
+      
+      let currentPage = 0;
+      let qrsOnCurrentPage = 0;
+
+      for (let i = 0; i < tables.length; i++) {
+        const table = tables[i];
+        
+        // Nueva página cada 9 QRs
+        if (qrsOnCurrentPage === 0) {
+          if (currentPage > 0) {
+            pdf.addPage();
+          }
+          currentPage++;
+        }
+        
+        // Calcular posición en la grilla 3x3
+        const row = Math.floor(qrsOnCurrentPage / 3);
+        const col = qrsOnCurrentPage % 3;
+        
+        const x = marginX + col * spacingX;
+        const y = marginY + row * spacingY;
+        
+        // Crear canvas para el QR individual
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        
+        // Configurar canvas con alta resolución
+        const scale = 3; // Alta resolución para PDF
+        canvas.width = qrWidth * scale * 3.78; // 3.78 = píxeles por mm a 300 DPI
+        canvas.height = qrHeight * scale * 3.78;
+        ctx.scale(scale, scale);
+        
+        // Fondo blanco
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, qrWidth * 3.78, qrHeight * 3.78);
+        
+        // Borde
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(2, 2, (qrWidth * 3.78) - 4, (qrHeight * 3.78) - 4);
+        
+        // Cargar imagen QR
+        await new Promise<void>((resolve) => {
+          const qrImage = new Image();
+          qrImage.onload = () => {
+            // QR centrado en la parte superior
+            const qrSize = 120; // Tamaño del QR en píxeles del canvas
+            const qrX = ((qrWidth * 3.78) - qrSize) / 2;
+            const qrY = 15;
+            
+            ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+            
+            // Texto más grande y legible
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            
+            // Título de la mesa - MÁS GRANDE
+            ctx.font = "bold 20px Arial";
+            ctx.fillText(table.displayName, (qrWidth * 3.78) / 2, qrY + qrSize + 25);
+            
+            // Texto principal - MÁS GRANDE Y LEGIBLE
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("Escanea para ver el menú", (qrWidth * 3.78) / 2, qrY + qrSize + 50);
+            
+            // Texto secundario - MÁS GRANDE
+            ctx.font = "14px Arial";
+            const line1 = "Escanea este código QR";
+            const line2 = "con tu teléfono para ver";
+            const line3 = "el menú y hacer tu pedido";
+            
+            ctx.fillText(line1, (qrWidth * 3.78) / 2, qrY + qrSize + 75);
+            ctx.fillText(line2, (qrWidth * 3.78) / 2, qrY + qrSize + 95);
+            ctx.fillText(line3, (qrWidth * 3.78) / 2, qrY + qrSize + 115);
+            
+            resolve();
+          };
+          qrImage.src = generateQRCodeUrl(table, "400x400");
+        });
+        
+        // Convertir canvas a imagen y agregar al PDF
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        pdf.addImage(imgData, 'PNG', x, y, qrWidth, qrHeight);
+        
+        qrsOnCurrentPage++;
+        if (qrsOnCurrentPage === 9) {
+          qrsOnCurrentPage = 0;
+        }
+      }
+      
+      // Descargar PDF
+      pdf.save(`QR-Codes-${new Date().toISOString().split('T')[0]}.pdf`);
+      alert(`PDF generado con ${tables.length} códigos QR`);
+      
+    } catch (error) {
+      console.error("Error generando PDF:", error);
+      alert("Error al generar el PDF");
+    }
+  };
+
   const printQRCode = (table: QRTable) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -543,6 +661,17 @@ export default function QRCodeGenerator({
                 >
                   <Download size={16} />
                   <span>Descargar Todos ({tables.length})</span>
+                </button>
+                <button
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    await downloadQRsPDF();
+                  }}
+                  className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  title={`Descargar ${tables.length} códigos QR en PDF (9 por hoja)`}
+                >
+                  <FileText size={16} />
+                  <span>Descargar PDF ({tables.length})</span>
                 </button>
               </>
             )}
