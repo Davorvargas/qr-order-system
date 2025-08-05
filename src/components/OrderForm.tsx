@@ -55,9 +55,10 @@ export default function OrderForm({
 
   // Nuevo estado para el modal de detalle
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  
+
   // Estados para modal de modificadores
-  const [selectedItemWithModifiers, setSelectedItemWithModifiers] = useState<MenuItem | null>(null);
+  const [selectedItemWithModifiers, setSelectedItemWithModifiers] =
+    useState<MenuItem | null>(null);
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
 
   // --- MEMOS & HELPER FUNCTIONS ---
@@ -69,12 +70,14 @@ export default function OrderForm({
         grouped[item.category_id].push(item);
       }
     });
-    
+
     // Ordenar items dentro de cada categoría por display_order
-    Object.keys(grouped).forEach(categoryId => {
-      grouped[parseInt(categoryId)].sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    Object.keys(grouped).forEach((categoryId) => {
+      grouped[parseInt(categoryId)].sort(
+        (a, b) => (a.display_order || 0) - (b.display_order || 0)
+      );
     });
-    
+
     return grouped;
   }, [items]);
 
@@ -89,21 +92,26 @@ export default function OrderForm({
     try {
       // Intentar primero con la API pública
       let response = await fetch(`/api/public-modifiers?menuItemId=${item.id}`);
-      
+
       // Si falla, intentar con la API privada (para usuarios autenticados)
       if (!response.ok) {
         response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
       }
-      
+
       if (!response.ok) {
-        console.warn('Modifiers API not available, falling back to simple mode');
+        console.warn(
+          "Modifiers API not available, falling back to simple mode"
+        );
         return false;
       }
-      
+
       const result = await response.json();
       return result.success && result.data && result.data.length > 0;
     } catch (error) {
-      console.warn('Error checking modifiers, falling back to simple mode:', error);
+      console.warn(
+        "Error checking modifiers, falling back to simple mode:",
+        error
+      );
       return false;
     }
   };
@@ -111,7 +119,7 @@ export default function OrderForm({
   const handleItemClick = async (item: MenuItem) => {
     // Verificar si el producto tiene modificadores
     const hasModifiers = await checkHasModifiers(item);
-    
+
     if (hasModifiers) {
       // Abrir modal de modificadores
       setSelectedItemWithModifiers(item);
@@ -129,7 +137,7 @@ export default function OrderForm({
   const handleQuickAdd = async (itemToAdd: MenuItem) => {
     // Verificar si el producto tiene modificadores
     const hasModifiers = await checkHasModifiers(itemToAdd);
-    
+
     if (hasModifiers) {
       // Abrir modal de modificadores
       setSelectedItemWithModifiers(itemToAdd);
@@ -177,16 +185,18 @@ export default function OrderForm({
   ) => {
     // Crear un ID único para este item con modificadores
     const modifierHash = JSON.stringify(selectedModifiers);
-    const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    console.log('🔍 OrderForm: Adding item with modifiers:', {
+    const uniqueId = `${item.id}_${Date.now()}_${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+
+    console.log("🔍 OrderForm: Adding item with modifiers:", {
       itemId: item.id,
       uniqueId,
       selectedModifiers,
       notes,
-      totalPrice
+      totalPrice,
     });
-    
+
     setOrderItems((prev) => ({
       ...prev,
       [uniqueId]: {
@@ -235,18 +245,21 @@ export default function OrderForm({
           name: details.name,
           hasSelectedModifiers: !!details.selectedModifiers,
           selectedModifiers: details.selectedModifiers,
-          isStringId: typeof itemId === 'string',
-          notes: details.notes
+          isStringId: typeof itemId === "string",
+          notes: details.notes,
         });
-        
+
         // Handle items with modifiers (these have string IDs)
-        if (typeof itemId === 'string' && itemId.includes('_')) {
+        if (typeof itemId === "string" && itemId.includes("_")) {
           return {
-            menu_item_id: parseInt(itemId.split('_')[0], 10),
+            menu_item_id: parseInt(itemId.split("_")[0], 10),
             quantity: details.quantity,
             price_at_order: details.price,
-            notes: details.selectedModifiers 
-              ? JSON.stringify({ selectedModifiers: details.selectedModifiers, original_notes: details.notes.trim() || "" })
+            notes: details.selectedModifiers
+              ? JSON.stringify({
+                  selectedModifiers: details.selectedModifiers,
+                  original_notes: details.notes.trim() || "",
+                })
               : details.notes,
           };
         }
@@ -259,8 +272,11 @@ export default function OrderForm({
         };
       }),
     };
-    
-    console.log('🚀 OrderForm: Sending order payload:', JSON.stringify(payload, null, 2));
+
+    console.log(
+      "🚀 OrderForm: Sending order payload:",
+      JSON.stringify(payload, null, 2)
+    );
 
     const { data, error } = await supabase.functions.invoke("place-order", {
       body: payload,
@@ -303,8 +319,14 @@ export default function OrderForm({
                       }`}
                     >
                       <div
-                        className={`flex-grow ${item.is_available ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                        onClick={() => item.is_available && handleItemClick(item)}
+                        className={`flex-grow ${
+                          item.is_available
+                            ? "cursor-pointer"
+                            : "cursor-not-allowed"
+                        }`}
+                        onClick={() =>
+                          item.is_available && handleItemClick(item)
+                        }
                       >
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
@@ -343,8 +365,14 @@ export default function OrderForm({
                       }`}
                     >
                       <div
-                        className={`flex-grow ${item.is_available ? 'cursor-pointer' : 'cursor-not-allowed'}`}
-                        onClick={() => item.is_available && handleItemClick(item)}
+                        className={`flex-grow ${
+                          item.is_available
+                            ? "cursor-pointer"
+                            : "cursor-not-allowed"
+                        }`}
+                        onClick={() =>
+                          item.is_available && handleItemClick(item)
+                        }
                       >
                         <h3 className="text-base font-semibold text-gray-900">
                           {item.name}
@@ -411,7 +439,6 @@ export default function OrderForm({
         item={selectedItem}
         onAddToCart={handleAddToCartFromModal}
       />
-      
       {/* Modal de producto con modificadores */}
       <ProductModalWithModifiers
         isOpen={isModifierModalOpen}

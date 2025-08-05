@@ -35,7 +35,13 @@ interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
   item: MenuItem | null;
-  onAddToCart: (item: MenuItem, quantity: number, notes: string, selectedModifiers: Record<string, string[]>, totalPrice: number) => void;
+  onAddToCart: (
+    item: MenuItem,
+    quantity: number,
+    notes: string,
+    selectedModifiers: Record<string, string[]>,
+    totalPrice: number
+  ) => void;
 }
 
 export default function ProductModalWithModifiers({
@@ -47,11 +53,13 @@ export default function ProductModalWithModifiers({
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
   const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
-  const [selectedModifiers, setSelectedModifiers] = useState<Record<string, string[]>>({});
+  const [selectedModifiers, setSelectedModifiers] = useState<
+    Record<string, string[]>
+  >({});
   const [totalPrice, setTotalPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  
+
   const supabase = createClient();
 
   // Cargar modificadores cuando se abre el modal
@@ -74,28 +82,28 @@ export default function ProductModalWithModifiers({
 
   const loadModifiers = async () => {
     if (!item) return;
-    
+
     setLoading(true);
     try {
       // Intentar primero con la API pública
       let response = await fetch(`/api/public-modifiers?menuItemId=${item.id}`);
-      
+
       // Si falla, intentar con la API privada (para usuarios autenticados)
       if (!response.ok) {
         response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
       }
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         setModifierGroups(result.data);
-        
+
         // Seleccionar opciones por defecto
         const defaultSelections: Record<string, string[]> = {};
         result.data.forEach((group: ModifierGroup) => {
-          const defaultModifiers = group.modifiers.filter(m => m.is_default);
+          const defaultModifiers = group.modifiers.filter((m) => m.is_default);
           if (defaultModifiers.length > 0) {
-            defaultSelections[group.id] = defaultModifiers.map(m => m.id);
+            defaultSelections[group.id] = defaultModifiers.map((m) => m.id);
           } else if (group.is_required && group.modifiers.length > 0) {
             // Si es requerido pero no hay default, seleccionar el primero
             defaultSelections[group.id] = [group.modifiers[0].id];
@@ -104,7 +112,7 @@ export default function ProductModalWithModifiers({
         setSelectedModifiers(defaultSelections);
       }
     } catch (error) {
-      console.error('Error loading modifiers:', error);
+      console.error("Error loading modifiers:", error);
       setModifierGroups([]); // Fallback a modo simple
     } finally {
       setLoading(false);
@@ -113,36 +121,40 @@ export default function ProductModalWithModifiers({
 
   const calculateTotalPrice = async () => {
     if (!item) return;
-    
+
     try {
       const allSelectedIds = Object.values(selectedModifiers).flat();
-      const response = await fetch('/api/calculate-price', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/calculate-price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           menuItemId: item.id,
-          selectedModifierIds: allSelectedIds
-        })
+          selectedModifierIds: allSelectedIds,
+        }),
       });
-      
+
       const result = await response.json();
       if (result.success) {
         setTotalPrice(result.data.totalPrice * quantity);
       }
     } catch (error) {
-      console.error('Error calculating price:', error);
+      console.error("Error calculating price:", error);
       // Fallback: precio base * cantidad
       setTotalPrice((item.price || 0) * quantity);
     }
   };
 
-  const handleModifierChange = (groupId: string, modifierId: string, checked: boolean) => {
-    const group = modifierGroups.find(g => g.id === groupId);
+  const handleModifierChange = (
+    groupId: string,
+    modifierId: string,
+    checked: boolean
+  ) => {
+    const group = modifierGroups.find((g) => g.id === groupId);
     if (!group) return;
 
-    setSelectedModifiers(prev => {
+    setSelectedModifiers((prev) => {
       const current = prev[groupId] || [];
-      
+
       if (group.max_selections === 1) {
         // Radio button behavior
         return { ...prev, [groupId]: checked ? [modifierId] : [] };
@@ -154,7 +166,10 @@ export default function ProductModalWithModifiers({
           }
           return prev; // No agregar si se alcanzó el máximo
         } else {
-          return { ...prev, [groupId]: current.filter(id => id !== modifierId) };
+          return {
+            ...prev,
+            [groupId]: current.filter((id) => id !== modifierId),
+          };
         }
       }
     });
@@ -162,44 +177,48 @@ export default function ProductModalWithModifiers({
 
   const validateSelections = (): boolean => {
     const errors: string[] = [];
-    
-    modifierGroups.forEach(group => {
+
+    modifierGroups.forEach((group) => {
       const selected = selectedModifiers[group.id] || [];
-      
+
       if (group.is_required && selected.length < group.min_selections) {
-        errors.push(`Debes seleccionar al menos ${group.min_selections} opción(es) en "${group.name}"`);
+        errors.push(
+          `Debes seleccionar al menos ${group.min_selections} opción(es) en "${group.name}"`
+        );
       }
     });
-    
+
     setValidationErrors(errors);
     return errors.length === 0;
   };
 
   const handleAddToCart = () => {
     if (!item || !validateSelections()) return;
-    
+
     // Convert modifier IDs to names for the Edge Function
     const modifiersByName: Record<string, string[]> = {};
-    
+
     Object.entries(selectedModifiers).forEach(([groupId, modifierIds]) => {
-      const group = modifierGroups.find(g => g.id === groupId);
+      const group = modifierGroups.find((g) => g.id === groupId);
       if (group) {
-        const modifierNames = modifierIds.map(modId => {
-          const modifier = group.modifiers.find(m => m.id === modId);
-          return modifier?.name || '';
-        }).filter(name => name !== '');
-        
+        const modifierNames = modifierIds
+          .map((modId) => {
+            const modifier = group.modifiers.find((m) => m.id === modId);
+            return modifier?.name || "";
+          })
+          .filter((name) => name !== "");
+
         if (modifierNames.length > 0) {
           modifiersByName[group.name] = modifierNames;
         }
       }
     });
-    
-    console.log('🔍 Converting modifiers from IDs to names:', {
+
+    console.log("🔍 Converting modifiers from IDs to names:", {
       originalIds: selectedModifiers,
-      convertedNames: modifiersByName
+      convertedNames: modifiersByName,
     });
-    
+
     onAddToCart(item, quantity, notes, modifiersByName, totalPrice);
     handleClose();
   };
@@ -238,7 +257,7 @@ export default function ProductModalWithModifiers({
           {/* Precio base */}
           <div className="mb-6">
             <span className="text-lg font-semibold text-gray-900">
-              Precio base: Bs. {item.price?.toFixed(2) || '0.00'}
+              Precio base: Bs. {item.price?.toFixed(2) || "0.00"}
             </span>
           </div>
 
@@ -251,51 +270,71 @@ export default function ProductModalWithModifiers({
           )}
 
           {/* Grupos de modificadores */}
-          {!loading && modifierGroups.map(group => (
-            <div key={group.id} className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-3">
-                {group.name}
-                {group.is_required && <span className="text-red-500 ml-1">*</span>}
-              </h3>
-              
-              <div className="space-y-2">
-                {group.modifiers.map(modifier => {
-                  const isSelected = selectedModifiers[group.id]?.includes(modifier.id) || false;
-                  const InputComponent = group.max_selections === 1 ? 'input' : 'input';
-                  const inputType = group.max_selections === 1 ? 'radio' : 'checkbox';
-                  
-                  return (
-                    <label
-                      key={modifier.id}
-                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <div className="flex items-center">
-                        <InputComponent
-                          type={inputType}
-                          name={group.max_selections === 1 ? `group_${group.id}` : undefined}
-                          checked={isSelected}
-                          onChange={(e) => handleModifierChange(group.id, modifier.id, e.target.checked)}
-                          className="mr-3"
-                        />
-                        <span className="text-gray-900">{modifier.name}</span>
-                      </div>
-                      <span className="text-gray-600">
-                        {modifier.price_modifier > 0 && '+'}
-                        {modifier.price_modifier !== 0 && `Bs. ${modifier.price_modifier.toFixed(2)}`}
-                        {modifier.price_modifier === 0 && 'Incluido'}
-                      </span>
-                    </label>
-                  );
-                })}
+          {!loading &&
+            modifierGroups.map((group) => (
+              <div key={group.id} className="mb-6">
+                <h3 className="font-semibold text-gray-900 mb-3">
+                  {group.name}
+                  {group.is_required && (
+                    <span className="text-red-500 ml-1">*</span>
+                  )}
+                </h3>
+
+                <div className="space-y-2">
+                  {group.modifiers.map((modifier) => {
+                    const isSelected =
+                      selectedModifiers[group.id]?.includes(modifier.id) ||
+                      false;
+                    const InputComponent =
+                      group.max_selections === 1 ? "input" : "input";
+                    const inputType =
+                      group.max_selections === 1 ? "radio" : "checkbox";
+
+                    return (
+                      <label
+                        key={modifier.id}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+                      >
+                        <div className="flex items-center">
+                          <InputComponent
+                            type={inputType}
+                            name={
+                              group.max_selections === 1
+                                ? `group_${group.id}`
+                                : undefined
+                            }
+                            checked={isSelected}
+                            onChange={(e) =>
+                              handleModifierChange(
+                                group.id,
+                                modifier.id,
+                                e.target.checked
+                              )
+                            }
+                            className="mr-3"
+                          />
+                          <span className="text-gray-900">{modifier.name}</span>
+                        </div>
+                        <span className="text-gray-600">
+                          {modifier.price_modifier > 0 && "+"}
+                          {modifier.price_modifier !== 0 &&
+                            `Bs. ${modifier.price_modifier.toFixed(2)}`}
+                          {modifier.price_modifier === 0 && "Incluido"}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
           {/* Errores de validación */}
           {validationErrors.length > 0 && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               {validationErrors.map((error, index) => (
-                <p key={index} className="text-red-600 text-sm">{error}</p>
+                <p key={index} className="text-red-600 text-sm">
+                  {error}
+                </p>
               ))}
             </div>
           )}
@@ -321,7 +360,9 @@ export default function ProductModalWithModifiers({
           {/* Cantidad y precio total */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
-              <span className="text-sm font-medium text-gray-700">Cantidad:</span>
+              <span className="text-sm font-medium text-gray-700">
+                Cantidad:
+              </span>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -330,7 +371,9 @@ export default function ProductModalWithModifiers({
                 >
                   <Minus size={16} />
                 </button>
-                <span className="w-12 text-center font-semibold">{quantity}</span>
+                <span className="w-12 text-center font-semibold">
+                  {quantity}
+                </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -339,7 +382,7 @@ export default function ProductModalWithModifiers({
                 </button>
               </div>
             </div>
-            
+
             <div className="text-right">
               <p className="text-sm text-gray-600">Total:</p>
               <p className="text-xl font-bold text-gray-900">

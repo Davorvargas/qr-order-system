@@ -1,7 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { QrCode, Download, Printer, Eye, RefreshCw, Plus, Edit2 } from "lucide-react";
+import {
+  QrCode,
+  Download,
+  Printer,
+  Eye,
+  RefreshCw,
+  Plus,
+  Edit2,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
 interface QRTable {
@@ -14,7 +22,9 @@ interface QRCodeGeneratorProps {
   restaurantId: string;
 }
 
-export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) {
+export default function QRCodeGenerator({
+  restaurantId,
+}: QRCodeGeneratorProps) {
   const [tables, setTables] = useState<QRTable[]>([]);
   const [selectedTable, setSelectedTable] = useState<QRTable | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -28,39 +38,39 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
   const [additionalTables, setAdditionalTables] = useState<string>("5");
   const [addMorePrefix, setAddMorePrefix] = useState<string>("Mesa");
   const [creating, setCreating] = useState(false);
-  
+
   // States for editing table names
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingTable, setEditingTable] = useState<QRTable | null>(null);
   const [newTableName, setNewTableName] = useState<string>("");
-  
+
   const supabase = createClient();
-  
+
   // Cargar mesas reales de la base de datos
   useEffect(() => {
     loadTablesFromDatabase();
   }, [restaurantId]);
-  
+
   const loadTablesFromDatabase = async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const { data: tablesData, error: tablesError } = await supabase
-        .from('tables')
-        .select('id, table_number')
-        .eq('restaurant_id', restaurantId)
-        .order('table_number');
-      
+        .from("tables")
+        .select("id, table_number")
+        .eq("restaurant_id", restaurantId)
+        .order("table_number");
+
       if (tablesError) {
         throw tablesError;
       }
-      
+
       if (tablesData) {
-        const formattedTables: QRTable[] = tablesData.map(table => {
+        const formattedTables: QRTable[] = tablesData.map((table) => {
           const tableNum = table.table_number;
           let displayName: string;
-          
+
           // If table_number is just a number, add "Mesa" prefix
           if (/^\d+$/.test(tableNum)) {
             displayName = `Mesa ${tableNum}`;
@@ -68,57 +78,61 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
             // If table_number already contains text, use it as is
             displayName = tableNum;
           }
-          
+
           return {
             id: table.id,
             tableNumber: tableNum,
-            displayName: displayName
+            displayName: displayName,
           };
         });
-        
+
         setTables(formattedTables);
       }
     } catch (error) {
-      console.error('Error loading tables from database:', error);
-      setError('Error al cargar las mesas de la base de datos');
+      console.error("Error loading tables from database:", error);
+      setError("Error al cargar las mesas de la base de datos");
     } finally {
       setLoading(false);
     }
   };
 
-  const createTablesInDatabase = async (count: number, prefix: string, startNum: number) => {
+  const createTablesInDatabase = async (
+    count: number,
+    prefix: string,
+    startNum: number
+  ) => {
     try {
       setCreating(true);
-      
+
       const tablesToCreate = [];
       for (let i = 0; i < count; i++) {
-        const tableNumber = prefix.toLowerCase() === 'mesa' 
-          ? (startNum + i).toString() 
-          : `${prefix} ${startNum + i}`;
+        const tableNumber =
+          prefix.toLowerCase() === "mesa"
+            ? (startNum + i).toString()
+            : `${prefix} ${startNum + i}`;
         tablesToCreate.push({
           table_number: tableNumber,
-          restaurant_id: restaurantId
+          restaurant_id: restaurantId,
         });
       }
-      
+
       const { data: createdTables, error: createError } = await supabase
-        .from('tables')
+        .from("tables")
         .insert(tablesToCreate)
-        .select('id, table_number');
-        
+        .select("id, table_number");
+
       if (createError) {
         throw createError;
       }
-      
+
       if (createdTables) {
         console.log(`✅ ${createdTables.length} mesas creadas exitosamente`);
         // Recargar la lista de mesas
         await loadTablesFromDatabase();
         return createdTables;
       }
-      
     } catch (error) {
-      console.error('Error creating tables:', error);
+      console.error("Error creating tables:", error);
       throw error;
     } finally {
       setCreating(false);
@@ -128,14 +142,16 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
   const generateTables = async () => {
     const count = parseInt(numberOfTables);
     const start = parseInt(startingNumber);
-    
+
     if (isNaN(count) || isNaN(start) || count <= 0 || count > 100) {
       alert("Por favor ingresa un número válido de mesas (1-100)");
       return;
     }
 
     if (tables.length > 0) {
-      const confirmReplace = confirm(`Ya tienes ${tables.length} mesas configuradas. ¿Quieres agregar ${count} mesas más en lugar de reemplazarlas?`);
+      const confirmReplace = confirm(
+        `Ya tienes ${tables.length} mesas configuradas. ¿Quieres agregar ${count} mesas más en lugar de reemplazarlas?`
+      );
       if (confirmReplace) {
         // Cambiar a modal de agregar más
         setNumberOfTables("1");
@@ -150,22 +166,29 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       setShowGenerateModal(false);
       alert(`✅ ${count} mesas creadas exitosamente`);
     } catch (error) {
-      console.error('Error creating tables:', error);
-      alert(`❌ Error creando mesas: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      console.error("Error creating tables:", error);
+      alert(
+        `❌ Error creando mesas: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`
+      );
     }
   };
 
   const addMoreTables = async () => {
     const count = parseInt(additionalTables);
-    
+
     if (isNaN(count) || count <= 0 || count > 50) {
       alert("Por favor ingresa un número válido (1-50)");
       return;
     }
 
     // Encontrar el número de mesa más alto
-    const currentNumbers = tables.map(t => parseInt(t.tableNumber)).filter(n => !isNaN(n));
-    const maxNumber = currentNumbers.length > 0 ? Math.max(...currentNumbers) : 0;
+    const currentNumbers = tables
+      .map((t) => parseInt(t.tableNumber))
+      .filter((n) => !isNaN(n));
+    const maxNumber =
+      currentNumbers.length > 0 ? Math.max(...currentNumbers) : 0;
     const nextNumber = maxNumber + 1;
 
     try {
@@ -175,13 +198,19 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       setAddMorePrefix("Mesa");
       alert(`✅ ${count} mesas adicionales creadas exitosamente`);
     } catch (error) {
-      console.error('Error creating additional tables:', error);
-      alert(`❌ Error creando mesas adicionales: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      console.error("Error creating additional tables:", error);
+      alert(
+        `❌ Error creando mesas adicionales: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`
+      );
     }
   };
 
   const getNextTableNumber = () => {
-    const currentNumbers = tables.map(t => parseInt(t.tableNumber)).filter(n => !isNaN(n));
+    const currentNumbers = tables
+      .map((t) => parseInt(t.tableNumber))
+      .filter((n) => !isNaN(n));
     return currentNumbers.length > 0 ? Math.max(...currentNumbers) + 1 : 1;
   };
 
@@ -199,37 +228,40 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
 
     try {
       setCreating(true);
-      
+
       const { error } = await supabase
-        .from('tables')
+        .from("tables")
         .update({ table_number: newTableName.trim() })
-        .eq('id', editingTable.id);
-        
+        .eq("id", editingTable.id);
+
       if (error) {
         throw error;
       }
-      
+
       // Actualizar la lista de mesas localmente
-      setTables(prevTables => 
-        prevTables.map(table => 
-          table.id === editingTable.id 
+      setTables((prevTables) =>
+        prevTables.map((table) =>
+          table.id === editingTable.id
             ? {
                 ...table,
                 tableNumber: newTableName.trim(),
-                displayName: newTableName.trim()
+                displayName: newTableName.trim(),
               }
             : table
         )
       );
-      
+
       setShowEditModal(false);
       setEditingTable(null);
       setNewTableName("");
       alert("¡Nombre de mesa actualizado exitosamente!");
-      
     } catch (error) {
-      console.error('Error updating table name:', error);
-      alert(`Error al actualizar el nombre: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      console.error("Error updating table name:", error);
+      alert(
+        `Error al actualizar el nombre: ${
+          error instanceof Error ? error.message : "Error desconocido"
+        }`
+      );
     } finally {
       setCreating(false);
     }
@@ -237,51 +269,53 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
 
   const generateQRUrl = (table: QRTable) => {
     // Usar la URL de Vercel para que funcione desde dispositivos móviles
-    const baseUrl = 'https://qr-order-system.vercel.app';
+    const baseUrl = "https://qr-order-system.vercel.app";
     // Usar el UUID de la mesa, no el número
     return `${baseUrl}/menu/${table.id}`;
   };
 
   const generateQRCodeUrl = (table: QRTable) => {
     const qrUrl = generateQRUrl(table);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}`;
+    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+      qrUrl
+    )}`;
   };
 
   const downloadQRCode = async (table: QRTable) => {
     try {
       // Crear un canvas para generar la imagen completa
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('No se pudo crear el contexto del canvas');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("No se pudo crear el contexto del canvas");
 
       // Configurar tamaño del canvas (más grande para incluir texto)
       canvas.width = 400;
       canvas.height = 500;
 
       // Fondo blanco
-      ctx.fillStyle = 'white';
+      ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Borde
-      ctx.strokeStyle = '#000';
+      ctx.strokeStyle = "#000";
       ctx.lineWidth = 3;
       ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
       // Título
-      ctx.fillStyle = '#000';
-      ctx.font = 'bold 28px Arial';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 28px Arial";
+      ctx.textAlign = "center";
       ctx.fillText(table.displayName.toUpperCase(), canvas.width / 2, 60);
 
       // Subtítulo
-      ctx.font = '18px Arial';
-      ctx.fillStyle = '#666';
-      ctx.fillText('Escanea para ver el menú', canvas.width / 2, 90);
+      ctx.font = "18px Arial";
+      ctx.fillStyle = "#666";
+      ctx.fillText("Escanea para ver el menú", canvas.width / 2, 90);
 
       // Cargar y dibujar el QR code
       const qrImage = new Image();
-      qrImage.crossOrigin = 'anonymous';
-      
+      qrImage.crossOrigin = "anonymous";
+
       await new Promise((resolve, reject) => {
         qrImage.onload = () => {
           // Dibujar QR en el centro
@@ -289,13 +323,21 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
           const qrX = (canvas.width - qrSize) / 2;
           const qrY = 120;
           ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
-          
+
           // Instrucciones
-          ctx.font = '14px Arial';
-          ctx.fillStyle = '#333';
-          ctx.fillText('Escanea este código QR con tu teléfono', canvas.width / 2, 400);
-          ctx.fillText('para ver el menú y hacer tu pedido', canvas.width / 2, 420);
-          
+          ctx.font = "14px Arial";
+          ctx.fillStyle = "#333";
+          ctx.fillText(
+            "Escanea este código QR con tu teléfono",
+            canvas.width / 2,
+            400
+          );
+          ctx.fillText(
+            "para ver el menú y hacer tu pedido",
+            canvas.width / 2,
+            420
+          );
+
           resolve(null);
         };
         qrImage.onerror = reject;
@@ -305,20 +347,19 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
       // Convertir canvas a blob y descargar
       canvas.toBlob((blob) => {
         if (!blob) {
-          alert('Error al generar la imagen');
+          alert("Error al generar la imagen");
           return;
         }
-        
+
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.download = `${table.displayName.replace(/\s+/g, '-')}-qr.png`;
+        link.download = `${table.displayName.replace(/\s+/g, "-")}-qr.png`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-      }, 'image/png');
-      
+      }, "image/png");
     } catch (error) {
       console.error("Error downloading QR code:", error);
       alert("Error al descargar el código QR");
@@ -327,35 +368,41 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
 
   const downloadAllQRCodes = async () => {
     if (tables.length === 0) return;
-    
+
     if (tables.length > 20) {
-      if (!confirm(`¿Estás seguro de que quieres descargar ${tables.length} códigos QR? Esto puede tomar un momento.`)) {
+      if (
+        !confirm(
+          `¿Estás seguro de que quieres descargar ${tables.length} códigos QR? Esto puede tomar un momento.`
+        )
+      ) {
         return;
       }
     }
-    
+
     for (let i = 0; i < tables.length; i++) {
       const table = tables[i];
       await downloadQRCode(table);
-      
+
       // Pausa más larga entre descargas para evitar problemas del navegador
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
       // Mostrar progreso para descargas grandes
       if (tables.length > 10) {
-        console.log(`Descargando ${i + 1}/${tables.length}: ${table.displayName}`);
+        console.log(
+          `Descargando ${i + 1}/${tables.length}: ${table.displayName}`
+        );
       }
     }
-    
+
     alert(`¡${tables.length} códigos QR descargados exitosamente!`);
   };
 
   const printQRCode = (table: QRTable) => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
     const qrCodeUrl = generateQRCodeUrl(table);
-    
+
     printWindow.document.write(`
       <html>
         <head>
@@ -413,7 +460,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
         </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();
@@ -458,7 +505,9 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
         <div className="flex justify-between items-center">
           <div>
             <h3 className="text-lg font-semibold">Códigos QR de Mesas</h3>
-            <p className="text-sm text-gray-600">Códigos QR para las mesas configuradas en el sistema</p>
+            <p className="text-sm text-gray-600">
+              Códigos QR para las mesas configuradas en el sistema
+            </p>
           </div>
           <div className="flex space-x-3">
             <button
@@ -505,9 +554,12 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
         {tables.length === 0 ? (
           <div className="text-center py-12">
             <QrCode size={64} className="mx-auto mb-4 text-gray-400" />
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">¡Genera tus primeras mesas con códigos QR!</h3>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              ¡Genera tus primeras mesas con códigos QR!
+            </h3>
             <p className="text-gray-500 mb-6">
-              Decide cuántas mesas necesitas y genera todas las mesas con sus QRs de una vez
+              Decide cuántas mesas necesitas y genera todas las mesas con sus
+              QRs de una vez
             </p>
             <button
               onClick={() => setShowGenerateModal(true)}
@@ -522,12 +574,17 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {tables.map((table) => (
-                <div key={table.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                <div
+                  key={table.id}
+                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
                   <div className="text-center">
-                    <h4 className="font-semibold text-lg mb-2">{table.displayName}</h4>
+                    <h4 className="font-semibold text-lg mb-2">
+                      {table.displayName}
+                    </h4>
                     <div className="mb-4">
-                      <img 
-                        src={generateQRCodeUrl(table)} 
+                      <img
+                        src={generateQRCodeUrl(table)}
                         alt={`QR ${table.displayName}`}
                         className="w-32 h-32 mx-auto border border-gray-200 rounded"
                       />
@@ -574,7 +631,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   </div>
                 </div>
               ))}
-              
+
               {/* Add More Button */}
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
                 <div className="text-center h-full flex flex-col justify-center">
@@ -596,12 +653,16 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 </div>
               </div>
             </div>
-            
+
             {/* Quick Add Bar */}
             <div className="mt-6 bg-gray-50 rounded-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-gray-600">
-                  <strong>{tables.length}</strong> mesas configuradas • Próximo número: <strong>{addMorePrefix} {getNextTableNumber()}</strong>
+                  <strong>{tables.length}</strong> mesas configuradas • Próximo
+                  número:{" "}
+                  <strong>
+                    {addMorePrefix} {getNextTableNumber()}
+                  </strong>
                 </div>
                 <button
                   onClick={() => setShowAddMoreModal(true)}
@@ -622,7 +683,9 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Vista Previa - {selectedTable.displayName}</h3>
+              <h3 className="text-lg font-semibold">
+                Vista Previa - {selectedTable.displayName}
+              </h3>
               <button
                 onClick={() => setShowPreview(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -630,26 +693,31 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 ×
               </button>
             </div>
-            
+
             <div className="text-center">
               <div className="border-2 border-black rounded-lg p-6 mb-4">
-                <div className="text-xl font-bold mb-2">{selectedTable.displayName.toUpperCase()}</div>
-                <div className="text-gray-600 mb-4">Escanea para ver el menú</div>
-                <img 
-                  src={generateQRCodeUrl(selectedTable)} 
+                <div className="text-xl font-bold mb-2">
+                  {selectedTable.displayName.toUpperCase()}
+                </div>
+                <div className="text-gray-600 mb-4">
+                  Escanea para ver el menú
+                </div>
+                <img
+                  src={generateQRCodeUrl(selectedTable)}
                   alt={`QR ${selectedTable.displayName}`}
                   className="w-48 h-48 mx-auto mb-4"
                 />
                 <div className="text-sm text-gray-700">
-                  Escanea este código QR con tu teléfono<br />
+                  Escanea este código QR con tu teléfono
+                  <br />
                   para ver el menú y hacer tu pedido
                 </div>
               </div>
-              
+
               <div className="text-xs text-gray-500 mb-4 break-all">
                 URL: {generateQRUrl(selectedTable)}
               </div>
-              
+
               <div className="flex space-x-3">
                 <button
                   onClick={async (e) => {
@@ -680,7 +748,9 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold">Generar Mesas con Códigos QR</h3>
+              <h3 className="text-lg font-semibold">
+                Generar Mesas con Códigos QR
+              </h3>
               <button
                 onClick={() => setShowGenerateModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -689,7 +759,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 ×
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -706,7 +776,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   disabled={creating}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Prefijo (opcional)
@@ -720,7 +790,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   disabled={creating}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Empezar desde el número
@@ -735,18 +805,21 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   disabled={creating}
                 />
               </div>
-              
+
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                <strong>Vista previa:</strong> {tablePrefix} {startingNumber}, {tablePrefix} {parseInt(startingNumber) + 1}, {tablePrefix} {parseInt(startingNumber) + 2}...
+                <strong>Vista previa:</strong> {tablePrefix} {startingNumber},{" "}
+                {tablePrefix} {parseInt(startingNumber) + 1}, {tablePrefix}{" "}
+                {parseInt(startingNumber) + 2}...
               </div>
-              
+
               {tables.length > 0 && (
                 <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-                  <strong>Nota:</strong> Ya tienes {tables.length} mesas configuradas. Se agregarán las nuevas mesas.
+                  <strong>Nota:</strong> Ya tienes {tables.length} mesas
+                  configuradas. Se agregarán las nuevas mesas.
                 </div>
               )}
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowGenerateModal(false)}
@@ -784,15 +857,17 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 ×
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="text-sm text-blue-800">
-                  <strong>Estado actual:</strong> {tables.length} mesas configuradas<br/>
+                  <strong>Estado actual:</strong> {tables.length} mesas
+                  configuradas
+                  <br />
                   <strong>Próximo número:</strong> {getNextTableNumber()}
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -809,7 +884,7 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                     disabled={creating}
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Prefijo
@@ -824,12 +899,15 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   />
                 </div>
               </div>
-              
+
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                <strong>Se agregarán:</strong> {addMorePrefix} {getNextTableNumber()}, {addMorePrefix} {getNextTableNumber() + 1}, {addMorePrefix} {getNextTableNumber() + 2}...
+                <strong>Se agregarán:</strong> {addMorePrefix}{" "}
+                {getNextTableNumber()}, {addMorePrefix}{" "}
+                {getNextTableNumber() + 1}, {addMorePrefix}{" "}
+                {getNextTableNumber() + 2}...
               </div>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => setShowAddMoreModal(false)}
@@ -871,14 +949,14 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                 ×
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <div className="text-sm text-blue-800">
                   <strong>Mesa actual:</strong> {editingTable.displayName}
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nuevo nombre para la mesa
@@ -896,16 +974,18 @@ export default function QRCodeGenerator({ restaurantId }: QRCodeGeneratorProps) 
                   Máximo 50 caracteres
                 </div>
               </div>
-              
+
               <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded">
-                <strong>Vista previa:</strong> "{newTableName || editingTable.tableNumber}"
+                <strong>Vista previa:</strong> "
+                {newTableName || editingTable.tableNumber}"
               </div>
-              
+
               <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
-                <strong>Nota:</strong> El QR code seguirá funcionando, solo cambiará el nombre mostrado.
+                <strong>Nota:</strong> El QR code seguirá funcionando, solo
+                cambiará el nombre mostrado.
               </div>
             </div>
-            
+
             <div className="flex space-x-3 mt-6">
               <button
                 onClick={() => {
