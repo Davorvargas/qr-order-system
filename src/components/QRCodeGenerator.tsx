@@ -413,7 +413,24 @@ export default function QRCodeGenerator({
     }
 
     try {
+      console.log("Iniciando generación de PDF...");
+      
+      // Test simple primero
       const pdf = new jsPDF('p', 'mm', 'a4');
+      pdf.text('Test PDF - QR Codes', 20, 20);
+      
+      // Si el test funciona, hacer PDF completo
+      if (tables.length <= 2) {
+        // Para testing, hacer solo PDF simple con pocas mesas
+        console.log("Modo test - PDF simple");
+        for (let i = 0; i < Math.min(2, tables.length); i++) {
+          const table = tables[i];
+          pdf.text(`Mesa: ${table.displayName}`, 20, 40 + (i * 20));
+        }
+        pdf.save(`Test-QR-Codes-${new Date().toISOString().split('T')[0]}.pdf`);
+        alert("PDF de prueba generado exitosamente!");
+        return;
+      }
       
       // Configuración para 9 QRs por página (3x3)
       const qrWidth = 65; // mm
@@ -513,7 +530,9 @@ export default function QRCodeGenerator({
       }
       
       // Descargar PDF
+      console.log("Guardando PDF...");
       pdf.save(`QR-Codes-${new Date().toISOString().split('T')[0]}.pdf`);
+      console.log("PDF guardado exitosamente");
       alert(`PDF generado con ${tables.length} códigos QR`);
       
     } catch (error) {
@@ -665,13 +684,14 @@ export default function QRCodeGenerator({
                 <button
                   onClick={async (e) => {
                     e.preventDefault();
+                    console.log("Botón PDF clickeado!");
                     await downloadQRsPDF();
                   }}
-                  className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors font-bold"
                   title={`Descargar ${tables.length} códigos QR en PDF (9 por hoja)`}
                 >
                   <FileText size={16} />
-                  <span>Descargar PDF ({tables.length})</span>
+                  <span>📄 PDF ({tables.length})</span>
                 </button>
               </>
             )}
