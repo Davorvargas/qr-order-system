@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 
 interface QRTable {
   id: string;
@@ -481,7 +482,19 @@ export default function QRCodeGenerator({
         ctx.lineWidth = 1;
         ctx.strokeRect(2, 2, (qrWidth * 3.78) - 4, (qrHeight * 3.78) - 4);
         
-        // Cargar imagen QR
+        // Generar QR localmente para evitar problemas de CORS
+        const qrUrl = generateQRUrl(table);
+        const qrDataURL = await QRCode.toDataURL(qrUrl, {
+          width: 400,
+          margin: 0,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          },
+          errorCorrectionLevel: 'M'
+        });
+        
+        // Cargar QR generado localmente
         await new Promise<void>((resolve) => {
           const qrImage = new Image();
           qrImage.onload = () => {
@@ -516,7 +529,7 @@ export default function QRCodeGenerator({
             
             resolve();
           };
-          qrImage.src = generateQRCodeUrl(table, "400x400");
+          qrImage.src = qrDataURL; // Usar QR generado localmente
         });
         
         // Convertir canvas a imagen y agregar al PDF
