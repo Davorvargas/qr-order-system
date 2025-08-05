@@ -20,8 +20,10 @@ export function formatModifierNotes(notes: string): string {
     }
     
     // Handle custom product notes
-    if (parsedNotes.type === 'custom_product' && parsedNotes.original_notes) {
-      return parsedNotes.original_notes;
+    if (parsedNotes.type === 'custom_product') {
+      // Para productos especiales, solo mostrar las notas originales (no el nombre)
+      // El nombre ya se muestra con getItemName()
+      return parsedNotes.original_notes || '';
     }
     
     // Handle other JSON notes with original_notes
@@ -59,8 +61,10 @@ export function formatModifierNotesForPrint(notes: string): string {
     }
     
     // Handle custom product notes
-    if (parsedNotes.type === 'custom_product' && parsedNotes.original_notes) {
-      return parsedNotes.original_notes;
+    if (parsedNotes.type === 'custom_product') {
+      // Para productos especiales, solo mostrar las notas originales (no el nombre)
+      // El nombre ya se muestra con getItemName()
+      return parsedNotes.original_notes || '';
     }
     
     // Handle other JSON notes with original_notes

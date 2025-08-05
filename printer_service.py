@@ -63,8 +63,10 @@ def format_modifier_notes(notes):
             return modifier_text
         
         # Manejar productos especiales
-        if parsed_notes.get('type') == 'custom_product' and parsed_notes.get('original_notes'):
-            return parsed_notes['original_notes']
+        if parsed_notes.get('type') == 'custom_product':
+            # Para productos especiales, solo mostrar las notas originales (no el nombre)
+            # El nombre ya se muestra en la línea del producto
+            return parsed_notes.get('original_notes', '')
         
         # Manejar otras notas con original_notes
         if parsed_notes.get('original_notes'):
