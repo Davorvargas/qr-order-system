@@ -349,32 +349,7 @@ def process_new_orders():
     
     while running:
         try:
-            # Procesar reportes de cierre de caja primero (prioridad alta)
-            print_jobs_response = supabase.table('print_jobs').select('*').eq('status', 'pending').eq('job_type', 'cash_register_report').order('created_at').execute()
-            
-            if print_jobs_response.data:
-                print(f"[+] Se encontraron {len(print_jobs_response.data)} reportes de cierre de caja para imprimir.")
-                for job in print_jobs_response.data:
-                    if print_cash_register_report(job['data']):
-                        # Marcar como completado
-                        update_response = supabase.table('print_jobs').update({
-                            'status': 'completed',
-                            'completed_at': datetime.now().isoformat()
-                        }).eq('id', job['id']).execute()
-                        
-                        if update_response.data:
-                            print(f"[OK] Reporte de cierre de caja procesado y marcado como completado.")
-                        else:
-                            print(f"[ERROR] No se pudo marcar el reporte como completado.")
-                    else:
-                        # Marcar como fallido
-                        update_response = supabase.table('print_jobs').update({
-                            'status': 'failed',
-                            'error_message': 'Error de impresión'
-                        }).eq('id', job['id']).execute()
-                        print(f"[ERROR] Reporte de cierre de caja falló y fue marcado como fallido.")
-            
-            # Buscar pedidos que no estén impresos (sistema de una sola impresora)
+            # Buscar pedidos que no estén impresos (sistema simplificado)
             # Filtrar solo pedidos del restaurante Senderos
             response = supabase.table('orders').select('*, notes, order_items(*, notes, menu_items(*))').eq('kitchen_printed', False).eq('restaurant_id', senderos_restaurant_id).order('id').execute()
             
@@ -402,7 +377,7 @@ def process_new_orders():
                         else:
                             print(f"[ERROR] No se marcará el pedido #{order['id']} como impreso debido a un fallo de impresión.")
             else:
-                print("[INFO] Buscando nuevos pedidos y reportes...      ", end='\r')
+                print("[INFO] Buscando nuevos pedidos...      ", end='\r')
 
         except Exception as e:
             print(f"\n[ERROR] Ocurrió un error en el bucle principal: {e}")
@@ -427,7 +402,7 @@ def main():
     print("[INFO] === SERVICIO DE IMPRESIÓN SENDEROS ===")
     print("[INFO] Star Micronics BSC10 (USB 0519:000b)")
     print("[INFO] Impresión con precios - Una sola impresora")
-    print("[INFO] Manejo de pedidos y reportes de cierre de caja")
+    print("[INFO] Sistema simplificado - Solo pedidos")
     
     # Cargar configuración
     supabase = load_environment()
