@@ -57,6 +57,31 @@ Deno.serve(async (req) => {
       throw new Error('order_items cannot be empty')
     }
     
+    // Validate each order item
+    for (let i = 0; i < requestBody.order_items.length; i++) {
+      const item = requestBody.order_items[i]
+      if (!item.quantity || item.quantity <= 0) {
+        throw new Error(`order_items[${i}]: quantity must be greater than 0`)
+      }
+      if (!item.price_at_order || item.price_at_order <= 0) {
+        throw new Error(`order_items[${i}]: price_at_order must be greater than 0`)
+      }
+      // For custom products (menu_item_id is null), ensure notes contain the product name
+      if (item.menu_item_id === null) {
+        if (!item.notes) {
+          throw new Error(`order_items[${i}]: notes are required for custom products`)
+        }
+        try {
+          const parsedNotes = JSON.parse(item.notes)
+          if (parsedNotes.type !== 'custom_product' || !parsedNotes.name) {
+            throw new Error(`order_items[${i}]: custom products must have valid JSON notes with type and name`)
+          }
+        } catch (e) {
+          throw new Error(`order_items[${i}]: custom products must have valid JSON notes`)
+        }
+      }
+    }
+    
     const { table_id, customer_name, total_price, notes, order_items, source } = requestBody
 
     // Create a Supabase client with the Auth context of the user that called the function.
