@@ -160,13 +160,37 @@ def print_kitchen_ticket(order):
 
         # Imprimir platos (order_items) con precios
         total_order = 0
-        for item in order.get('order_items', []):
-            print(f"[DEBUG] Item de orden: {item}")
+        order_items = order.get('order_items', [])
+        print(f"[DEBUG] Total order_items encontrados: {len(order_items)}")
+        
+        for item in order_items:
+            print(f"[DEBUG] Procesando item: {item}")
             quantity = item.get('quantity', 0)
-            item_name = item.get('menu_items', {}).get('name', 'Producto no encontrado')
-            price_per_unit = item.get('price_at_order', 0) or item.get('menu_items', {}).get('price', 0) or 0
+            
+            # Obtener nombre del producto
+            menu_item = item.get('menu_items', {})
+            if menu_item and menu_item.get('name'):
+                item_name = menu_item.get('name')
+            else:
+                # Es un producto personalizado, extraer nombre de las notas
+                item_notes = item.get('notes', '')
+                if item_notes and item_notes.startswith('{'):
+                    try:
+                        parsed_notes = json.loads(item_notes)
+                        if parsed_notes.get('type') == 'custom_product':
+                            item_name = parsed_notes.get('name', 'Producto Especial')
+                        else:
+                            item_name = 'Producto Especial'
+                    except:
+                        item_name = 'Producto Especial'
+                else:
+                    item_name = 'Producto Especial'
+            
+            price_per_unit = item.get('price_at_order', 0) or menu_item.get('price', 0) or 0
             item_total = price_per_unit * quantity
             total_order += item_total
+            
+            print(f"[DEBUG] Item procesado: {quantity}x {item_name} - Bs {price_per_unit:.2f} c/u = Bs {item_total:.2f}")
             
             # Línea del producto con precio
             p.set(width=1, height=1, bold=True)
@@ -177,7 +201,9 @@ def print_kitchen_ticket(order):
             # Notas por ítem (formateadas para legibilidad)
             item_notes = item.get('notes')
             if item_notes:
+                print(f"[DEBUG] Notas del item: {item_notes}")
                 formatted_notes = format_modifier_notes(item_notes)
+                print(f"[DEBUG] Notas formateadas: {formatted_notes}")
                 if formatted_notes:
                     p.set(width=1, height=1, bold=False, align='left')
                     p.text(f"  >> {formatted_notes}\n")
