@@ -5,6 +5,7 @@ import Image from "next/image";
 interface MenuHeaderProps {
   tableNumber: string;
   restaurantName?: string;
+  restaurantId?: number;
   featuredImages?: string[];
   logoUrl?: string;
   primaryColor?: string;
@@ -15,14 +16,23 @@ interface MenuHeaderProps {
 export default function MenuHeader({
   tableNumber,
   restaurantName = "SENDEROS",
+  restaurantId = 1,
   featuredImages = [],
   logoUrl,
   primaryColor = "#1e40af",
   secondaryColor = "#fbbf24",
   isScrolled = false,
 }: MenuHeaderProps) {
-  const backgroundImage = "/images/senderos-background.jpeg";
-  const logoImage = logoUrl || "/images/senderos-logo.jpg";
+  // URLs dinámicas basadas en restaurant_id usando Supabase Storage
+  const getRestaurantAssetUrl = (restaurantId: number, assetName: string) => {
+    return `https://osvgapxefsqqhltkabku.supabase.co/storage/v1/object/public/restaurant-assets/restaurants/${restaurantId}/${assetName}`;
+  };
+  
+  const defaultBackgroundImage = getRestaurantAssetUrl(restaurantId, 'background.jpeg');
+  const defaultLogoImage = getRestaurantAssetUrl(restaurantId, 'logo.jpg');
+  
+  const backgroundImage = featuredImages?.[0] || defaultBackgroundImage;
+  const logoImage = logoUrl || defaultLogoImage;
 
   if (isScrolled) {
     // Header contraído - logo maximizado con color de fondo del logo

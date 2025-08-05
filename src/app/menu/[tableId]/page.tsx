@@ -37,6 +37,7 @@ export default function MenuPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [restaurantName, setRestaurantName] = useState<string>("SENDEROS");
+  const [restaurantId, setRestaurantId] = useState<number>(1);
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const [featuredImages, setFeaturedImages] = useState<string[]>([]);
   const [restaurantLogo, setRestaurantLogo] = useState<string>("");
@@ -84,7 +85,8 @@ export default function MenuPage() {
         }
 
         setTableNumber(tableData.table_number);
-        const restaurantId = tableData.restaurant_id;
+        const currentRestaurantId = tableData.restaurant_id;
+        setRestaurantId(currentRestaurantId);
 
         // Set restaurant branding data if available
         if (tableData.restaurants) {
@@ -106,7 +108,7 @@ export default function MenuPage() {
         const { data: menuItemsData, error: menuItemsError } = await supabase
           .from("menu_items")
           .select("*")
-          .eq("restaurant_id", restaurantId)
+          .eq("restaurant_id", currentRestaurantId)
           .order("category_id")
           .order("display_order");
 
@@ -121,7 +123,7 @@ export default function MenuPage() {
           .from("menu_categories")
           .select("id, name, display_order")
           .eq("is_available", true)
-          .eq("restaurant_id", restaurantId)
+          .eq("restaurant_id", currentRestaurantId)
           .order("display_order");
 
         if (categoriesError) {
@@ -283,6 +285,7 @@ export default function MenuPage() {
       <MenuHeader
         tableNumber={tableNumber}
         restaurantName={restaurantName}
+        restaurantId={restaurantId}
         featuredImages={featuredImages}
         logoUrl={restaurantLogo}
         primaryColor={primaryColor}
