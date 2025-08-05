@@ -114,7 +114,7 @@ export default function MenuPage() {
 
           setAvailableCategories(filteredCategories);
 
-          // Establecer la primera categoría como activa
+          // Establecer la primera categoría como activa solo si no hay una activa
           if (filteredCategories.length > 0 && activeCategoryId === null) {
             setActiveCategoryId(filteredCategories[0].id);
           }
@@ -128,40 +128,51 @@ export default function MenuPage() {
     };
 
     getMenuData();
-  }, [tableId, activeCategoryId]);
+  }, [tableId]); // Removido activeCategoryId de las dependencias
 
   useEffect(() => {
+    let scrollTimeout: NodeJS.Timeout;
+
     const handleScroll = () => {
       if (isScrollingRef.current || availableCategories.length === 0) return;
 
-      const categoryElements = availableCategories.map((cat) =>
-        document.getElementById(`category-${cat.id}`)
-      );
+      // Debounce para evitar demasiadas actualizaciones
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(() => {
+        const categoryElements = availableCategories.map((cat) =>
+          document.getElementById(`category-${cat.id}`)
+        );
 
-      let currentActiveId = activeCategoryId;
-      for (const el of categoryElements) {
-        if (el) {
-          const rect = el.getBoundingClientRect();
-          if (rect.top >= 0 && rect.top <= window.innerHeight / 2) {
-            currentActiveId = parseInt(el.id.replace("category-", ""));
-            break;
+        let currentActiveId = activeCategoryId;
+        for (const el of categoryElements) {
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.top >= 0 && rect.top <= window.innerHeight / 2) {
+              currentActiveId = parseInt(el.id.replace("category-", ""));
+              break;
+            }
           }
         }
-      }
 
-      if (currentActiveId !== activeCategoryId) {
-        setActiveCategoryId(currentActiveId);
-      }
+        if (currentActiveId !== activeCategoryId) {
+          setActiveCategoryId(currentActiveId);
+        }
+      }, 100); // 100ms de debounce
     };
 
     const mainElement = mainRef.current;
     if (mainElement) {
       mainElement.addEventListener("scroll", handleScroll);
-      return () => mainElement.removeEventListener("scroll", handleScroll);
+      return () => {
+        mainElement.removeEventListener("scroll", handleScroll);
+        clearTimeout(scrollTimeout);
+      };
     }
   }, [availableCategories, activeCategoryId]);
 
   const handleCategorySelect = (id: number) => {
+    if (id === activeCategoryId) return; // No hacer nada si ya está activa
+    
     isScrollingRef.current = true;
     setActiveCategoryId(id);
     const element = document.getElementById(`category-${id}`);
@@ -170,7 +181,7 @@ export default function MenuPage() {
     }
     setTimeout(() => {
       isScrollingRef.current = false;
-    }, 1000);
+    }, 1500); // Aumentado a 1.5 segundos para dar más tiempo al scroll
   };
 
   if (isLoading) {
