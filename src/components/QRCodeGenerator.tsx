@@ -274,23 +274,29 @@ export default function QRCodeGenerator({
     return `${baseUrl}/menu/${table.id}`;
   };
 
-  const generateQRCodeUrl = (table: QRTable) => {
+  const generateQRCodeUrl = (table: QRTable, size = "300x300") => {
     const qrUrl = generateQRUrl(table);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+    // Usar tamaño más grande para mejor calidad de impresión
+    // 600x600 = 200 DPI aproximadamente para QR de 3x3 cm
+    return `https://api.qrserver.com/v1/create-qr-code/?size=${size}&data=${encodeURIComponent(
       qrUrl
-    )}`;
+    )}&ecc=M&margin=0`;
   };
 
-  const downloadQRCode = async (table: QRTable) => {
+  const downloadQRCode = async (table: QRTable, highRes = false) => {
     try {
       // Crear un canvas para generar la imagen completa
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("No se pudo crear el contexto del canvas");
 
-      // Configurar tamaño del canvas (más grande para incluir texto)
-      canvas.width = 400;
-      canvas.height = 500;
+      // Configurar tamaño del canvas (alta resolución para impresión)
+      const scale = highRes ? 2 : 1; // 2x para alta resolución
+      canvas.width = 400 * scale;
+      canvas.height = 500 * scale;
+      
+      // Configurar escala para alta resolución
+      ctx.scale(scale, scale);
 
       // Fondo blanco
       ctx.fillStyle = "white";
@@ -341,7 +347,8 @@ export default function QRCodeGenerator({
           resolve(null);
         };
         qrImage.onerror = reject;
-        qrImage.src = generateQRCodeUrl(table);
+        // Usar alta resolución para descarga (600x600 para mejor impresión)
+        qrImage.src = generateQRCodeUrl(table, highRes ? "600x600" : "300x300");
       });
 
       // Convertir canvas a blob y descargar
