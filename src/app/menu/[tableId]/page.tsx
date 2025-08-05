@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import OrderForm from "@/components/OrderForm";
 import CategoryNav from "@/components/CategoryNav";
+import MenuHeader from "@/components/MenuHeader";
 import { createClient } from "@/utils/supabase/client";
 
 // Define types on the client-side as well
@@ -35,6 +36,11 @@ export default function MenuPage() {
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string>("SENDEROS");
+  const [featuredImages, setFeaturedImages] = useState<string[]>([]);
+  const [restaurantLogo, setRestaurantLogo] = useState<string>("");
+  const [primaryColor, setPrimaryColor] = useState<string>("#1e40af");
+  const [secondaryColor, setSecondaryColor] = useState<string>("#fbbf24");
   const mainRef = useRef<HTMLElement>(null);
   const isScrollingRef = useRef(false);
 
@@ -58,7 +64,7 @@ export default function MenuPage() {
         // 1. Obtener el ID del restaurante a partir del ID de la mesa
         const { data: tableData, error: tableError } = await supabase
           .from("tables")
-          .select("table_number, restaurant_id")
+          .select("table_number, restaurant_id, restaurants(name, logo_url, background_images, primary_color, secondary_color)")
           .eq("id", tableId)
           .single();
 
@@ -71,6 +77,19 @@ export default function MenuPage() {
 
         setTableNumber(tableData.table_number);
         const restaurantId = tableData.restaurant_id;
+
+        // Set restaurant branding data if available
+        if (tableData.restaurants) {
+          setRestaurantName(tableData.restaurants.name || "SENDEROS");
+          setRestaurantLogo(tableData.restaurants.logo_url || "");
+          setPrimaryColor(tableData.restaurants.primary_color || "#1e40af");
+          setSecondaryColor(tableData.restaurants.secondary_color || "#fbbf24");
+          
+          // Use restaurant background images if available, otherwise use featured images from menu items
+          if (tableData.restaurants.background_images && tableData.restaurants.background_images.length > 0) {
+            setFeaturedImages(tableData.restaurants.background_images);
+          }
+        }
 
         // 2. Obtener platos solo para ese restaurante, ordenados correctamente
         const { data: menuItemsData, error: menuItemsError } = await supabase
@@ -102,6 +121,15 @@ export default function MenuPage() {
 
         setAllCategories(categoriesData || []);
         setAllMenuItems(menuItemsData || []);
+
+        // Get featured images from menu items only if no restaurant background images
+        if (menuItemsData && featuredImages.length === 0) {
+          const featured = menuItemsData
+            .filter((item) => item.image_url)
+            .slice(0, 3)
+            .map((item) => item.image_url!);
+          setFeaturedImages(featured);
+        }
 
         // 4. Calcular categorías disponibles
         if (menuItemsData && categoriesData) {
@@ -172,7 +200,7 @@ export default function MenuPage() {
 
   const handleCategorySelect = (id: number) => {
     if (id === activeCategoryId) return; // No hacer nada si ya está activa
-    
+
     isScrollingRef.current = true;
     setActiveCategoryId(id);
     const element = document.getElementById(`category-${id}`);
@@ -224,7 +252,18 @@ export default function MenuPage() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
+      {/* Modern Header */}
+      <MenuHeader
+        tableNumber={tableNumber}
+        restaurantName={restaurantName}
+        featuredImages={featuredImages}
+        logoUrl={restaurantLogo}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+      />
+
+      {/* Navigation and Content */}
       <CategoryNav
         categories={availableCategories}
         activeCategoryId={activeCategoryId}
@@ -232,18 +271,15 @@ export default function MenuPage() {
       />
       <main
         ref={mainRef}
-        className="flex min-h-screen flex-col items-center p-6 md:p-12"
-        style={{ overflowY: "scroll", height: "100vh" }}
+        className="flex flex-col items-center p-4 md:p-8"
+        style={{ overflowY: "scroll", height: "calc(100vh - 12rem)" }}
       >
-        <h1 className="text-3xl md:text-4xl font-bold mb-8 text-center">
-          Orden para la Mesa {tableNumber}
-        </h1>
         <OrderForm
           categories={availableCategories}
           items={allMenuItems}
           tableId={tableId}
         />
       </main>
-    </>
+    </div>
   );
 }
