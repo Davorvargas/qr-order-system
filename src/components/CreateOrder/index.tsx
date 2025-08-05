@@ -59,13 +59,15 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
 
   // Modal de detalle de producto (legacy)
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  
+
   // Modal de producto con modificadores (nuevo)
-  const [selectedItemWithModifiers, setSelectedItemWithModifiers] = useState<MenuItem | null>(null);
+  const [selectedItemWithModifiers, setSelectedItemWithModifiers] =
+    useState<MenuItem | null>(null);
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
-  
+
   // Modal de producto personalizado
-  const [isCustomProductModalOpen, setIsCustomProductModalOpen] = useState(false);
+  const [isCustomProductModalOpen, setIsCustomProductModalOpen] =
+    useState(false);
   const [customProductCounter, setCustomProductCounter] = useState(1);
 
   // Default table ID para pedidos desde staff (puedes ajustar esto según tu lógica)
@@ -77,36 +79,42 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
     const fetchTables = async () => {
       try {
         // Get current user's restaurant_id first
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
         if (authError || !user) {
-          console.error('Authentication error:', authError?.message || 'No user found');
+          console.error(
+            "Authentication error:",
+            authError?.message || "No user found"
+          );
           return;
         }
 
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('restaurant_id')
-          .eq('id', user.id)
+          .from("profiles")
+          .select("restaurant_id")
+          .eq("id", user.id)
           .single();
 
         if (profileError) {
-          console.error('Error fetching profile:', profileError.message);
+          console.error("Error fetching profile:", profileError.message);
           return;
         }
 
         if (!profile?.restaurant_id) {
-          console.error('No restaurant_id found for user');
+          console.error("No restaurant_id found for user");
           return;
         }
 
         // Fetch tables only for this restaurant
         const { data: tables, error: tablesError } = await supabase
-          .from('tables')
-          .select('id, table_number')
-          .eq('restaurant_id', profile.restaurant_id);
-        
+          .from("tables")
+          .select("id, table_number")
+          .eq("restaurant_id", profile.restaurant_id);
+
         if (tablesError) {
-          console.error('Error fetching tables:', tablesError.message);
+          console.error("Error fetching tables:", tablesError.message);
         } else {
           // Sort tables numerically by table_number
           const sortedTables = (tables || []).sort((a, b) => {
@@ -114,7 +122,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
             const numB = parseInt(b.table_number, 10);
             return numA - numB;
           });
-          
+
           setAvailableTables(sortedTables);
           // Set first table as default
           if (sortedTables.length > 0) {
@@ -122,15 +130,17 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           }
         }
       } catch (error) {
-        console.error('Unexpected error in fetchTables:', error);
+        console.error("Unexpected error in fetchTables:", error);
       }
     };
-    
+
     fetchTables();
   }, []);
 
   // Get selected table number
-  const selectedTable = availableTables.find(table => table.id === selectedTableId);
+  const selectedTable = availableTables.find(
+    (table) => table.id === selectedTableId
+  );
   const selectedTableNumber = selectedTable?.table_number;
 
   // Verificar si un producto tiene modificadores
@@ -140,19 +150,37 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       const result = await response.json();
       return result.success && result.data && result.data.length > 0;
     } catch (error) {
-      console.error('Error checking modifiers:', error);
+      console.error("Error checking modifiers:", error);
       return false;
     }
   };
 
-  // Handlers para productos
+    // Handlers para productos
   const handleAddItem = async (item: MenuItem) => {
     // Verificar si el producto tiene modificadores
     const hasModifiers = await checkHasModifiers(item);
     
     if (hasModifiers) {
-      // Abrir modal de modificadores
-      setSelectedItemWithModifiers(item);
+      // Buscar si ya existe un item con este producto en el carrito
+      const existingItemId = Object.keys(orderItems).find(key => {
+        const existingItem = orderItems[parseInt(key)];
+        return existingItem.originalItemId === item.id || parseInt(key) === item.id;
+      });
+
+      if (existingItemId) {
+        // Si existe, abrir el modal con los datos existentes para editar
+        const existingItem = orderItems[parseInt(existingItemId)];
+        setSelectedItemWithModifiers({
+          ...item,
+          existingItemId: parseInt(existingItemId),
+          existingQuantity: existingItem.quantity,
+          existingNotes: existingItem.notes,
+          existingModifiers: existingItem.selectedModifiers || {},
+        });
+      } else {
+        // Si no existe, abrir modal para crear nuevo
+        setSelectedItemWithModifiers(item);
+      }
       setIsModifierModalOpen(true);
     } else {
       // Agregar directo al carrito (comportamiento actual)
@@ -172,8 +200,8 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   // Handler para productos personalizados
   const handleAddCustomProduct = (customProduct: CustomProduct) => {
     const customId = -customProductCounter; // Usar IDs negativos para productos personalizados
-    setCustomProductCounter(prev => prev + 1);
-    
+    setCustomProductCounter((prev) => prev + 1);
+
     setOrderItems((prev) => ({
       ...prev,
       [customId]: {
@@ -189,7 +217,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const handleItemClick = async (item: MenuItem) => {
     // Verificar si el producto tiene modificadores
     const hasModifiers = await checkHasModifiers(item);
-    
+
     if (hasModifiers) {
       // Abrir modal de modificadores
       setSelectedItemWithModifiers(item);
@@ -206,25 +234,66 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
     quantity: number,
     notes: string,
     selectedModifiers: Record<string, string[]>,
-    totalPrice: number
+    totalPrice: number,
+    existingItemId?: number
   ) => {
-    // Crear un ID único para este item con modificadores
+    // Crear un hash para identificar combinaciones únicas de modificadores
     const modifierHash = JSON.stringify(selectedModifiers);
-    const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    setOrderItems((prev) => ({
-      ...prev,
-      [uniqueId]: {
-        quantity: quantity,
-        name: item.name,
-        price: totalPrice / quantity, // Precio unitario con modificadores
-        notes: notes,
-        isCustom: false,
-        originalItemId: item.id,
-        selectedModifiers: selectedModifiers,
-        modifierDetails: modifierHash, // Para identificar combinaciones únicas
-      },
-    }));
+    setOrderItems((prev) => {
+      // Si se está editando un item existente
+      if (existingItemId && prev[existingItemId]) {
+        return {
+          ...prev,
+          [existingItemId]: {
+            ...prev[existingItemId],
+            quantity: quantity,
+            price: totalPrice / quantity,
+            notes: notes,
+            selectedModifiers: selectedModifiers,
+            modifierDetails: modifierHash,
+          },
+        };
+      }
+
+      // Buscar si ya existe un item con el mismo producto y modificadores
+      const existingItemId = Object.keys(prev).find(key => {
+        const existingItem = prev[parseInt(key)];
+        return (
+          existingItem.originalItemId === item.id &&
+          existingItem.modifierDetails === modifierHash &&
+          existingItem.notes === notes
+        );
+      });
+
+      if (existingItemId) {
+        // Si existe, incrementar la cantidad
+        const existingItem = prev[parseInt(existingItemId)];
+        return {
+          ...prev,
+          [existingItemId]: {
+            ...existingItem,
+            quantity: existingItem.quantity + quantity,
+          },
+        };
+      } else {
+        // Si no existe, crear uno nuevo
+        const uniqueId = `${item.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        return {
+          ...prev,
+          [uniqueId]: {
+            quantity: quantity,
+            name: item.name,
+            price: totalPrice / quantity, // Precio unitario con modificadores
+            notes: notes,
+            isCustom: false,
+            originalItemId: item.id,
+            selectedModifiers: selectedModifiers,
+            modifierDetails: modifierHash, // Para identificar combinaciones únicas
+          },
+        };
+      }
+    });
   };
 
   const handleAddToCartFromModal = (
@@ -293,11 +362,21 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
     }
 
     // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    console.log('Auth check - User:', user ? 'Valid' : 'Invalid', 'Error:', authError);
-    
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    console.log(
+      "Auth check - User:",
+      user ? "Valid" : "Invalid",
+      "Error:",
+      authError
+    );
+
     if (authError || !user) {
-      setSubmitError("Debes estar autenticado para crear pedidos. Por favor inicia sesión.");
+      setSubmitError(
+        "Debes estar autenticado para crear pedidos. Por favor inicia sesión."
+      );
       return;
     }
 
@@ -309,49 +388,72 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       customer_name: customerName.trim(),
       total_price: totalPrice,
       notes: generalNotes.trim() || null,
-      source: 'staff_placed' as const,
+      source: "staff_placed" as const,
       order_items: Object.entries(orderItems).map(([itemId, details]) => {
         console.log(`🔍 Processing item ${itemId}:`, {
           name: details.name,
           hasSelectedModifiers: !!details.selectedModifiers,
           selectedModifiers: details.selectedModifiers,
           isCustom: details.isCustom,
-          notes: details.notes
+          notes: details.notes,
         });
-        
+
         return {
-          menu_item_id: details.isCustom ? null : (details.originalItemId || parseInt(itemId, 10)),
+          menu_item_id: details.isCustom
+            ? null
+            : details.originalItemId || parseInt(itemId, 10),
           quantity: details.quantity,
           price_at_order: details.price,
-          notes: details.isCustom 
-            ? JSON.stringify({ type: "custom_product", name: details.name, original_notes: details.notes.trim() || "" })
-            : details.selectedModifiers 
-              ? JSON.stringify({ selectedModifiers: details.selectedModifiers, original_notes: details.notes.trim() || "" })
-              : details.notes.trim() || null,
+          notes: details.isCustom
+            ? JSON.stringify({
+                type: "custom_product",
+                name: details.name,
+                original_notes: details.notes.trim() || "",
+              })
+            : details.selectedModifiers
+            ? JSON.stringify({
+                selectedModifiers: details.selectedModifiers,
+                original_notes: details.notes.trim() || "",
+              })
+            : details.notes.trim() || null,
         };
       }),
     };
 
     try {
-      console.log('🚀 Sending order payload:', JSON.stringify(payload, null, 2));
-      
-      // Check if any items have modifiers
-      const itemsWithModifiers = payload.order_items.filter(item => 
-        item.notes && item.notes.includes('selectedModifiers')
+      console.log(
+        "🚀 Sending order payload:",
+        JSON.stringify(payload, null, 2)
       );
-      console.log(`🔍 Items with modifiers in payload: ${itemsWithModifiers.length}`);
+
+      // Check if any items have modifiers
+      const itemsWithModifiers = payload.order_items.filter(
+        (item) => item.notes && item.notes.includes("selectedModifiers")
+      );
+      console.log(
+        `🔍 Items with modifiers in payload: ${itemsWithModifiers.length}`
+      );
       if (itemsWithModifiers.length > 0) {
-        console.log('🔍 Modifier items details:', itemsWithModifiers.map(item => ({
-          menu_item_id: item.menu_item_id,
-          notes: item.notes
-        })));
+        console.log(
+          "🔍 Modifier items details:",
+          itemsWithModifiers.map((item) => ({
+            menu_item_id: item.menu_item_id,
+            notes: item.notes,
+          }))
+        );
       }
-      
+
       // Get the current session to ensure we have a valid token
       const { data: sessionData } = await supabase.auth.getSession();
-      console.log('Current session:', sessionData.session ? 'Valid' : 'Invalid');
-      console.log('Access token present:', sessionData.session?.access_token ? 'Yes' : 'No');
-      
+      console.log(
+        "Current session:",
+        sessionData.session ? "Valid" : "Invalid"
+      );
+      console.log(
+        "Access token present:",
+        sessionData.session?.access_token ? "Yes" : "No"
+      );
+
       let data, error;
       try {
         const response = await supabase.functions.invoke("place-order", {
@@ -360,20 +462,22 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         data = response.data;
         error = response.error;
       } catch (invokeError) {
-        console.error('Function invoke failed:', invokeError);
-        
+        console.error("Function invoke failed:", invokeError);
+
         // Try to get the actual response if available
         if (invokeError.response) {
           try {
             const errorText = await invokeError.response.text();
-            console.error('Error response body:', errorText);
+            console.error("Error response body:", errorText);
             const errorData = JSON.parse(errorText);
-            setSubmitError(`Error del servidor: ${errorData.error || invokeError.message}`);
+            setSubmitError(
+              `Error del servidor: ${errorData.error || invokeError.message}`
+            );
             if (errorData.details) {
-              console.error('Detailed error:', errorData.details);
+              console.error("Detailed error:", errorData.details);
             }
           } catch (parseError) {
-            console.error('Could not parse error response:', parseError);
+            console.error("Could not parse error response:", parseError);
             setSubmitError(`Error del servidor: ${invokeError.message}`);
           }
         } else {
@@ -383,15 +487,17 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         return;
       }
 
-      console.log('Edge Function response:', { data, error });
+      console.log("Edge Function response:", { data, error });
 
       if (error) {
-        console.error('Edge Function error:', error);
-        setSubmitError(`Error del servidor: ${error.message || 'Error desconocido'}`);
+        console.error("Edge Function error:", error);
+        setSubmitError(
+          `Error del servidor: ${error.message || "Error desconocido"}`
+        );
       } else {
         // Mostrar mensaje de éxito simple
         alert("¡Orden enviada!");
-        
+
         // Limpiar formulario
         setOrderItems({});
         setCustomerName("");
@@ -399,30 +505,30 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         setSearchTerm("");
       }
     } catch (error) {
-      console.error('Catch block error:', error);
-      
+      console.error("Catch block error:", error);
+
       // Try to extract more information from the error
       let errorMessage = "Error desconocido";
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
-        
+
         // Check if there's additional context in the error
-        if ('context' in error && error.context) {
-          console.error('Error context:', error.context);
+        if ("context" in error && error.context) {
+          console.error("Error context:", error.context);
         }
-        
+
         // Check for response body in fetch errors
-        if ('cause' in error && error.cause) {
-          console.error('Error cause:', error.cause);
+        if ("cause" in error && error.cause) {
+          console.error("Error cause:", error.cause);
         }
-      } else if (typeof error === 'string') {
+      } else if (typeof error === "string") {
         errorMessage = error;
-      } else if (error && typeof error === 'object') {
-        console.error('Error object keys:', Object.keys(error));
+      } else if (error && typeof error === "object") {
+        console.error("Error object keys:", Object.keys(error));
         errorMessage = JSON.stringify(error);
       }
-      
+
       setSubmitError(`Error: ${errorMessage}`);
     }
 
@@ -433,14 +539,18 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Enter para confirmar pedido (solo si hay items)
-      if (e.key === 'Enter' && e.ctrlKey && Object.keys(orderItems).length > 0) {
+      if (
+        e.key === "Enter" &&
+        e.ctrlKey &&
+        Object.keys(orderItems).length > 0
+      ) {
         e.preventDefault();
         handleConfirmOrder();
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [orderItems, handleConfirmOrder]);
 
   return (
@@ -464,10 +574,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
                 <span>Producto Especial</span>
               </button>
             </div>
-            <SearchBar
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-            />
+            <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
           </div>
         </div>
 
@@ -516,14 +623,14 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         item={selectedItem}
         onAddToCart={handleAddToCartFromModal}
       />
-      
+
       {/* Modal de producto personalizado */}
       <CustomProductModal
         isOpen={isCustomProductModalOpen}
         onClose={() => setIsCustomProductModalOpen(false)}
         onAdd={handleAddCustomProduct}
       />
-      
+
       {/* Modal de producto con modificadores */}
       <ProductModalWithModifiers
         isOpen={isModifierModalOpen}

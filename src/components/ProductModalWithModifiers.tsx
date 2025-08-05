@@ -34,13 +34,19 @@ interface MenuItem {
 interface ProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  item: MenuItem | null;
+  item: (MenuItem & {
+    existingItemId?: number;
+    existingQuantity?: number;
+    existingNotes?: string;
+    existingModifiers?: Record<string, string[]>;
+  }) | null;
   onAddToCart: (
     item: MenuItem,
     quantity: number,
     notes: string,
     selectedModifiers: Record<string, string[]>,
-    totalPrice: number
+    totalPrice: number,
+    existingItemId?: number
   ) => void;
 }
 
@@ -66,9 +72,18 @@ export default function ProductModalWithModifiers({
   useEffect(() => {
     if (isOpen && item) {
       loadModifiers();
-      setQuantity(1);
-      setNotes("");
-      setSelectedModifiers({});
+      
+      // Si es un item existente, cargar sus datos
+      if (item.existingQuantity) {
+        setQuantity(item.existingQuantity);
+        setNotes(item.existingNotes || "");
+        setSelectedModifiers(item.existingModifiers || {});
+      } else {
+        setQuantity(1);
+        setNotes("");
+        setSelectedModifiers({});
+      }
+      
       setValidationErrors([]);
     }
   }, [isOpen, item]);
@@ -227,7 +242,7 @@ export default function ProductModalWithModifiers({
       convertedNames: modifiersByName,
     });
 
-    onAddToCart(item, quantity, notes, modifiersByName, totalPrice);
+    onAddToCart(item, quantity, notes, modifiersByName, totalPrice, item.existingItemId);
     handleClose();
   };
 
@@ -413,8 +428,16 @@ export default function ProductModalWithModifiers({
             disabled={loading}
             className="flex-1 flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Plus size={16} />
-            <span>Agregar al carrito - Bs. {totalPrice.toFixed(2)}</span>
+            {item?.existingItemId ? (
+              <>
+                <span>Actualizar - Bs. {totalPrice.toFixed(2)}</span>
+              </>
+            ) : (
+              <>
+                <Plus size={16} />
+                <span>Agregar al carrito - Bs. {totalPrice.toFixed(2)}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
