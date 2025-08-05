@@ -23,27 +23,27 @@ export default async function Page({
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-green-600">¡Gracias!</h1>
-          <p className="text-lg text-gray-700">Tu pedido ha sido recibido.</p>
+          <p className="text-lg text-gray-800">Tu pedido ha sido recibido.</p>
         </div>
         <div className="border-t border-b border-dashed py-4 space-y-2">
           <div className="flex justify-between">
-            <span className="font-medium text-gray-600">Pedido #:</span>
-            <span className="font-mono font-bold text-lg">{order.id}</span>
+            <span className="font-medium text-gray-800">Pedido #:</span>
+            <span className="font-mono font-bold text-lg text-gray-900">{order.id}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-gray-600">Nombre:</span>
-            <span className="font-bold">{order.customer_name}</span>
+            <span className="font-medium text-gray-800">Nombre:</span>
+            <span className="font-bold text-gray-900">{order.customer_name}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-medium text-gray-600">Mesa:</span>
-            <span className="font-bold">
+            <span className="font-medium text-gray-800">Mesa:</span>
+            <span className="font-bold text-gray-900">
               {order.table_number ?? order.table_id}
             </span>
           </div>
         </div>
         <div>
           <h2 className="font-bold mb-2 text-gray-800">Resumen del Pedido</h2>
-          <ul className="space-y-2 text-gray-700">
+          <ul className="space-y-2 text-gray-800">
             {order.order_items.map((item) => (
               <li key={item.id} className="border-b border-gray-100 pb-2 last:border-b-0">
                 <div className="flex justify-between items-baseline">
@@ -82,7 +82,7 @@ export default async function Page({
         {order.notes && (
           <div className="border-t pt-4">
             <h2 className="font-bold mb-2 text-gray-800">Tus Notas</h2>
-            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+            <p className="text-sm text-gray-800 whitespace-pre-wrap">
               {order.notes}
             </p>
           </div>

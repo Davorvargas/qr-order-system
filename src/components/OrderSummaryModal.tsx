@@ -66,7 +66,7 @@ export default function OrderSummaryModal({
           <h2 className="text-xl font-bold">Tu Pedido</h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-800 text-2xl font-bold"
+            className="text-gray-700 hover:text-gray-900 text-2xl font-bold"
           >
             &times;
           </button>
@@ -77,7 +77,7 @@ export default function OrderSummaryModal({
           <div>
             <label
               htmlFor="customerName"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-800 mb-1"
             >
               Tu Nombre *
             </label>
@@ -101,11 +101,11 @@ export default function OrderSummaryModal({
                   <div className="flex-grow">
                     <p className="font-semibold">{itemDetail.name}</p>
                     {itemDetail.notes && itemDetail.notes.trim() !== "" && (
-                      <p className="text-xs text-gray-500 mt-1 ml-1 whitespace-pre-wrap">
+                      <p className="text-xs text-gray-700 mt-1 ml-1 whitespace-pre-wrap">
                         &#x1F4AC; {itemDetail.notes}
                       </p>
                     )}
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-800">
                       Bs {(itemDetail.price ?? 0).toFixed(2)}
                     </p>
                   </div>
@@ -145,7 +145,7 @@ export default function OrderSummaryModal({
           <div>
             <label
               htmlFor="orderNotes"
-              className="block text-sm font-medium text-gray-700 mb-1"
+              className="block text-sm font-medium text-gray-800 mb-1"
             >
               Notas del Pedido (opcional)
             </label>
