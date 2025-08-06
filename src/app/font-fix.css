@@ -102,3 +102,25 @@ button, a {
   color: rgb(17 24 39) !important;
   font-weight: 600 !important;
 }
+
+/* Fix modal close button visibility */
+.modal-close-button,
+button[aria-label="Volver al menú"] {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgb(209 213 219) !important;
+}
+
+.modal-close-button:hover,
+button[aria-label="Volver al menú"]:hover {
+  background-color: rgb(249 250 251) !important;
+  border-color: rgb(156 163 175) !important;
+}
+
+/* Fix all modal button text */
+.modal button,
+[role="dialog"] button {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}

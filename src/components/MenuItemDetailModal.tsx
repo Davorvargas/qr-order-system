@@ -63,10 +63,11 @@ export default function MenuItemDetailModal({
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-600 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-3 z-10 shadow-md transition-all"
+          className="absolute top-4 right-4 text-gray-800 bg-white bg-opacity-95 hover:bg-opacity-100 rounded-full p-3 z-50 shadow-lg transition-all border border-gray-200"
           aria-label="Volver al menú"
+          style={{ zIndex: 999 }}
         >
-          <X size={24} />
+          <X size={24} className="text-gray-800" />
         </button>
 
         {/* Scrollable content area */}
