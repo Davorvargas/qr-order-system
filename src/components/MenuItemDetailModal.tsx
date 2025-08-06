@@ -54,27 +54,24 @@ export default function MenuItemDetailModal({
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-60 flex flex-col justify-end z-50"
-      onClick={handleBackdropClick} // <-- AÑADIR ESTO
+      onClick={handleBackdropClick}
     >
       <div
         ref={modalContentRef}
-        className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh]"
+        className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh] overflow-hidden"
       >
-        {/* Header with Close Button - Always visible at top */}
-        <div className="sticky top-0 z-50 bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm">
-          <h2 className="text-xl font-bold text-gray-900 truncate pr-4">{item.name}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-full p-2 shadow-md transition-all border border-gray-300 hover:border-gray-400 flex-shrink-0"
-            aria-label="Volver al menú"
-          >
-            <X size={20} className="text-gray-900" strokeWidth={3} />
-          </button>
-        </div>
+        {/* Close Button - Positioned like ProductModalWithModifiers */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-600 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-3 z-10 shadow-md transition-all"
+          aria-label="Volver al menú"
+        >
+          <X size={24} />
+        </button>
 
-        {/* Scrollable content area */}
+        {/* Scrollable content area - Same structure as ProductModalWithModifiers */}
         <div className="overflow-y-auto flex-grow">
-          {/* Image */}
+          {/* Image at top */}
           <div className="w-full bg-white px-6 py-6">
             {item.image_url ? (
               <Image
@@ -86,20 +83,33 @@ export default function MenuItemDetailModal({
                 sizes="(max-width: 768px) 100vw, 400px"
                 priority
                 style={{ backgroundColor: 'white' }}
+                unoptimized
               />
             ) : (
               <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
-                <span className="text-4xl text-gray-400">🍽️</span>
+                <span className="text-sm text-gray-500">Sin imagen</span>
               </div>
             )}
           </div>
 
-          {/* Content */}
-          <div className="px-6 pb-6">
+          {/* Header dentro del área scrollable */}
+          <div className="px-6 pb-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{item.name}</h2>
+            {/* Descripción del producto */}
             {item.description && (
-              <p className="text-gray-600 mb-4 text-sm leading-relaxed">{item.description}</p>
+              <p className="text-gray-600 mb-4">{item.description}</p>
             )}
-            <p className="text-xl font-bold mb-6 text-gray-900">Bs {item.price?.toFixed(2)}</p>
+
+            {/* Precio base */}
+            <div className="mb-6">
+              <span className="text-lg font-semibold text-gray-900">
+                Precio: Bs. {item.price?.toFixed(2) || "0.00"}
+              </span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="px-6">
 
             {/* Notes Section */}
             <div className="mb-6">
