@@ -60,14 +60,22 @@ export default function MenuItemDetailModal({
         ref={modalContentRef}
         className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh]"
       >
-        {/* Close Button */}
+        {/* Close Button - Enhanced visibility */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-800 bg-white bg-opacity-95 hover:bg-opacity-100 rounded-full p-3 z-50 shadow-lg transition-all border border-gray-200"
+          className="fixed top-4 right-4 text-gray-900 bg-white hover:bg-gray-100 rounded-full p-4 shadow-2xl transition-all border-2 border-gray-300 hover:border-gray-400"
           aria-label="Volver al menú"
-          style={{ zIndex: 999 }}
+          style={{ 
+            zIndex: 9999,
+            position: 'fixed',
+            width: '48px',
+            height: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
-          <X size={24} className="text-gray-800" />
+          <X size={24} className="text-gray-900 font-bold" strokeWidth={3} />
         </button>
 
         {/* Scrollable content area */}

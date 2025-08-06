@@ -124,3 +124,34 @@ button[aria-label="Volver al menú"]:hover {
   color: rgb(17 24 39) !important;
   opacity: 1 !important;
 }
+
+/* Ensure close button in MenuItemDetailModal is always visible and on top */
+button[aria-label="Volver al menú"] {
+  position: fixed !important;
+  z-index: 9999 !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 48px !important;
+  height: 48px !important;
+  background-color: white !important;
+  border: 2px solid rgb(209 213 219) !important;
+  border-radius: 50% !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  opacity: 1 !important;
+}
+
+button[aria-label="Volver al menú"]:hover {
+  background-color: rgb(249 250 251) !important;
+  border-color: rgb(156 163 175) !important;
+  transform: scale(1.1) !important;
+}
+
+button[aria-label="Volver al menú"] svg {
+  color: rgb(17 24 39) !important;
+  stroke-width: 3 !important;
+  width: 24px !important;
+  height: 24px !important;
+}

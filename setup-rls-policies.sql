@@ -99,6 +99,27 @@ DROP POLICY IF EXISTS "Anonymous can create order items" ON order_items;
 CREATE POLICY "Anonymous can create order items" ON order_items
   FOR INSERT WITH CHECK (true);
 
+-- 11.5. POLÍTICAS PARA MODIFIER TABLES (acceso público para menús QR)
+-- Habilitar RLS en las tablas de modificadores si no están habilitadas
+ALTER TABLE modifier_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE modifiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_item_modifiers ENABLE ROW LEVEL SECURITY;
+
+-- Permitir acceso anónimo a grupos de modificadores
+DROP POLICY IF EXISTS "Anonymous can view modifier groups" ON modifier_groups;
+CREATE POLICY "Anonymous can view modifier groups" ON modifier_groups
+  FOR SELECT USING (true);
+
+-- Permitir acceso anónimo a modificadores
+DROP POLICY IF EXISTS "Anonymous can view modifiers" ON modifiers;
+CREATE POLICY "Anonymous can view modifiers" ON modifiers
+  FOR SELECT USING (true);
+
+-- Permitir que usuarios anónimos creen registros de modificadores en pedidos
+DROP POLICY IF EXISTS "Anonymous can create order item modifiers" ON order_item_modifiers;
+CREATE POLICY "Anonymous can create order item modifiers" ON order_item_modifiers
+  FOR INSERT WITH CHECK (true);
+
 -- 12. Verificación: mostrar todas las políticas creadas
 DO $$
 BEGIN
