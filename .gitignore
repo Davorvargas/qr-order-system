@@ -62,3 +62,12 @@ __pycache__/
 
 # Logs
 *.log
+
+# Test files and backups
+test-*.js
+backup-*.json
+*test*.js
+create-*.js
+get-*.js
+verify-*.js
+*.md

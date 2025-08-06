@@ -753,9 +753,19 @@ export default function OrderList({
 
       // Para "in_progress", mostrar órdenes que estén en preparación (con impresora o sin ella)
       if (activeStatus === "in_progress") {
+        // Si no hay impresoras activas, mostrar todas las órdenes con status pending o in_progress
+        // EXCLUIR órdenes merged (origen) - solo mostrar órdenes activas
+        if (activePrinters.length === 0) {
+          return (
+            (order.status === "pending" || order.status === "in_progress") &&
+            order.status !== "merged" // Excluir órdenes merged (origen)
+          );
+        }
+        // Si hay impresoras, usar la lógica original pero excluir merged
         return (
           isOrderReadyForProgress(order) &&
-          (order.status === "pending" || order.status === "in_progress")
+          (order.status === "pending" || order.status === "in_progress") &&
+          order.status !== "merged" // Excluir órdenes merged (origen)
         );
       }
 
@@ -792,8 +802,10 @@ export default function OrderList({
     displayedItems: any[],
     isInGroup = false
   ) => {
-    const showBlackHeader = (activeStatus === "completed" || activeStatus === "cancelled") && !isInGroup;
-    
+    const showBlackHeader =
+      (activeStatus === "completed" || activeStatus === "cancelled") &&
+      !isInGroup;
+
     return (
       <>
         {showBlackHeader && (
@@ -1028,11 +1040,13 @@ export default function OrderList({
         counts.completed++;
       } else if (order.status === "cancelled") {
         counts.cancelled++;
-      } else {
-        // Todos los demás estados impresos van en "in_progress"
-        // (pending, in_progress que ya fueron impresos)
-        counts.in_progress++;
+      } else if (order.status === "pending" || order.status === "in_progress") {
+        // Solo contar órdenes activas (pending/in_progress) - EXCLUIR merged
+        if (order.status !== "merged") {
+          counts.in_progress++;
+        }
       }
+      // Las órdenes merged NO se cuentan en in_progress
     });
     return counts;
   }, [orders, activePrinters, isOrderReadyForProgress]);
@@ -1214,6 +1228,9 @@ export default function OrderList({
                                               : order.is_new_order &&
                                                 activeStatus === "in_progress"
                                               ? "border-orange-400 bg-orange-50 animate-pulse"
+                                              : order.status === "pending" ||
+                                                order.status === "in_progress"
+                                              ? "border-purple-300 bg-purple-50"
                                               : "border-gray-200 bg-gray-50"
                                           }`}
                                         >
