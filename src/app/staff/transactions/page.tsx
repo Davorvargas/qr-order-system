@@ -24,7 +24,8 @@ type Transaction = {
   created_at: string;
   customer_name: string;
   total_price: number | null;
-  status: "completed" | "cancelled"; // Add status to type
+  status: "completed" | "cancelled";
+  source: "customer_qr" | "staff_placed"; // Add source field
 };
 
 type DateRangeOption =
@@ -86,7 +87,7 @@ export default function TransactionsPage() {
 
       let query = supabase
         .from("orders")
-        .select("id, created_at, customer_name, total_price, status") // Select status
+        .select("id, created_at, customer_name, total_price, status, source") // Include source field
         .eq('restaurant_id', profile.restaurant_id) // Filter by restaurant
         .in("status", statusesToFetch) // Use 'in' filter
         .order("created_at", { ascending: false });
@@ -262,6 +263,12 @@ export default function TransactionsPage() {
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
+                  Origen
+                </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Estado
                 </th>
                 <th
@@ -275,7 +282,7 @@ export default function TransactionsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-500">
+                  <td colSpan={6} className="text-center py-10 text-gray-500">
                     Cargando transacciones...
                   </td>
                 </tr>
@@ -296,6 +303,17 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {t.customer_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          t.source === "customer_qr"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-purple-100 text-purple-800"
+                        }`}
+                      >
+                        {t.source === "customer_qr" ? "Cliente QR" : "Staff Dashboard"}
+                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <span
@@ -321,7 +339,7 @@ export default function TransactionsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center py-10 text-gray-500">
+                  <td colSpan={6} className="text-center py-10 text-gray-500">
                     No se encontraron transacciones para el período seleccionado.
                   </td>
                 </tr>

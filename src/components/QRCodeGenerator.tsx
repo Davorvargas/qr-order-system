@@ -12,8 +12,8 @@ import {
   FileText,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import jsPDF from 'jspdf';
-import QRCode from 'qrcode';
+import jsPDF from "jspdf";
+import QRCode from "qrcode";
 
 interface QRTable {
   id: string;
@@ -297,7 +297,7 @@ export default function QRCodeGenerator({
       const scale = highRes ? 2 : 1; // 2x para alta resolución
       canvas.width = 400 * scale;
       canvas.height = 500 * scale;
-      
+
       // Configurar escala para alta resolución
       ctx.scale(scale, scale);
 
@@ -415,24 +415,24 @@ export default function QRCodeGenerator({
 
     try {
       console.log("Iniciando generación de PDF...");
-      
+
       // Test simple primero
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      pdf.text('Test PDF - QR Codes', 20, 20);
-      
+      const pdf = new jsPDF("p", "mm", "a4");
+      pdf.text("Test PDF - QR Codes", 20, 20);
+
       // Si el test funciona, hacer PDF completo
       if (tables.length <= 2) {
         // Para testing, hacer solo PDF simple con pocas mesas
         console.log("Modo test - PDF simple");
         for (let i = 0; i < Math.min(2, tables.length); i++) {
           const table = tables[i];
-          pdf.text(`Mesa: ${table.displayName}`, 20, 40 + (i * 20));
+          pdf.text(`Mesa: ${table.displayName}`, 20, 40 + i * 20);
         }
-        pdf.save(`Test-QR-Codes-${new Date().toISOString().split('T')[0]}.pdf`);
+        pdf.save(`Test-QR-Codes-${new Date().toISOString().split("T")[0]}.pdf`);
         alert("PDF de prueba generado exitosamente!");
         return;
       }
-      
+
       // Configuración para 9 QRs por página (3x3)
       const qrWidth = 65; // mm
       const qrHeight = 81.25; // mm
@@ -440,13 +440,13 @@ export default function QRCodeGenerator({
       const marginY = 10; // mm
       const spacingX = (210 - 2 * marginX) / 3; // A4 width = 210mm
       const spacingY = (297 - 2 * marginY) / 3; // A4 height = 297mm
-      
+
       let currentPage = 0;
       let qrsOnCurrentPage = 0;
 
       for (let i = 0; i < tables.length; i++) {
         const table = tables[i];
-        
+
         // Nueva página cada 9 QRs
         if (qrsOnCurrentPage === 0) {
           if (currentPage > 0) {
@@ -454,95 +454,121 @@ export default function QRCodeGenerator({
           }
           currentPage++;
         }
-        
+
         // Calcular posición en la grilla 3x3
         const row = Math.floor(qrsOnCurrentPage / 3);
         const col = qrsOnCurrentPage % 3;
-        
+
         const x = marginX + col * spacingX;
         const y = marginY + row * spacingY;
-        
+
         // Crear canvas para el QR individual
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
-        
+
         // Configurar canvas con alta resolución
         const scale = 3; // Alta resolución para PDF
         canvas.width = qrWidth * scale * 3.78; // 3.78 = píxeles por mm a 300 DPI
         canvas.height = qrHeight * scale * 3.78;
         ctx.scale(scale, scale);
-        
+
         // Fondo blanco
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, qrWidth * 3.78, qrHeight * 3.78);
-        
-        // Borde
+
+        // Borde doble (como en la imagen) - con más separación
         ctx.strokeStyle = "#000";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(5, 5, qrWidth * 3.78 - 10, qrHeight * 3.78 - 10);
         ctx.lineWidth = 1;
-        ctx.strokeRect(2, 2, (qrWidth * 3.78) - 4, (qrHeight * 3.78) - 4);
-        
+        ctx.strokeRect(12, 12, qrWidth * 3.78 - 24, qrHeight * 3.78 - 24);
+
         // Generar QR directamente en el canvas para evitar problemas de CORS
         const qrUrl = generateQRUrl(table);
-        
+
         // Crear un canvas temporal para el QR
         const qrCanvas = document.createElement("canvas");
         await QRCode.toCanvas(qrCanvas, qrUrl, {
           width: 120,
           margin: 0,
           color: {
-            dark: '#000000',
-            light: '#FFFFFF'
+            dark: "#000000",
+            light: "#FFFFFF",
           },
-          errorCorrectionLevel: 'M'
+          errorCorrectionLevel: "M",
         });
-        
-        // QR centrado en la parte superior
-        const qrSize = 120;
-        const qrX = ((qrWidth * 3.78) - qrSize) / 2;
-        const qrY = 15;
-        
-        // Dibujar el QR canvas directamente
-        ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-        
-        // Texto más grande y legible
+
+        // Texto arriba del QR (como en la imagen)
         ctx.fillStyle = "black";
         ctx.textAlign = "center";
-        
-        // Título de la mesa - MÁS GRANDE
+
+        // Título de la mesa - arriba del QR (más arriba)
         ctx.font = "bold 20px Arial";
-        ctx.fillText(table.displayName, (qrWidth * 3.78) / 2, qrY + qrSize + 25);
-        
-        // Texto principal - MÁS GRANDE Y LEGIBLE
+        ctx.fillText(table.displayName, (qrWidth * 3.78) / 2, 35);
+
+        // Subtítulo - arriba del QR (más arriba)
         ctx.font = "bold 16px Arial";
-        ctx.fillText("Escanea para ver el menú", (qrWidth * 3.78) / 2, qrY + qrSize + 50);
-        
-        // Texto secundario - MÁS GRANDE
+        ctx.fillStyle = "#666";
+        ctx.fillText("Escanea para ver el menú", (qrWidth * 3.78) / 2, 60);
+
+        // QR centrado en la parte media (más centrado)
+        const qrSize = 120;
+        const qrX = (qrWidth * 3.78 - qrSize) / 2;
+        const qrY = 85;
+
+        // Dibujar el QR canvas directamente
+        ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+        // Texto secundario - abajo del QR (más cerca del QR)
+        ctx.fillStyle = "#333";
         ctx.font = "14px Arial";
         const line1 = "Escanea este código QR";
         const line2 = "con tu teléfono para ver";
         const line3 = "el menú y hacer tu pedido";
-        
-        ctx.fillText(line1, (qrWidth * 3.78) / 2, qrY + qrSize + 75);
-        ctx.fillText(line2, (qrWidth * 3.78) / 2, qrY + qrSize + 95);
-        ctx.fillText(line3, (qrWidth * 3.78) / 2, qrY + qrSize + 115);
-        
-        // Convertir canvas a imagen y agregar al PDF
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        pdf.addImage(imgData, 'PNG', x, y, qrWidth, qrHeight);
-        
+
+        ctx.fillText(line1, (qrWidth * 3.78) / 2, qrY + qrSize + 20);
+        ctx.fillText(line2, (qrWidth * 3.78) / 2, qrY + qrSize + 40);
+        ctx.fillText(line3, (qrWidth * 3.78) / 2, qrY + qrSize + 60);
+
+        // Convertir canvas a blob y luego a base64 para evitar problemas de CORS
+        const blob = await new Promise<Blob>((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error("No se pudo generar el blob"));
+              }
+            },
+            "image/png",
+            1.0
+          );
+        });
+
+        // Convertir blob a base64
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let binary = "";
+        for (let i = 0; i < uint8Array.length; i++) {
+          binary += String.fromCharCode(uint8Array[i]);
+        }
+        const base64 = btoa(binary);
+        const imgData = `data:image/png;base64,${base64}`;
+
+        pdf.addImage(imgData, "PNG", x, y, qrWidth, qrHeight);
+
         qrsOnCurrentPage++;
         if (qrsOnCurrentPage === 9) {
           qrsOnCurrentPage = 0;
         }
       }
-      
+
       // Descargar PDF
       console.log("Guardando PDF...");
-      pdf.save(`QR-Codes-${new Date().toISOString().split('T')[0]}.pdf`);
+      pdf.save(`QR-Codes-${new Date().toISOString().split("T")[0]}.pdf`);
       console.log("PDF guardado exitosamente");
       alert(`PDF generado con ${tables.length} códigos QR`);
-      
     } catch (error) {
       console.error("Error generando PDF:", error);
       alert("Error al generar el PDF");
