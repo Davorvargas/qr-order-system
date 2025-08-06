@@ -85,6 +85,8 @@ export default function MenuItemForm({
 
     // Obtener el restaurant_id del usuario logueado para elementos nuevos
     let restaurantId: string | null = null;
+    let displayOrder: number | null = null;
+
     if (!isEditMode) {
       const {
         data: { user },
@@ -96,6 +98,21 @@ export default function MenuItemForm({
           .eq("id", user.id)
           .single();
         restaurantId = profile?.restaurant_id || null;
+
+        // Calcular el siguiente display_order en la categoría
+        if (restaurantId && categoryId) {
+          const { data: maxOrder } = await supabase
+            .from("menu_items")
+            .select("display_order")
+            .eq("restaurant_id", restaurantId)
+            .eq("category_id", categoryId)
+            .not("display_order", "is", null)
+            .order("display_order", { ascending: false })
+            .limit(1)
+            .single();
+
+          displayOrder = (maxOrder?.display_order || 0) + 1;
+        }
       }
     }
 
@@ -106,6 +123,7 @@ export default function MenuItemForm({
       category_id: categoryId,
       image_url: imageUrl,
       ...(restaurantId && { restaurant_id: restaurantId }), // Agregar restaurant_id solo si existe
+      ...(displayOrder && { display_order: displayOrder }), // Agregar display_order solo si existe
     };
 
     let dbError;

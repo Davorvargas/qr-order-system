@@ -105,8 +105,10 @@ export default function MenuItemFormModal({
 
     // Obtener el restaurant_id del usuario logueado
     let restaurantId: string | null = null;
+    let displayOrder: number | null = null;
+
     if (!itemToEdit) {
-      // Solo para elementos nuevos, obtener el restaurant_id
+      // Solo para elementos nuevos, obtener el restaurant_id y calcular display_order
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -117,6 +119,21 @@ export default function MenuItemFormModal({
           .eq("id", user.id)
           .single();
         restaurantId = profile?.restaurant_id || null;
+
+        // Calcular el siguiente display_order en la categoría
+        if (restaurantId && formData.category_id) {
+          const { data: maxOrder } = await supabase
+            .from("menu_items")
+            .select("display_order")
+            .eq("restaurant_id", restaurantId)
+            .eq("category_id", parseInt(formData.category_id, 10))
+            .not("display_order", "is", null)
+            .order("display_order", { ascending: false })
+            .limit(1)
+            .single();
+
+          displayOrder = (maxOrder?.display_order || 0) + 1;
+        }
       }
     }
 
@@ -127,6 +144,7 @@ export default function MenuItemFormModal({
       category_id: parseInt(formData.category_id, 10) || null,
       image_url: imageUrl, // <-- Usar el estado separado de la URL
       ...(restaurantId && { restaurant_id: restaurantId }), // Agregar restaurant_id solo si existe
+      ...(displayOrder && { display_order: displayOrder }), // Agregar display_order solo si existe
     };
 
     let savedItem: MenuItem | null = null;
