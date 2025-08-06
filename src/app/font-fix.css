@@ -30,9 +30,75 @@ button[class*="border-b-2"] {
 h1, h2, h3, h4, h5, h6 {
   color: rgb(17 24 39) !important;
   opacity: 1 !important;
+  font-weight: 600 !important;
 }
 
 /* Ensure all text is properly rendered */
 p, span, div {
   opacity: 1 !important;
+}
+
+/* Fix translucent text in menu item descriptions and prices */
+.text-gray-600 {
+  color: rgb(55 65 81) !important; /* Force gray-700 instead of gray-600 */
+  opacity: 1 !important;
+  font-weight: 500 !important;
+}
+
+/* Fix text in modals and forms */
+.text-gray-700 {
+  color: rgb(17 24 39) !important; /* Force gray-900 for better visibility */
+  opacity: 1 !important;
+  font-weight: 500 !important;
+}
+
+/* Fix text in labels and inputs */
+label, input, textarea, select {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}
+
+/* Fix placeholder text */
+input::placeholder,
+textarea::placeholder {
+  color: rgb(107 114 128) !important; /* gray-500 but more visible */
+  opacity: 0.8 !important;
+}
+
+/* Fix modal text visibility */
+.modal-content,
+.modal-content p,
+.modal-content span,
+.modal-content div {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}
+
+/* Force visibility for all interactive elements */
+button, a {
+  opacity: 1 !important;
+}
+
+/* Fix category navigation text */
+.category-nav button {
+  color: rgb(17 24 39) !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+/* Fix product card text */
+.product-card h3,
+.product-card p,
+.product-card span {
+  opacity: 1 !important;
+}
+
+.product-card .text-gray-900 {
+  color: rgb(17 24 39) !important;
+  font-weight: 600 !important;
+}
+
+.product-card .text-gray-800 {
+  color: rgb(17 24 39) !important;
+  font-weight: 600 !important;
 }
