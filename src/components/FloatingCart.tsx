@@ -37,15 +37,15 @@ export default function FloatingCart({
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 p-4 bg-transparent flex justify-center z-40 pointer-events-none">
+    <div className="floating-cart fixed bottom-0 left-0 right-0 p-4 bg-transparent flex justify-center z-40 pointer-events-none">
       <div className="w-full max-w-md pointer-events-auto">
         <button
           onClick={onClick}
           className="bg-black text-white font-bold py-3 px-6 rounded-full w-full shadow-lg flex justify-between items-center transform hover:scale-105 transition-transform"
         >
-          <span>Ver tu pedido</span>
+          <span className="text-white font-bold">Ver tu pedido</span>
           <div className="flex items-center space-x-3">
-            <span className="font-semibold">Bs {totalPrice.toFixed(2)}</span>
+            <span className="font-bold text-white">Bs {totalPrice.toFixed(2)}</span>
             <span className="bg-white text-black rounded-full h-7 w-7 flex items-center justify-center text-sm font-bold">
               {totalItems}
             </span>

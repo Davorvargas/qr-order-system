@@ -151,3 +151,64 @@ button[aria-label="Volver al menú"] svg {
   height: 24px !important; /* size={24} */
   stroke-width: 2 !important; /* default stroke width */
 }
+
+/* Fix floating cart text visibility */
+.floating-cart,
+.floating-cart button,
+.floating-cart span {
+  color: white !important;
+  opacity: 1 !important;
+  font-weight: 700 !important; /* font-bold */
+}
+
+.floating-cart .bg-white {
+  background-color: white !important;
+  color: black !important;
+  opacity: 1 !important;
+}
+
+/* Fix receipt/confirmation page text visibility */
+.confirmation-page h1,
+.confirmation-page h2,
+.confirmation-page p,
+.confirmation-page span,
+.confirmation-page li {
+  opacity: 1 !important;
+}
+
+.confirmation-page .text-gray-800 {
+  color: rgb(31 41 55) !important; /* Force gray-800 to darker */
+  font-weight: 600 !important;
+  opacity: 1 !important;
+}
+
+.confirmation-page .text-gray-900 {
+  color: rgb(17 24 39) !important; /* Force gray-900 */
+  font-weight: 700 !important;
+  opacity: 1 !important;
+}
+
+.confirmation-page .text-gray-500 {
+  color: rgb(75 85 99) !important; /* Force gray-500 to more visible */
+  opacity: 1 !important;
+}
+
+.confirmation-page .text-blue-600 {
+  color: rgb(37 99 235) !important; /* Force blue-600 */
+  opacity: 1 !important;
+}
+
+/* Fix price text specifically */
+.font-mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace !important;
+  font-weight: 700 !important;
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}
+
+/* Fix all text in order confirmation */
+.order-confirmation-text,
+.order-confirmation-text * {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}

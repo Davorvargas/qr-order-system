@@ -19,11 +19,11 @@ export default async function Page({
   const order = await getOrderDetails(orderId);
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 bg-gray-50">
+    <main className="confirmation-page flex min-h-screen flex-col items-center p-8 bg-gray-50">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-green-600">¡Gracias!</h1>
-          <p className="text-lg text-gray-800">Tu pedido ha sido recibido.</p>
+          <p className="text-lg text-gray-800 font-semibold">Tu pedido ha sido recibido.</p>
         </div>
         <div className="border-t border-b border-dashed py-4 space-y-2">
           <div className="flex justify-between">
@@ -47,10 +47,10 @@ export default async function Page({
             {order.order_items.map((item) => (
               <li key={item.id} className="border-b border-gray-100 pb-2 last:border-b-0">
                 <div className="flex justify-between items-baseline">
-                  <span className="font-medium">
+                  <span className="font-medium text-gray-900">
                     {item.quantity} x {getItemName(item)}
                   </span>
-                  <span className="font-mono">
+                  <span className="font-mono font-bold text-gray-900">
                     Bs {((item.price_at_order ?? 0) * item.quantity).toFixed(2)}
                   </span>
                 </div>
@@ -62,7 +62,7 @@ export default async function Page({
                       <div key={mod.id} className="flex justify-between">
                         <span>• {mod.modifier_groups.name}: {mod.modifiers.name}</span>
                         {mod.price_at_order > 0 && (
-                          <span className="font-mono">+Bs {mod.price_at_order.toFixed(2)}</span>
+                          <span className="font-mono font-bold text-blue-700">+Bs {mod.price_at_order.toFixed(2)}</span>
                         )}
                       </div>
                     ))}
@@ -88,14 +88,14 @@ export default async function Page({
           </div>
         )}
         <div className="border-t-2 border-dashed pt-4 text-right">
-          <p className="font-bold text-xl">
+          <p className="font-bold text-xl text-gray-900">
             Total:{" "}
-            <span className="font-mono">
+            <span className="font-mono font-bold text-gray-900">
               Bs {order.total_price?.toFixed(2)}
             </span>
           </p>
         </div>
-        <p className="text-center text-xs text-gray-500 pt-4">
+        <p className="text-center text-sm text-gray-600 pt-4 font-medium">
           Por favor, muestra esta confirmación al personal al pagar.
         </p>
       </div>
