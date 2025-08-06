@@ -834,7 +834,7 @@ export default function OrderList({
                   : `Mesa ${order.table?.table_number || order.table_id}`}
               </span>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-500">
+                <span className="text-gray-600 font-medium">
                   {order.order_items.length} items
                 </span>
                 <span className="font-bold">
@@ -891,7 +891,7 @@ export default function OrderList({
           )}
 
           {/* Línea 3: #Orden + Cliente + Tiempo */}
-          <div className="flex justify-between items-center text-xs text-gray-500 mb-2">
+          <div className="flex justify-between items-center text-xs text-gray-700 mb-2">
             <span>
               #{order.id} • {order.customer_name || "Cliente"}
             </span>
@@ -1081,8 +1081,8 @@ export default function OrderList({
                   onClick={() => setActiveStatus(tab.key)}
                   className={`px-3 py-2 text-sm font-medium transition-colors ${
                     activeStatus === tab.key
-                      ? "border-b-2 border-gray-600 text-gray-800"
-                      : "text-gray-500 hover:text-gray-700"
+                      ? "border-b-2 border-gray-600 text-gray-900 font-semibold"
+                      : "text-gray-700 hover:text-gray-900"
                   }`}
                 >
                   {tab.label}

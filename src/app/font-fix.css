@@ -1,0 +1,38 @@
+/* Font rendering fixes for different computers */
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Ensure text has proper opacity and contrast */
+.text-gray-500,
+.text-gray-600,
+.text-gray-700 {
+  color: rgb(75 85 99) !important; /* Force gray-600 for better visibility */
+  opacity: 1 !important;
+}
+
+/* Make tab text more visible */
+button[class*="text-gray"] {
+  color: rgb(55 65 81) !important; /* Force gray-700 */
+  font-weight: 500 !important;
+}
+
+/* Active tab styling */
+button[class*="border-b-2"] {
+  color: rgb(17 24 39) !important; /* Force gray-900 */
+  font-weight: 600 !important;
+}
+
+/* Fix translucent text in headers */
+h1, h2, h3, h4, h5, h6 {
+  color: rgb(17 24 39) !important;
+  opacity: 1 !important;
+}
+
+/* Ensure all text is properly rendered */
+p, span, div {
+  opacity: 1 !important;
+}
