@@ -152,19 +152,48 @@ button[aria-label="Volver al menú"] svg {
   stroke-width: 2 !important; /* default stroke width */
 }
 
-/* Fix floating cart text visibility */
+/* Fix floating cart text visibility - Enhanced for all devices */
 .floating-cart,
+.floating-cart *,
 .floating-cart button,
-.floating-cart span {
-  color: white !important;
+.floating-cart span,
+.floating-cart div {
   opacity: 1 !important;
-  font-weight: 700 !important; /* font-bold */
+}
+
+.floating-cart button {
+  background-color: rgb(0, 0, 0) !important; /* Force pure black background */
+  color: rgb(255, 255, 255) !important; /* Force pure white text */
+  font-weight: 900 !important; /* Extra bold */
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important; /* Add text shadow for contrast */
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  border: 2px solid rgb(255, 255, 255) !important; /* White border for extra contrast */
+}
+
+.floating-cart button span {
+  color: rgb(255, 255, 255) !important;
+  font-weight: 900 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  opacity: 1 !important;
 }
 
 .floating-cart .bg-white {
-  background-color: white !important;
-  color: black !important;
+  background-color: rgb(255, 255, 255) !important; /* Force pure white background */
+  color: rgb(0, 0, 0) !important; /* Force pure black text */
   opacity: 1 !important;
+  font-weight: 900 !important;
+  text-shadow: none !important;
+  border: 1px solid rgb(0, 0, 0) !important; /* Black border for contrast */
+}
+
+/* Force all text in floating cart to be visible */
+div[class*="floating-cart"] button *,
+button[class*="bg-black"] *,
+.fixed.bottom-0 button * {
+  color: inherit !important;
+  opacity: 1 !important;
+  font-weight: inherit !important;
 }
 
 /* Fix receipt/confirmation page text visibility */

@@ -42,11 +42,47 @@ export default function FloatingCart({
         <button
           onClick={onClick}
           className="bg-black text-white font-bold py-3 px-6 rounded-full w-full shadow-lg flex justify-between items-center transform hover:scale-105 transition-transform"
+          style={{
+            backgroundColor: 'rgb(0, 0, 0)',
+            color: 'rgb(255, 255, 255)',
+            fontWeight: '900',
+            opacity: '1',
+            border: '2px solid white'
+          }}
         >
-          <span className="text-white font-bold">Ver tu pedido</span>
+          <span 
+            className="text-white font-bold"
+            style={{
+              color: 'rgb(255, 255, 255)',
+              fontWeight: '900',
+              opacity: '1',
+              textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)'
+            }}
+          >
+            Ver tu pedido
+          </span>
           <div className="flex items-center space-x-3">
-            <span className="font-bold text-white">Bs {totalPrice.toFixed(2)}</span>
-            <span className="bg-white text-black rounded-full h-7 w-7 flex items-center justify-center text-sm font-bold">
+            <span 
+              className="font-bold text-white"
+              style={{
+                color: 'rgb(255, 255, 255)',
+                fontWeight: '900',
+                opacity: '1',
+                textShadow: '1px 1px 2px rgba(0, 0, 0, 0.8)'
+              }}
+            >
+              Bs {totalPrice.toFixed(2)}
+            </span>
+            <span 
+              className="bg-white text-black rounded-full h-7 w-7 flex items-center justify-center text-sm font-bold"
+              style={{
+                backgroundColor: 'rgb(255, 255, 255)',
+                color: 'rgb(0, 0, 0)',
+                fontWeight: '900',
+                opacity: '1',
+                border: '1px solid black'
+              }}
+            >
               {totalItems}
             </span>
           </div>
