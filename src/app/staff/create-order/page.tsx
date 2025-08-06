@@ -1,4 +1,7 @@
-import { createClient } from "@/utils/supabase/server";
+"use client";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 import { redirect } from "next/navigation";
 import CreateOrder from "@/components/CreateOrder";
 
@@ -19,59 +22,97 @@ interface MenuItem {
   image_url: string | null;
 }
 
-export default async function CreateOrderPage() {
-  const supabase = await createClient();
+export default function CreateOrderPage() {
+  const supabase = createClient();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Verificar autenticación
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Verificar autenticación
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          redirect("/login");
+          return;
+        }
 
-  if (!user) {
-    redirect("/login");
+        // Obtener restaurant_id del usuario
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("restaurant_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.restaurant_id) {
+          redirect("/login");
+          return;
+        }
+
+        // Obtener productos filtrados por restaurante
+        const { data: itemsData, error: itemsError } = await supabase
+          .from("menu_items")
+          .select("*")
+          .eq("restaurant_id", profile.restaurant_id)
+          // Excluir productos especiales viejos que no deben aparecer en dashboard
+          .not("description", "like", "%Producto especial%")
+          .not("name", "like", "[ELIMINADO]%")
+          // Mostrar todos los items normales para el staff, incluyendo desactivados
+          .order("category_id")
+          .order("display_order");
+
+        if (itemsError) {
+          console.error("Error fetching menu items:", itemsError);
+          setError("Error loading menu items");
+          return;
+        }
+
+        // Obtener categorías reales de la base de datos
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from("menu_categories")
+          .select("*")
+          .eq("restaurant_id", profile.restaurant_id)
+          .eq("is_available", true) // Solo categorías disponibles
+          .order("display_order");
+
+        if (categoriesError) {
+          console.error("Error fetching categories:", categoriesError);
+          setError("Error loading categories");
+          return;
+        }
+
+        setItems(itemsData || []);
+        setCategories(categoriesData || []);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error in fetchData:", err);
+        setError("Error loading data");
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [supabase]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading menu items...</p>
+      </div>
+    );
   }
 
-  // Obtener restaurant_id del usuario
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('restaurant_id')
-    .eq('id', user.id)
-    .single();
-
-  if (!profile?.restaurant_id) {
-    redirect("/login");
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-red-500">Error: {error}</p>
+      </div>
+    );
   }
-
-  // Obtener productos filtrados por restaurante
-  const { data: items, error: itemsError } = await supabase
-    .from("menu_items")
-    .select("*")
-    .eq("restaurant_id", profile.restaurant_id)
-    // Excluir productos especiales viejos que no deben aparecer en dashboard
-    .not("description", "like", "%Producto especial%")
-    .not("name", "like", "[ELIMINADO]%")
-    // Mostrar todos los items normales para el staff, incluyendo desactivados  
-    .order("category_id")
-    .order("display_order");
-
-  if (itemsError) {
-    console.error("Error fetching menu items:", itemsError);
-    return <div>Error loading menu items</div>;
-  }
-
-  // Obtener categorías reales de la base de datos
-  const { data: categories, error: categoriesError } = await supabase
-    .from("menu_categories")
-    .select("*")
-    .eq("restaurant_id", profile.restaurant_id)
-    .eq("is_available", true) // Solo categorías disponibles
-    .order("display_order");
-
-  if (categoriesError) {
-    console.error("Error fetching categories:", categoriesError);
-    return <div>Error loading categories</div>;
-  }
-
 
   return (
     <div className="h-[calc(100vh-2rem)] -m-8">

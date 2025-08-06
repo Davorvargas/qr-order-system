@@ -103,12 +103,30 @@ export default function MenuItemFormModal({
     e.preventDefault();
     setIsSaving(true);
 
+    // Obtener el restaurant_id del usuario logueado
+    let restaurantId: string | null = null;
+    if (!itemToEdit) {
+      // Solo para elementos nuevos, obtener el restaurant_id
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("restaurant_id")
+          .eq("id", user.id)
+          .single();
+        restaurantId = profile?.restaurant_id || null;
+      }
+    }
+
     const dbData = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price) || null,
       category_id: parseInt(formData.category_id, 10) || null,
       image_url: imageUrl, // <-- Usar el estado separado de la URL
+      ...(restaurantId && { restaurant_id: restaurantId }), // Agregar restaurant_id solo si existe
     };
 
     let savedItem: MenuItem | null = null;

@@ -83,12 +83,29 @@ export default function MenuItemForm({
       imageUrl = urlData.publicUrl;
     }
 
+    // Obtener el restaurant_id del usuario logueado para elementos nuevos
+    let restaurantId: string | null = null;
+    if (!isEditMode) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("restaurant_id")
+          .eq("id", user.id)
+          .single();
+        restaurantId = profile?.restaurant_id || null;
+      }
+    }
+
     const itemData = {
       name,
       description,
       price: parseFloat(price),
       category_id: categoryId,
       image_url: imageUrl,
+      ...(restaurantId && { restaurant_id: restaurantId }), // Agregar restaurant_id solo si existe
     };
 
     let dbError;
