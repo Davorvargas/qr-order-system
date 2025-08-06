@@ -125,33 +125,36 @@ button[aria-label="Volver al menú"]:hover {
   opacity: 1 !important;
 }
 
-/* Ensure close button in MenuItemDetailModal is always visible and on top */
+/* Ensure close button in MenuItemDetailModal is always visible and accessible */
 button[aria-label="Volver al menú"] {
-  position: fixed !important;
-  z-index: 9999 !important;
-  top: 16px !important;
-  right: 16px !important;
-  width: 48px !important;
-  height: 48px !important;
-  background-color: white !important;
-  border: 2px solid rgb(209 213 219) !important;
+  background-color: rgb(243 244 246) !important;
+  border: 1px solid rgb(209 213 219) !important;
   border-radius: 50% !important;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   opacity: 1 !important;
+  padding: 8px !important;
 }
 
 button[aria-label="Volver al menú"]:hover {
-  background-color: rgb(249 250 251) !important;
+  background-color: rgb(229 231 235) !important;
   border-color: rgb(156 163 175) !important;
-  transform: scale(1.1) !important;
 }
 
 button[aria-label="Volver al menú"] svg {
   color: rgb(17 24 39) !important;
   stroke-width: 3 !important;
-  width: 24px !important;
-  height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Ensure modal header is always visible */
+.modal-header-sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  background-color: white !important;
+  border-bottom: 1px solid rgb(229 231 235) !important;
 }

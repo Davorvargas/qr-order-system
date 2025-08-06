@@ -60,23 +60,17 @@ export default function MenuItemDetailModal({
         ref={modalContentRef}
         className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh]"
       >
-        {/* Close Button - Enhanced visibility */}
-        <button
-          onClick={onClose}
-          className="fixed top-4 right-4 text-gray-900 bg-white hover:bg-gray-100 rounded-full p-4 shadow-2xl transition-all border-2 border-gray-300 hover:border-gray-400"
-          aria-label="Volver al menú"
-          style={{ 
-            zIndex: 9999,
-            position: 'fixed',
-            width: '48px',
-            height: '48px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-        >
-          <X size={24} className="text-gray-900 font-bold" strokeWidth={3} />
-        </button>
+        {/* Header with Close Button - Always visible at top */}
+        <div className="sticky top-0 z-50 bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm">
+          <h2 className="text-xl font-bold text-gray-900 truncate pr-4">{item.name}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-full p-2 shadow-md transition-all border border-gray-300 hover:border-gray-400 flex-shrink-0"
+            aria-label="Volver al menú"
+          >
+            <X size={20} className="text-gray-900" strokeWidth={3} />
+          </button>
+        </div>
 
         {/* Scrollable content area */}
         <div className="overflow-y-auto flex-grow">
@@ -102,7 +96,6 @@ export default function MenuItemDetailModal({
 
           {/* Content */}
           <div className="px-6 pb-6">
-            <h2 className="text-2xl font-bold mb-2 text-gray-900">{item.name}</h2>
             {item.description && (
               <p className="text-gray-600 mb-4 text-sm leading-relaxed">{item.description}</p>
             )}
