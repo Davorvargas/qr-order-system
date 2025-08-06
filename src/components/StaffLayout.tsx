@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutGrid,
   Wallet,
@@ -66,22 +66,34 @@ export default function StaffLayout({
     setIsSidebarOpen(!isSidebarOpen);
   };
 
+  // Escuchar eventos de toggle sidebar desde OrderList
+  useEffect(() => {
+    // Exponer la función globalmente para que OrderList la pueda usar directamente
+    (window as any).toggleStaffSidebar = () => {
+      setIsSidebarOpen(prev => !prev);
+    };
+    
+    return () => {
+      delete (window as any).toggleStaffSidebar;
+    };
+  }, []);
+
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans">
       {/* Global Notification Service - Runs silently in background */}
       <GlobalNotificationService />
       
-      {/* Hamburger Menu Button - Always visible */}
-      <div className={`fixed top-4 z-50 transition-all duration-300 ${
-        isSidebarOpen ? "left-60" : "left-4"
-      }`}>
-        <button
-          onClick={toggleSidebar}
-          className="p-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors shadow-lg"
-        >
-          <Menu size={20} />
-        </button>
-      </div>
+      {/* Hamburger Menu Button - Solo visible cuando está cerrado y no es dashboard */}
+      {!isSidebarOpen && pathname !== '/staff/dashboard' && (
+        <div className="fixed top-4 left-4 z-50">
+          <button
+            onClick={toggleSidebar}
+            className="p-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors shadow-lg"
+          >
+            <Menu size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Sidebar */}
       <aside
@@ -89,8 +101,17 @@ export default function StaffLayout({
           isSidebarOpen ? "ml-0" : "-ml-56"
         } flex flex-col h-screen shadow-lg flex-shrink-0`}
       >
-        <div className="h-16 flex items-center justify-center px-4 bg-gray-900">
+        <div className="h-16 flex items-center justify-between px-4 bg-gray-900">
           <h1 className="text-lg font-bold tracking-wider">Staff Panel</h1>
+          {/* X para cerrar - Solo visible cuando está abierto */}
+          {isSidebarOpen && (
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 hover:bg-gray-700 rounded transition-colors"
+            >
+              <X size={18} />
+            </button>
+          )}
         </div>
         <nav className="flex-grow mt-5">
           <NavLink

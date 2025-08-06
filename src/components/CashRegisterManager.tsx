@@ -28,8 +28,10 @@ interface ClosingReport {
   difference: number;
   totalSales: number;
   totalQr: number;
+  totalQrWithTips: number;
   totalCard: number;
   totalCash: number;
+  totalTips: number;
   transactionCount: number;
   completedOrders: number;
   cancelledOrders: number;
@@ -137,11 +139,26 @@ export default function CashRegisterManager({
       .select("*")
       .eq("cash_register_id", activeCashRegister.id);
 
-    // Calcular totales por método de pago
-    const totalQr =
+    // Calcular propinas totales de QR
+    const totalTipsQr =
+      payments
+        ?.filter(
+          (p) =>
+            p.payment_method === "qr" && p.notes?.includes("Propina incluida")
+        )
+        .reduce((sum, p) => {
+          const tipMatch = p.notes?.match(/Propina incluida: Bs ([\d.]+)/);
+          return sum + (tipMatch ? parseFloat(tipMatch[1]) : 0);
+        }, 0) || 0;
+
+    // Calcular total QR con propinas (lo que realmente llegó al banco)
+    const totalQrWithTips =
       payments
         ?.filter((p) => p.payment_method === "qr")
         .reduce((sum, p) => sum + p.amount, 0) || 0;
+
+    // Calcular QR sin propinas (solo ventas)
+    const totalQr = totalQrWithTips - totalTipsQr;
     const totalCard =
       payments
         ?.filter((p) => p.payment_method === "card")
@@ -150,6 +167,10 @@ export default function CashRegisterManager({
       payments
         ?.filter((p) => p.payment_method === "cash")
         .reduce((sum, p) => sum + p.amount, 0) || 0;
+
+    // Las propinas ya están calculadas como totalTipsQr
+    const totalTips = totalTipsQr;
+
     const totalSales = totalQr + totalCard + totalCash;
 
     // Obtener estadísticas de órdenes
@@ -184,8 +205,10 @@ export default function CashRegisterManager({
       difference,
       totalSales,
       totalQr,
+      totalQrWithTips,
       totalCard,
       totalCash,
+      totalTips,
       transactionCount: payments?.length || 0,
       completedOrders,
       cancelledOrders,
@@ -599,8 +622,10 @@ export default function CashRegisterManager({
       difference: cashRegister.difference || 0,
       totalSales: cashRegister.total_sales || 0,
       totalQr: cashRegister.total_qr || 0,
+      totalQrWithTips: cashRegister.total_qr || 0, // Para históricos, asumimos que es igual
       totalCard: cashRegister.total_card || 0,
       totalCash: cashRegister.total_cash || 0,
+      totalTips: 0, // No disponible en cierres históricos
       transactionCount: 0, // No disponible en cierres históricos
       completedOrders: 0, // No disponible en cierres históricos
       cancelledOrders: 0, // No disponible en cierres históricos
@@ -956,6 +981,25 @@ export default function CashRegisterManager({
                     </span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Propinas Declaradas:</span>
+                    <span className="font-medium text-blue-600">
+                      Bs {closingReport.totalTips.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="border-t pt-2 mt-2">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-2">💳 Conciliación Bancaria</h4>
+                    <div className="flex justify-between text-sm">
+                      <span>Total QR a verificar en banco:</span>
+                      <span className="font-bold text-blue-800">
+                        Bs {closingReport.totalQrWithTips.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>- Ventas: Bs {closingReport.totalQr.toFixed(2)}</span>
+                      <span>- Propinas: Bs {closingReport.totalTips.toFixed(2)}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Transacciones:</span>
                     <span>{closingReport.transactionCount}</span>
                   </div>
@@ -988,10 +1032,17 @@ export default function CashRegisterManager({
                   <div className="text-sm text-gray-600">Efectivo</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-lg font-bold text-blue-600">
                     Bs {closingReport.totalQr.toFixed(2)}
                   </div>
-                  <div className="text-sm text-gray-600">QR</div>
+                  <div className="text-xs text-gray-600">QR Solo Órdenes</div>
+                  <div className="text-lg font-bold text-blue-800 mt-1">
+                    Bs {closingReport.totalQrWithTips.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-600">QR con Propinas</div>
+                  <div className="text-xs text-yellow-600 mt-1">
+                    💰 Bs {closingReport.totalTips.toFixed(2)} propinas
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-purple-600">
@@ -1165,6 +1216,10 @@ export default function CashRegisterManager({
                       <span className="font-medium text-green-600">
                         Bs {closingReport.totalSales.toFixed(2)}
                       </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Propinas Declaradas:</span>
+                      <span className="text-gray-400">No disponible</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Transacciones:</span>

@@ -165,7 +165,8 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       const foundItemId = Object.keys(orderItems).find((key) => {
         const existingItem = orderItems[parseInt(key)];
         return (
-          existingItem.originalItemId === item.id || parseInt(key) === item.id
+          existingItem &&
+          (existingItem.originalItemId === item.id || parseInt(key) === item.id)
         );
       });
 
@@ -262,6 +263,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       const existingItemKey = Object.keys(prev).find((key) => {
         const existingItem = prev[parseInt(key)];
         return (
+          existingItem &&
           existingItem.originalItemId === item.id &&
           existingItem.modifierDetails === modifierHash &&
           existingItem.notes === notes
@@ -511,14 +513,18 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           `Error del servidor: ${error.message || "Error desconocido"}`
         );
       } else {
-        // Mostrar mensaje de éxito simple
-        alert("¡Orden enviada!");
+        // Mostrar mensaje de éxito sin usar alert para evitar problemas de sonido
+        console.log("✅ Orden enviada exitosamente");
 
         // Limpiar formulario
         setOrderItems({});
         setCustomerName("");
         setGeneralNotes("");
         setSearchTerm("");
+
+        // Mostrar notificación visual en lugar de alert
+        setSubmitError(""); // Limpiar errores previos
+        // Nota: Aquí podrías implementar un toast notification si lo deseas
       }
     } catch (error) {
       console.error("Catch block error:", error);

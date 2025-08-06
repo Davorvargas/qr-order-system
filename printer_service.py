@@ -306,12 +306,17 @@ def print_cash_register_report(report_data):
         p.set(bold=False)
         p.text(f"Ventas Totales: Bs {report_data.get('totalSales', 0):.2f}\n")
         
+        # Mostrar propinas si están disponibles
+        if not report_data.get('isHistorical', False):
+            p.text(f"Propinas Declaradas: Bs {report_data.get('totalTips', 0):.2f}\n")
+        
         # Solo mostrar estadísticas si no es histórico
         if not report_data.get('isHistorical', False):
             p.text(f"Transacciones: {report_data.get('transactionCount', 0)}\n")
             p.text(f"Pedidos Completados: {report_data.get('completedOrders', 0)}\n")
             p.text(f"Pedidos Cancelados: {report_data.get('cancelledOrders', 0)}\n")
         else:
+            p.text("Propinas Declaradas: N/A\n")
             p.text("Transacciones: N/A\n")
             p.text("Pedidos Completados: N/A\n")
             p.text("Pedidos Cancelados: N/A\n")

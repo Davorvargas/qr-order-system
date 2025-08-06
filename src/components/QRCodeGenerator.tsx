@@ -762,86 +762,129 @@ export default function QRCodeGenerator({
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {tables.map((table) => (
-                <div
-                  key={table.id}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="text-center">
-                    <h4 className="font-semibold text-lg mb-2">
-                      {table.displayName}
-                    </h4>
-                    <div className="mb-4">
-                      <img
-                        src={generateQRCodeUrl(table)}
-                        alt={`QR ${table.displayName}`}
-                        className="w-32 h-32 mx-auto border border-gray-200 rounded"
-                      />
-                    </div>
-                    <div className="flex flex-col space-y-2">
-                      <button
-                        onClick={() => openEditModal(table)}
-                        className="flex items-center justify-center space-x-2 text-orange-600 hover:bg-orange-50 px-3 py-2 rounded transition-colors"
-                      >
-                        <Edit2 size={16} />
-                        <span>Editar Nombre</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setSelectedTable(table);
-                          setShowPreview(true);
-                        }}
-                        className="flex items-center justify-center space-x-2 text-blue-600 hover:bg-blue-50 px-3 py-2 rounded transition-colors"
-                      >
-                        <Eye size={16} />
-                        <span>Vista Previa</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          downloadQRCode(table);
-                        }}
-                        className="flex items-center justify-center space-x-2 text-green-600 hover:bg-green-50 px-3 py-2 rounded transition-colors"
-                      >
-                        <Download size={16} />
-                        <span>Descargar</span>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          printQRCode(table);
-                        }}
-                        className="flex items-center justify-center space-x-2 text-gray-600 hover:bg-gray-50 px-3 py-2 rounded transition-colors"
-                      >
-                        <Printer size={16} />
-                        <span>Imprimir</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex gap-4">
+              {/* Columnas dinámicas para layout masonry */}
+              {(() => {
+                const columns = 4; // Máximo 4 columnas
+                const columnArrays = Array.from({ length: columns }, () => []);
 
-              {/* Add More Button */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors">
-                <div className="text-center h-full flex flex-col justify-center">
-                  <button
-                    onClick={() => setShowAddMoreModal(true)}
-                    className="w-full h-full min-h-[280px] flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 transition-colors group"
-                    disabled={creating}
-                  >
-                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 group-hover:border-blue-500 flex items-center justify-center mb-3 transition-colors">
-                      <Plus size={24} className="group-hover:text-blue-600" />
-                    </div>
-                    <div className="text-center">
-                      <div className="font-medium mb-1">Agregar Más</div>
-                      <div className="text-sm text-gray-400">
-                        Próxima: {addMorePrefix} {getNextTableNumber()}
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </div>
+                // Distribuir las tarjetas en las columnas de manera dinámica
+                [...tables, { id: "add-more", isAddMore: true }].forEach(
+                  (item, index) => {
+                    // Encontrar la columna más corta
+                    let shortestColumnIndex = 0;
+                    let shortestHeight = columnArrays[0].length;
+
+                    for (let i = 1; i < columns; i++) {
+                      if (columnArrays[i].length < shortestHeight) {
+                        shortestHeight = columnArrays[i].length;
+                        shortestColumnIndex = i;
+                      }
+                    }
+
+                    // Agregar el item a la columna más corta
+                    columnArrays[shortestColumnIndex].push(item);
+                  }
+                );
+
+                return columnArrays.map((column, columnIndex) => (
+                  <div key={columnIndex} className="flex-1 space-y-4">
+                    {column.map((item) => {
+                      if (item.isAddMore) {
+                        return (
+                          <div
+                            key="add-more"
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-gray-400 transition-colors"
+                          >
+                            <div className="text-center h-full flex flex-col justify-center">
+                              <button
+                                onClick={() => setShowAddMoreModal(true)}
+                                className="w-full h-full min-h-[280px] flex flex-col items-center justify-center text-gray-500 hover:text-blue-600 transition-colors group"
+                                disabled={creating}
+                              >
+                                <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 group-hover:border-blue-500 flex items-center justify-center mb-3 transition-colors">
+                                  <Plus
+                                    size={24}
+                                    className="group-hover:text-blue-600"
+                                  />
+                                </div>
+                                <div className="text-center">
+                                  <div className="font-medium mb-1">
+                                    Agregar Más
+                                  </div>
+                                  <div className="text-sm text-gray-400">
+                                    Próximo: {addMorePrefix}{" "}
+                                    {getNextTableNumber()}
+                                  </div>
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="text-center">
+                            <h4 className="font-semibold text-lg mb-2">
+                              {item.displayName}
+                            </h4>
+                            <div className="mb-4">
+                              <img
+                                src={generateQRCodeUrl(item)}
+                                alt={`QR ${item.displayName}`}
+                                className="w-32 h-32 mx-auto border border-gray-200 rounded"
+                              />
+                            </div>
+                            <div className="flex flex-col space-y-2">
+                              <button
+                                onClick={() => openEditModal(item)}
+                                className="flex items-center justify-center space-x-2 text-orange-600 hover:bg-orange-50 px-3 py-2 rounded transition-colors"
+                              >
+                                <Edit2 size={16} />
+                                <span>Editar Nombre</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedTable(item);
+                                  setShowPreview(true);
+                                }}
+                                className="flex items-center justify-center space-x-2 text-blue-600 hover:bg-blue-50 px-3 py-2 rounded transition-colors"
+                              >
+                                <Eye size={16} />
+                                <span>Vista Previa</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  downloadQRCode(item);
+                                }}
+                                className="flex items-center justify-center space-x-2 text-green-600 hover:bg-green-50 px-3 py-2 rounded transition-colors"
+                              >
+                                <Download size={16} />
+                                <span>Descargar</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  printQRCode(item);
+                                }}
+                                className="flex items-center justify-center space-x-2 text-gray-600 hover:bg-gray-50 px-3 py-2 rounded transition-colors"
+                              >
+                                <Printer size={16} />
+                                <span>Imprimir</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
+              })()}
             </div>
 
             {/* Quick Add Bar */}

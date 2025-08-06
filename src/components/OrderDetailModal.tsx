@@ -1,7 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Printer, Clock, User, FileText, MapPin, CreditCard, QrCode, DollarSign } from "lucide-react";
+import {
+  X,
+  Printer,
+  Clock,
+  User,
+  FileText,
+  MapPin,
+  CreditCard,
+  QrCode,
+  DollarSign,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { format } from "date-fns";
 import { getItemName } from "@/utils/getItemName";
@@ -36,12 +46,13 @@ interface OrderDetail {
     status: string;
     opened_by: string | null;
   } | null;
-  payment?: {
+  payments?: {
     payment_method: string;
     amount: number;
     processed_at: string;
     processed_by: string | null;
-  } | null;
+    notes?: string | null;
+  }[];
 }
 
 interface OrderDetailModalProps {
@@ -76,20 +87,23 @@ export default function OrderDetailModal({
     setLoading(true);
     try {
       // Get current user's restaurant_id
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('restaurant_id')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("restaurant_id")
+        .eq("id", user.id)
         .single();
 
       if (!profile?.restaurant_id) return;
 
       const { data, error } = await supabase
         .from("orders")
-        .select(`
+        .select(
+          `
           id,
           created_at,
           customer_name,
@@ -105,9 +119,10 @@ export default function OrderDetailModal({
             notes,
             menu_items(name, description)
           )
-        `)
+        `
+        )
         .eq("id", orderId)
-        .eq('restaurant_id', profile.restaurant_id)
+        .eq("restaurant_id", profile.restaurant_id)
         .single();
 
       if (error) {
@@ -126,21 +141,21 @@ export default function OrderDetailModal({
         .limit(1)
         .single();
 
-      // Buscar información del pago si el pedido está completado
-      let paymentData = null;
+      // Buscar información de los pagos si el pedido está completado
+      let paymentsData = null;
       if (data.status === "completed") {
-        const { data: payment } = await supabase
+        const { data: payments } = await supabase
           .from("order_payments")
-          .select("payment_method, amount, processed_at, processed_by")
+          .select("payment_method, amount, processed_at, processed_by, notes")
           .eq("order_id", orderId)
-          .single();
-        paymentData = payment;
+          .order("processed_at", { ascending: true });
+        paymentsData = payments;
       }
 
       setOrderDetail({
         ...data,
         cash_register: cashRegisterData || null,
-        payment: paymentData || null,
+        payments: paymentsData || [],
       } as OrderDetail);
     } catch (error) {
       console.error("Error:", error);
@@ -264,7 +279,10 @@ export default function OrderDetailModal({
                     <div>
                       <p className="text-sm text-gray-600">Fecha y Hora</p>
                       <p className="font-medium">
-                        {format(new Date(orderDetail.created_at), "MMM d, yyyy")}
+                        {format(
+                          new Date(orderDetail.created_at),
+                          "MMM d, yyyy"
+                        )}
                       </p>
                       <p className="text-sm text-gray-600">
                         {format(new Date(orderDetail.created_at), "h:mm a")}
@@ -285,7 +303,9 @@ export default function OrderDetailModal({
                       <MapPin className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-600">Mesa</p>
-                        <p className="font-medium">#{orderDetail.table.table_number}</p>
+                        <p className="font-medium">
+                          #{orderDetail.table.table_number}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -310,7 +330,11 @@ export default function OrderDetailModal({
                   <div>
                     <p className="text-sm text-gray-600">Origen</p>
                     <p className="font-medium capitalize">
-                      {orderDetail.source === "customer_qr" ? "Cliente QR" : orderDetail.source === "staff_placed" ? "Staff Dashboard" : "Staff"}
+                      {orderDetail.source === "customer_qr"
+                        ? "Cliente QR"
+                        : orderDetail.source === "staff_placed"
+                        ? "Staff Dashboard"
+                        : "Staff"}
                     </p>
                   </div>
 
@@ -327,9 +351,14 @@ export default function OrderDetailModal({
                       <CreditCard className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-600">Sesión de Caja</p>
-                        <p className="font-medium text-xs">#{orderDetail.cash_register.id.slice(0, 8)}</p>
+                        <p className="font-medium text-xs">
+                          #{orderDetail.cash_register.id.slice(0, 8)}
+                        </p>
                         <p className="text-xs text-gray-500">
-                          {format(new Date(orderDetail.cash_register.opened_at), "MMM d, h:mm a")}
+                          {format(
+                            new Date(orderDetail.cash_register.opened_at),
+                            "MMM d, h:mm a"
+                          )}
                         </p>
                         <span
                           className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full mt-1 ${
@@ -344,20 +373,55 @@ export default function OrderDetailModal({
                     </div>
                   )}
 
-                  {/* Información del pago */}
-                  {orderDetail.payment && (
-                    <div className="flex items-center space-x-2">
-                      {getPaymentMethodIcon(orderDetail.payment.payment_method)}
-                      <div>
-                        <p className="text-sm text-gray-600">Método de Pago</p>
-                        <p className="font-medium">{getPaymentMethodLabel(orderDetail.payment.payment_method)}</p>
-                        <p className="text-xs text-gray-500">
-                          Pagado: {format(new Date(orderDetail.payment.processed_at), "MMM d, h:mm a")}
-                        </p>
-                        <p className="text-sm font-semibold text-green-600">
-                          Bs {orderDetail.payment.amount.toFixed(2)}
-                        </p>
-                      </div>
+                  {/* Información de los pagos */}
+                  {orderDetail.payments && orderDetail.payments.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-600 font-medium">
+                        Métodos de Pago
+                      </p>
+                      {orderDetail.payments.map((payment, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2"
+                        >
+                          {getPaymentMethodIcon(payment.payment_method)}
+                          <div className="flex-1">
+                            <p className="font-medium">
+                              {getPaymentMethodLabel(payment.payment_method)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Pagado:{" "}
+                              {format(
+                                new Date(payment.processed_at),
+                                "MMM d, h:mm a"
+                              )}
+                            </p>
+                            {payment.notes && (
+                              <p className="text-xs text-blue-600 font-medium">
+                                {payment.notes}
+                              </p>
+                            )}
+                            <p className="text-sm font-semibold text-green-600">
+                              Bs {payment.amount.toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      {orderDetail.payments.length > 1 && (
+                        <div className="border-t pt-2">
+                          <div className="flex justify-between items-center">
+                            <span className="font-medium text-gray-700">
+                              Total Pagado:
+                            </span>
+                            <span className="font-bold text-lg text-green-600">
+                              Bs{" "}
+                              {orderDetail.payments
+                                .reduce((sum, p) => sum + p.amount, 0)
+                                .toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -389,54 +453,67 @@ export default function OrderDetailModal({
                   {orderDetail.order_items.map((item) => {
                     const itemName = getItemName(item);
                     const modifierText = formatModifierNotes(item.notes);
-                    
-                    return (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">
-                          {itemName}
-                        </h4>
-                        {item.menu_items?.description && (
-                          <p className="text-sm text-gray-600 mt-1">
-                            {item.menu_items.description}
-                          </p>
-                        )}
-                        {modifierText && (
-                          <div className="mt-2 p-2 bg-blue-100 rounded text-sm">
-                            <span className="font-medium text-blue-800">Modificadores: </span>
-                            <span className="text-blue-700">{modifierText}</span>
-                          </div>
-                        )}
-                        {item.notes && !modifierText && (
-                          <div className="mt-2 p-2 bg-yellow-100 rounded text-sm">
-                            <span className="font-medium text-yellow-800">Nota: </span>
-                            <span className="text-yellow-700">{item.notes}</span>
-                          </div>
-                        )}
-                      </div>
 
-                      <div className="flex items-center space-x-4 text-right">
-                        <div>
-                          <p className="text-sm text-gray-600">Cantidad</p>
-                          <p className="font-medium">{item.quantity}</p>
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">
+                            {itemName}
+                          </h4>
+                          {item.menu_items?.description && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {item.menu_items.description}
+                            </p>
+                          )}
+                          {modifierText && (
+                            <div className="mt-2 p-2 bg-blue-100 rounded text-sm">
+                              <span className="font-medium text-blue-800">
+                                Modificadores:{" "}
+                              </span>
+                              <span className="text-blue-700">
+                                {modifierText}
+                              </span>
+                            </div>
+                          )}
+                          {item.notes && !modifierText && (
+                            <div className="mt-2 p-2 bg-yellow-100 rounded text-sm">
+                              <span className="font-medium text-yellow-800">
+                                Nota:{" "}
+                              </span>
+                              <span className="text-yellow-700">
+                                {item.notes}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Precio Unit.</p>
-                          <p className="font-medium">
-                            Bs {item.price_at_order?.toFixed(2)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Subtotal</p>
-                          <p className="font-bold text-gray-900">
-                            Bs {((item.price_at_order ?? 0) * item.quantity).toFixed(2)}
-                          </p>
+
+                        <div className="flex items-center space-x-4 text-right">
+                          <div>
+                            <p className="text-sm text-gray-600">Cantidad</p>
+                            <p className="font-medium">{item.quantity}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">
+                              Precio Unit.
+                            </p>
+                            <p className="font-medium">
+                              Bs {item.price_at_order?.toFixed(2)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Subtotal</p>
+                            <p className="font-bold text-gray-900">
+                              Bs{" "}
+                              {(
+                                (item.price_at_order ?? 0) * item.quantity
+                              ).toFixed(2)}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
                     );
                   })}
                 </div>
@@ -445,7 +522,9 @@ export default function OrderDetailModal({
               {/* Resumen final */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-lg font-semibold">Total del Pedido:</span>
+                  <span className="text-lg font-semibold">
+                    Total del Pedido:
+                  </span>
                   <span className="text-2xl font-bold text-green-600">
                     Bs {orderDetail.total_price?.toFixed(2)}
                   </span>
@@ -463,7 +542,8 @@ export default function OrderDetailModal({
         {orderDetail && (
           <div className="flex-shrink-0 flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
             <div className="text-sm text-gray-600">
-              Pedido #{orderDetail.id} • {orderDetail.order_items.length} productos
+              Pedido #{orderDetail.id} • {orderDetail.order_items.length}{" "}
+              productos
             </div>
             <div className="flex space-x-3">
               <button
@@ -472,7 +552,9 @@ export default function OrderDetailModal({
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <Printer size={16} />
-                <span>{printingReceipt ? "Imprimiendo..." : "Imprimir Recibo"}</span>
+                <span>
+                  {printingReceipt ? "Imprimiendo..." : "Imprimir Recibo"}
+                </span>
               </button>
               <button
                 onClick={handleReprint}
@@ -480,7 +562,9 @@ export default function OrderDetailModal({
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 <Printer size={16} />
-                <span>{reprinting ? "Reimprimiendo..." : "Reimprimir Cocina"}</span>
+                <span>
+                  {reprinting ? "Reimprimiendo..." : "Reimprimir Cocina"}
+                </span>
               </button>
               <button
                 onClick={onClose}

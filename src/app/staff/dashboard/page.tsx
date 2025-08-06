@@ -126,10 +126,5 @@ export default function StaffDashboardPage() {
     );
   }
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Pedidos</h1>
-      <OrderList initialOrders={initialOrders} />
-    </div>
-  );
+  return <OrderList initialOrders={initialOrders} />;
 }
