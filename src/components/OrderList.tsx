@@ -746,9 +746,14 @@ export default function OrderList({
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
-      // Para "pending", mostrar órdenes que NO han sido impresas (independientemente del status)
+      // Para "cancelled", mostrar TODAS las órdenes canceladas (independientemente del estado de impresión)
+      if (activeStatus === "cancelled") {
+        return order.status === "cancelled";
+      }
+
+      // Para "pending", mostrar órdenes que NO han sido impresas Y NO están canceladas
       if (activeStatus === "pending") {
-        return !isOrderReadyForProgress(order);
+        return !isOrderReadyForProgress(order) && order.status !== "cancelled";
       }
 
       // Para "in_progress", mostrar órdenes que estén en preparación (con impresora o sin ella)
@@ -1029,7 +1034,13 @@ export default function OrderList({
       cancelled: 0,
     };
     orders.forEach((order) => {
-      // Contar en "pending" si NO está impreso (independientemente del status)
+      // Contar en "cancelled" PRIMERO (independientemente del estado de impresión)
+      if (order.status === "cancelled") {
+        counts.cancelled++;
+        return; // No contar en otras categorías
+      }
+
+      // Contar en "pending" si NO está impreso Y NO está cancelada
       if (!isOrderReadyForProgress(order)) {
         counts.pending++;
         return; // No contar en otras categorías
@@ -1038,8 +1049,6 @@ export default function OrderList({
       // Para pedidos impresos, contar según su status actual
       if (order.status === "completed") {
         counts.completed++;
-      } else if (order.status === "cancelled") {
-        counts.cancelled++;
       } else if (order.status === "pending" || order.status === "in_progress") {
         // Solo contar órdenes activas (pending/in_progress) - EXCLUIR merged
         if (order.status !== "merged") {
