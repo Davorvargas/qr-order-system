@@ -240,27 +240,28 @@ export default function PaymentMethodModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto" style={{ fontSmoothing: 'antialiased' }}>
         <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold">Método de Pago</h3>
+          <h3 className="text-lg font-semibold" style={{ color: 'rgb(0,0,0)', fontWeight: '900', textShadow: '0 0 1px rgba(0,0,0,0.1)' }}>Método de Pago</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
+            style={{ color: 'rgb(156,163,175)' }}
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="mb-6">
-          <p className="text-sm text-gray-600 mb-2">Total a pagar:</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-sm mb-2" style={{ color: 'rgb(75,85,99)', fontWeight: '600' }}>Total a pagar:</p>
+          <p className="text-2xl font-bold" style={{ color: 'rgb(22,163,74)', fontWeight: '900', textShadow: '0 0 1px rgba(22,163,74,0.1)' }}>
             Bs. {orderTotal.toFixed(2)}
           </p>
         </div>
 
         {!activeCashRegister && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">
+            <p className="text-sm" style={{ color: 'rgb(220,38,38)', fontWeight: '600' }}>
               ⚠️ No hay una caja abierta. Abre una caja en Reportes antes de
               procesar pagos.
             </p>
@@ -283,9 +284,10 @@ export default function PaymentMethodModal({
                     ? "opacity-50 cursor-not-allowed"
                     : "cursor-pointer"
                 }`}
+                style={{ fontSmoothing: 'antialiased' }}
               >
                 {getPaymentMethodIcon(method)}
-                <span className="font-medium">
+                <span className="font-medium" style={{ color: 'rgb(0,0,0)', fontWeight: '700' }}>
                   {getPaymentMethodLabel(method)}
                 </span>
               </button>
@@ -304,9 +306,10 @@ export default function PaymentMethodModal({
                   ? "opacity-50 cursor-not-allowed"
                   : "cursor-pointer"
               }`}
+              style={{ fontSmoothing: 'antialiased' }}
             >
               <Plus size={24} />
-              <span className="font-medium">Pago Mixto (QR + Efectivo)</span>
+              <span className="font-medium" style={{ color: 'rgb(0,0,0)', fontWeight: '700' }}>Pago Mixto (QR + Efectivo)</span>
             </button>
           </div>
         )}
@@ -314,26 +317,26 @@ export default function PaymentMethodModal({
         {/* Confirmación de propina para QR */}
         {showTipConfirmation && (
           <div className="mb-6">
-            <h4 className="font-semibold mb-3">Confirmar Propina</h4>
+            <h4 className="font-semibold mb-3" style={{ color: 'rgb(0,0,0)', fontWeight: '900' }}>Confirmar Propina</h4>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Subtotal:</span>
-                <span className="font-medium">Bs {orderTotal.toFixed(2)}</span>
+                <span className="text-sm" style={{ color: 'rgb(75,85,99)', fontWeight: '600' }}>Subtotal:</span>
+                <span className="font-medium" style={{ color: 'rgb(0,0,0)', fontWeight: '700' }}>Bs {orderTotal.toFixed(2)}</span>
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">
+                <span className="text-sm" style={{ color: 'rgb(75,85,99)', fontWeight: '600' }}>
                   Propina ({tipPercentage}%):
                 </span>
-                <span className="font-medium text-green-600">
+                <span className="font-medium" style={{ color: 'rgb(22,163,74)', fontWeight: '700' }}>
                   Bs {tipAmount.toFixed(2)}
                 </span>
               </div>
 
               <div className="border-t pt-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold">Total con propina:</span>
-                  <span className="font-bold text-lg text-green-600">
+                  <span className="font-semibold" style={{ color: 'rgb(0,0,0)', fontWeight: '800' }}>Total con propina:</span>
+                  <span className="font-bold text-lg" style={{ color: 'rgb(22,163,74)', fontWeight: '900' }}>
                     Bs {(orderTotal + tipAmount).toFixed(2)}
                   </span>
                 </div>
@@ -349,8 +352,11 @@ export default function PaymentMethodModal({
                         ? "bg-blue-600 text-white"
                         : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                     }`}
+                    style={{ fontSmoothing: 'antialiased' }}
                   >
-                    {percentage === 0 ? "Sin propina" : `${percentage}%`}
+                    <span style={{ color: tipPercentage === percentage ? 'rgb(255,255,255)' : 'rgb(55,65,81)', fontWeight: '600' }}>
+                      {percentage === 0 ? "Sin propina" : `${percentage}%`}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -373,6 +379,7 @@ export default function PaymentMethodModal({
                   className="flex-1 text-center border rounded py-2"
                   step="0.50"
                   min="0"
+                  style={{ color: 'rgb(0,0,0)', fontWeight: '600', fontSmoothing: 'antialiased' }}
                 />
                 <button
                   onClick={() => setTipAmount(tipAmount + 1)}
@@ -388,10 +395,10 @@ export default function PaymentMethodModal({
         {/* Configuración de pago mixto */}
         {showMixedPayment && (
           <div className="mb-6">
-            <h4 className="font-semibold mb-3">Configurar Pago Mixto</h4>
+            <h4 className="font-semibold mb-3" style={{ color: 'rgb(0,0,0)', fontWeight: '900' }}>Configurar Pago Mixto</h4>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'rgb(55,65,81)', fontWeight: '700' }}>
                   Pago QR
                 </label>
                 <div className="flex items-center space-x-2">
@@ -410,13 +417,14 @@ export default function PaymentMethodModal({
                     step="0.50"
                     min="0"
                     max={orderTotal}
+                    style={{ color: 'rgb(0,0,0)', fontWeight: '600', fontSmoothing: 'antialiased' }}
                   />
-                  <span className="text-sm text-gray-500">Bs</span>
+                  <span className="text-sm" style={{ color: 'rgb(107,114,128)', fontWeight: '600' }}>Bs</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium mb-2" style={{ color: 'rgb(55,65,81)', fontWeight: '700' }}>
                   Pago Efectivo
                 </label>
                 <div className="flex items-center space-x-2">
@@ -435,32 +443,32 @@ export default function PaymentMethodModal({
                     step="0.50"
                     min="0"
                     max={orderTotal}
+                    style={{ color: 'rgb(0,0,0)', fontWeight: '600', fontSmoothing: 'antialiased' }}
                   />
-                  <span className="text-sm text-gray-500">Bs</span>
+                  <span className="text-sm" style={{ color: 'rgb(107,114,128)', fontWeight: '600' }}>Bs</span>
                 </div>
               </div>
 
               <div className="bg-gray-50 p-3 rounded">
                 <div className="flex justify-between text-sm">
-                  <span>Total configurado:</span>
-                  <span className="font-medium">
+                  <span style={{ color: 'rgb(55,65,81)', fontWeight: '600' }}>Total configurado:</span>
+                  <span className="font-medium" style={{ color: 'rgb(0,0,0)', fontWeight: '700' }}>
                     Bs {(qrAmount + cashAmount).toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span>Total pedido:</span>
-                  <span className="font-medium">
+                  <span style={{ color: 'rgb(55,65,81)', fontWeight: '600' }}>Total pedido:</span>
+                  <span className="font-medium" style={{ color: 'rgb(0,0,0)', fontWeight: '700' }}>
                     Bs {orderTotal.toFixed(2)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm font-semibold">
-                  <span>Diferencia:</span>
+                  <span style={{ color: 'rgb(0,0,0)', fontWeight: '800' }}>Diferencia:</span>
                   <span
-                    className={
-                      Math.abs(qrAmount + cashAmount - orderTotal) < 0.01
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }
+                    style={{ 
+                      color: Math.abs(qrAmount + cashAmount - orderTotal) < 0.01 ? 'rgb(22,163,74)' : 'rgb(220,38,38)', 
+                      fontWeight: '800' 
+                    }}
                   >
                     Bs {(qrAmount + cashAmount - orderTotal).toFixed(2)}
                   </span>
@@ -475,8 +483,9 @@ export default function PaymentMethodModal({
             onClick={onClose}
             className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading}
+            style={{ fontSmoothing: 'antialiased' }}
           >
-            Cancelar
+            <span style={{ color: 'rgb(255,255,255)', fontWeight: '700' }}>Cancelar</span>
           </button>
           <button
             onClick={handlePayment}
@@ -488,8 +497,11 @@ export default function PaymentMethodModal({
                 Math.abs(qrAmount + cashAmount - orderTotal) > 0.01)
             }
             className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ fontSmoothing: 'antialiased' }}
           >
-            {loading ? "Procesando..." : "Completar Pago"}
+            <span style={{ color: 'rgb(255,255,255)', fontWeight: '700' }}>
+              {loading ? "Procesando..." : "Completar Pago"}
+            </span>
           </button>
         </div>
       </div>
