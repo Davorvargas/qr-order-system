@@ -13,10 +13,19 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    // Prefer standard injected URL; fall back to custom if needed
+    const supabaseUrl =
+      Deno.env.get("SUPABASE_URL") ??
+      Deno.env.get("PROJECT_URL") ??
+      "";
+
+    // Use allowed secret name; fall back to legacy if present
+    const serviceRoleKey =
+      Deno.env.get("SERVICE_ROLE_KEY") ??
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
+      "";
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const { orderIds, targetOrderId } = await req.json();
 

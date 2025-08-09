@@ -28,9 +28,12 @@ export async function POST(request: NextRequest) {
 
     // Llamar a la Edge Function de Supabase
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Preferir Service Role Key en entorno de servidor; usar ANON como respaldo
+    const functionAuthToken =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseServiceKey) {
+    if (!supabaseUrl || !functionAuthToken) {
       return NextResponse.json(
         { error: "Configuración de Supabase incompleta" },
         { status: 500 }
@@ -41,7 +44,7 @@ export async function POST(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${supabaseServiceKey}`,
+        Authorization: `Bearer ${functionAuthToken}`,
       },
       body: JSON.stringify({
         orderIds,
