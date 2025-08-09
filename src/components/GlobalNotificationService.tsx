@@ -14,6 +14,12 @@ type Printer = Database["public"]["Tables"]["printers"]["Row"];
 let globalNotificationInstance: any = null;
 let isInitialized = false;
 
+// Global guard on window to avoid cross-chunk duplicates and allow re-init if needed
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+const win: any = typeof window !== "undefined" ? window : {};
+win.__GNS = win.__GNS || { initialized: false, status: "INIT", channel: null };
+
 // Resetear el singleton en desarrollo cuando hay hot reload
 if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   // Escuchar eventos de hot reload
@@ -156,25 +162,26 @@ const useAudioNotification = () => {
 };
 
 export default function GlobalNotificationService() {
+  const alreadyInitialized = !!win.__GNS?.initialized;
   console.log(
     "🔧 GlobalNotificationService called, isInitialized:",
-    isInitialized
+    alreadyInitialized
   );
 
   // En desarrollo, permitir reinicialización después de hot reload
   if (process.env.NODE_ENV === "development") {
-    isInitialized = false;
+    win.__GNS.initialized = false;
   }
 
   // Singleton pattern - solo una instancia por página
-  if (isInitialized) {
+  if (alreadyInitialized && win.__GNS?.status === "SUBSCRIBED") {
     console.log(
       "🔇 GlobalNotificationService ya inicializado, evitando duplicado"
     );
     return null;
   }
 
-  isInitialized = true;
+  win.__GNS.initialized = true;
   globalNotificationInstance = this;
 
   console.log("🔊 Inicializando GlobalNotificationService (instancia única)");
@@ -263,8 +270,6 @@ export default function GlobalNotificationService() {
 
   // Listener global para pedidos nuevos y cambios de estado
   useEffect(() => {
-    if (!restaurantId) return;
-
     console.log(
       "🔗 Setting up real-time subscription for orders, restaurantId:",
       restaurantId
@@ -355,12 +360,19 @@ export default function GlobalNotificationService() {
         }
       )
       .subscribe((status) => {
+        win.__GNS.status = status;
+        win.__GNS.channel = channel;
         console.log("🔗 Orders subscription status:", status);
       });
 
     return () => {
       console.log("🔗 Cleaning up orders subscription");
       supabase.removeChannel(channel);
+      if (win.__GNS?.channel === channel) {
+        win.__GNS.channel = null;
+        win.__GNS.status = "CLOSED";
+        win.__GNS.initialized = false;
+      }
     };
   }, [
     restaurantId,
