@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Database } from "@/lib/database.types";
 
@@ -176,9 +176,9 @@ export default function GlobalNotificationService() {
   // Singleton pattern - solo una instancia por página
   if (alreadyInitialized && win.__GNS?.status === "SUBSCRIBED") {
     console.log(
-      "🔇 GlobalNotificationService ya inicializado, evitando duplicado"
+      "🔁 GlobalNotificationService ya inicializado; revalidando suscripción"
     );
-    return null;
+    // No retornamos; continuamos para asegurar que exista una única suscripción viva
   }
 
   win.__GNS.initialized = true;
@@ -220,6 +220,7 @@ export default function GlobalNotificationService() {
     return true;
   });
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
+  const restaurantIdRef = useRef<string | null>(null);
   const [userProfile, setUserProfile] = useState<{
     restaurant_id: string;
   } | null>(null);
@@ -251,6 +252,7 @@ export default function GlobalNotificationService() {
 
       if (profile?.restaurant_id) {
         setRestaurantId(profile.restaurant_id);
+        restaurantIdRef.current = profile.restaurant_id;
         setUserProfile(profile);
 
         // Obtener impresoras activas iniciales
@@ -268,6 +270,11 @@ export default function GlobalNotificationService() {
     fetchRestaurantId();
   }, [supabase]);
 
+  // Mantener un ref sincronizado con restaurantId para que los handlers siempre lean el valor más reciente
+  useEffect(() => {
+    restaurantIdRef.current = restaurantId;
+  }, [restaurantId]);
+
   // Listener global para pedidos nuevos y cambios de estado
   useEffect(() => {
     console.log(
@@ -275,6 +282,15 @@ export default function GlobalNotificationService() {
       restaurantId
     );
     console.log("👤 UserProfile restaurant_id:", userProfile?.restaurant_id);
+
+    // Cerrar cualquier canal previo que haya quedado colgado por navegación
+    try {
+      if (win.__GNS?.channel) {
+        supabase.removeChannel(win.__GNS.channel);
+        win.__GNS.channel = null;
+        win.__GNS.status = "CLOSED";
+      }
+    } catch {}
 
     const channel = supabase
       .channel("global notifications")
@@ -290,7 +306,11 @@ export default function GlobalNotificationService() {
             | null;
 
           // Asegurar que la orden pertenece a este restaurante
-          if (!orderRestaurantId || orderRestaurantId !== restaurantId) return;
+          if (
+            !orderRestaurantId ||
+            orderRestaurantId !== restaurantIdRef.current
+          )
+            return;
 
           // Prevenir duplicados: misma orden en menos de 1s
           if (
@@ -339,7 +359,7 @@ export default function GlobalNotificationService() {
           const newOrder = payload.new as Order;
 
           // Solo reproducir sonido si la orden pertenece al restaurante del usuario
-          if (newOrder.restaurant_id !== restaurantId) return;
+          if (newOrder.restaurant_id !== restaurantIdRef.current) return;
 
           // Reproducir sonido si cambió el estado
           if (oldOrder.status !== newOrder.status) {
