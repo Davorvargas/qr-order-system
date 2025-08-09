@@ -15,10 +15,10 @@ let globalNotificationInstance: any = null;
 let isInitialized = false;
 
 // Resetear el singleton en desarrollo cuando hay hot reload
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
   // Escuchar eventos de hot reload
-  if (typeof window.addEventListener === 'function') {
-    window.addEventListener('beforeunload', () => {
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("beforeunload", () => {
       isInitialized = false;
       globalNotificationInstance = null;
     });
@@ -156,13 +156,16 @@ const useAudioNotification = () => {
 };
 
 export default function GlobalNotificationService() {
-  console.log("🔧 GlobalNotificationService called, isInitialized:", isInitialized);
-  
+  console.log(
+    "🔧 GlobalNotificationService called, isInitialized:",
+    isInitialized
+  );
+
   // En desarrollo, permitir reinicialización después de hot reload
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     isInitialized = false;
   }
-  
+
   // Singleton pattern - solo una instancia por página
   if (isInitialized) {
     console.log(
@@ -178,6 +181,30 @@ export default function GlobalNotificationService() {
 
   const supabase = createClient();
   const audioNotifications = useAudioNotification();
+
+  // Asegurar que el AudioContext se reanude tras la primera interacción del usuario (autoplay policies)
+  useEffect(() => {
+    const onFirstInteraction = () => {
+      try {
+        // Intentar inicializar por si no existe aún
+        if (!audioContext && typeof window !== "undefined") {
+          // @ts-ignore
+          audioContext = new (window.AudioContext ||
+            (window as any).webkitAudioContext)();
+        }
+        audioContext?.resume?.();
+        // noop
+      } catch {
+        // ignorar
+      }
+    };
+    window.addEventListener("click", onFirstInteraction, { once: true });
+    window.addEventListener("touchstart", onFirstInteraction, { once: true });
+    return () => {
+      window.removeEventListener("click", onFirstInteraction);
+      window.removeEventListener("touchstart", onFirstInteraction);
+    };
+  }, []);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("orderSoundEnabled");
@@ -186,7 +213,9 @@ export default function GlobalNotificationService() {
     return true;
   });
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  const [userProfile, setUserProfile] = useState<{ restaurant_id: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{
+    restaurant_id: string;
+  } | null>(null);
   const [activePrinters, setActivePrinters] = useState<Printer[]>([]);
 
   // Prevenir duplicación de sonidos
@@ -236,9 +265,12 @@ export default function GlobalNotificationService() {
   useEffect(() => {
     if (!restaurantId) return;
 
-    console.log("🔗 Setting up real-time subscription for orders, restaurantId:", restaurantId);
+    console.log(
+      "🔗 Setting up real-time subscription for orders, restaurantId:",
+      restaurantId
+    );
     console.log("👤 UserProfile restaurant_id:", userProfile?.restaurant_id);
-    
+
     const channel = supabase
       .channel("global notifications")
       .on(
@@ -247,9 +279,15 @@ export default function GlobalNotificationService() {
         async (payload) => {
           console.log("📡 Real-time INSERT event received:", payload);
           const currentTime = Date.now();
-          const orderId = payload.new.id;
+          const orderId = (payload as any)?.new?.id as number;
+          const orderRestaurantId = (payload as any)?.new?.restaurant_id as
+            | string
+            | null;
 
-          // Prevenir duplicados: misma orden en menos de 1 segundo (reducido de 2 segundos)
+          // Asegurar que la orden pertenece a este restaurante
+          if (!orderRestaurantId || orderRestaurantId !== restaurantId) return;
+
+          // Prevenir duplicados: misma orden en menos de 1s
           if (
             lastProcessedOrderId === orderId &&
             currentTime - lastProcessedTimestamp < 1000
@@ -258,76 +296,30 @@ export default function GlobalNotificationService() {
             return;
           }
 
-          // Verificar que el pedido pertenece al restaurante del usuario
-          const { data: profile } = await supabase.auth.getUser();
-          if (!profile.user) return;
-
-          const { data: userProfile } = await supabase
-            .from("profiles")
-            .select("restaurant_id")
-            .eq("id", profile.user.id)
-            .single();
-
-          // Obtener detalles completos del pedido
-          const { data: newOrderDetails } = await supabase
-            .from("orders")
-            .select(
-              `
-              *,
-              table:tables(table_number),
-              order_items(*)
-            `
-            )
-            .eq("id", payload.new.id)
-            .eq("restaurant_id", userProfile?.restaurant_id)
-            .single();
-
-          if (newOrderDetails) {
-            console.log(`🔔 Nueva orden detectada #${orderId}:`, {
-              soundEnabled,
-              customer_name: newOrderDetails.customer_name,
-              audioContextState: audioContext?.state,
-              isPlayingSound,
+          if (soundEnabled) {
+            setLastProcessedOrderId(orderId);
+            setLastProcessedTimestamp(currentTime);
+            setRecentlyProcessedOrders((prev) => {
+              const newSet = new Set(prev);
+              newSet.add(orderId);
+              setTimeout(() => {
+                setRecentlyProcessedOrders((current) => {
+                  const updated = new Set(current);
+                  updated.delete(orderId);
+                  return updated;
+                });
+              }, 3000);
+              return newSet;
             });
 
-            if (soundEnabled) {
-              // Actualizar estado para prevenir duplicados
-              setLastProcessedOrderId(orderId);
-              setLastProcessedTimestamp(currentTime);
-
-              // Marcar esta orden como procesada recientemente
-              setRecentlyProcessedOrders((prev) => {
-                const newSet = new Set(prev);
-                newSet.add(orderId);
-                // Limpiar órdenes antiguas después de 3 segundos (reducido de 5 segundos)
-                setTimeout(() => {
-                  setRecentlyProcessedOrders((current) => {
-                    const updated = new Set(current);
-                    updated.delete(orderId);
-                    return updated;
-                  });
-                }, 3000);
-                return newSet;
-              });
-
-              console.log(
-                `🔊 Reproduciendo sonido para orden #${orderId} (${newOrderDetails.customer_name})`
+            try {
+              audioNotifications.newOrder();
+              console.log(`✅ Sonido reproducido para nueva orden #${orderId}`);
+            } catch (error) {
+              console.error(
+                `❌ Error reproduciendo sonido para orden #${orderId}:`,
+                error
               );
-
-              // Intentar reproducir sonido con manejo de errores
-              try {
-                audioNotifications.newOrder();
-                console.log(
-                  `✅ Sonido reproducido exitosamente para orden #${orderId}`
-                );
-              } catch (error) {
-                console.error(
-                  `❌ Error reproduciendo sonido para orden #${orderId}:`,
-                  error
-                );
-              }
-            } else {
-              console.log(`🔇 Sonido deshabilitado para orden #${orderId}`);
             }
           }
         }
@@ -341,39 +333,23 @@ export default function GlobalNotificationService() {
           const oldOrder = payload.old as Order;
           const newOrder = payload.new as Order;
 
-          // Verificar que la orden pertenece al restaurante del usuario
-          const { data: profile } = await supabase.auth.getUser();
-          if (!profile.user) return;
-
-          const { data: userProfile } = await supabase
-            .from("profiles")
-            .select("restaurant_id")
-            .eq("id", profile.user.id)
-            .single();
-
           // Solo reproducir sonido si la orden pertenece al restaurante del usuario
-          if (newOrder.restaurant_id === userProfile?.restaurant_id) {
-            // Reproducir sonido si cambió el estado
-            if (oldOrder.status !== newOrder.status) {
-              // Evitar reproducir sonido si la orden fue procesada recientemente (INSERT)
-              if (recentlyProcessedOrders.has(newOrder.id)) {
-                console.log(
-                  `🔇 Evitando sonido de UPDATE para orden #${newOrder.id} (ya procesada por INSERT)`
-                );
-                return;
-              }
+          if (newOrder.restaurant_id !== restaurantId) return;
 
-              if (newOrder.status === "pending") {
-                console.log(
-                  `🔊 Reproduciendo sonido de cambio a pending para orden #${newOrder.id}`
-                );
-                audioNotifications.orderToPending();
-              } else if (newOrder.status === "in_progress") {
-                console.log(
-                  `🔊 Reproduciendo sonido de cambio a in_progress para orden #${newOrder.id}`
-                );
-                audioNotifications.orderToInProgress();
-              }
+          // Reproducir sonido si cambió el estado
+          if (oldOrder.status !== newOrder.status) {
+            // Evitar reproducir sonido si la orden fue procesada recientemente (INSERT)
+            if (recentlyProcessedOrders.has(newOrder.id)) {
+              console.log(
+                `🔇 Evitando sonido de UPDATE para orden #${newOrder.id} (ya procesada por INSERT)`
+              );
+              return;
+            }
+
+            if (newOrder.status === "pending") {
+              audioNotifications.orderToPending();
+            } else if (newOrder.status === "in_progress") {
+              audioNotifications.orderToInProgress();
             }
           }
         }
