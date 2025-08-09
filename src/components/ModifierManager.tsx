@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/utils/supabase/client";
 import { X, Plus, Trash2, Settings, Save } from "lucide-react";
 
 interface ModifierGroup {
@@ -39,7 +38,6 @@ export default function ModifierManager({
   restaurantId,
   onSave
 }: ModifierManagerProps) {
-  const supabase = createClient();
   const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,25 +51,28 @@ export default function ModifierManager({
   const fetchModifiers = async () => {
     setLoading(true);
     try {
-      const { data: groups, error } = await supabase
-        .from('modifier_groups')
-        .select(`
-          *,
-          modifiers (*)
-        `)
-        .eq('menu_item_id', menuItemId)
-        .eq('restaurant_id', restaurantId)
-        .order('display_order');
+      const response = await fetch(`/api/modifiers?menuItemId=${menuItemId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (error) {
-        console.error('Error fetching modifiers:', error);
-      } else {
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
         // Sort modifiers within each group
-        const sortedGroups = (groups || []).map(group => ({
+        const sortedGroups = (result.data || []).map(group => ({
           ...group,
           modifiers: (group.modifiers || []).sort((a, b) => a.display_order - b.display_order)
         }));
         setModifierGroups(sortedGroups);
+      } else {
+        console.error('Error fetching modifiers:', result.error);
       }
     } catch (error) {
       console.error('Error fetching modifiers:', error);
@@ -146,76 +147,49 @@ export default function ModifierManager({
   const saveModifiers = async () => {
     setSaving(true);
     try {
-      // First get existing modifier groups to delete their modifiers
-      const { data: existingGroups } = await supabase
-        .from('modifier_groups')
-        .select('id')
-        .eq('menu_item_id', menuItemId)
-        .eq('restaurant_id', restaurantId);
+      // Preparar datos para la API
+      const groupsData = modifierGroups.map(group => ({
+        name: group.name,
+        is_required: group.is_required,
+        min_selections: group.min_selections,
+        max_selections: group.max_selections,
+        display_order: group.display_order,
+        modifiers: group.modifiers.map(modifier => ({
+          name: modifier.name,
+          price_modifier: modifier.price_modifier,
+          is_default: modifier.is_default,
+          display_order: modifier.display_order
+        }))
+      }));
 
-      // Delete existing modifiers
-      if (existingGroups && existingGroups.length > 0) {
-        const groupIds = existingGroups.map(g => g.id);
-        await supabase
-          .from('modifiers')
-          .delete()
-          .in('modifier_group_id', groupIds);
+      const response = await fetch('/api/modifiers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          menuItemId: menuItemId,
+          groups: groupsData
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.status}`);
       }
 
-      // Delete existing modifier groups
-      await supabase
-        .from('modifier_groups')
-        .delete()
-        .eq('menu_item_id', menuItemId)
-        .eq('restaurant_id', restaurantId);
-
-      // Insert new modifier groups and modifiers
-      for (const group of modifierGroups) {
-        const { data: insertedGroup, error: groupError } = await supabase
-          .from('modifier_groups')
-          .insert({
-            menu_item_id: menuItemId,
-            restaurant_id: restaurantId,
-            name: group.name,
-            is_required: group.is_required,
-            min_selections: group.min_selections,
-            max_selections: group.max_selections,
-            display_order: group.display_order
-          })
-          .select()
-          .single();
-
-        if (groupError) {
-          console.error('Error inserting modifier group:', groupError);
-          continue;
-        }
-
-        // Insert modifiers for this group
-        if (group.modifiers.length > 0) {
-          const modifiersToInsert = group.modifiers.map(modifier => ({
-            modifier_group_id: insertedGroup.id,
-            name: modifier.name,
-            price_modifier: modifier.price_modifier,
-            is_default: modifier.is_default,
-            display_order: modifier.display_order
-          }));
-
-          const { error: modifiersError } = await supabase
-            .from('modifiers')
-            .insert(modifiersToInsert);
-
-          if (modifiersError) {
-            console.error('Error inserting modifiers:', modifiersError);
-          }
-        }
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Modificadores guardados exitosamente');
+        onSave?.();
+        onClose();
+      } else {
+        throw new Error(result.error || 'Error desconocido');
       }
-
-      alert('Modificadores guardados exitosamente');
-      onSave?.();
-      onClose();
     } catch (error) {
       console.error('Error saving modifiers:', error);
-      alert('Error al guardar modificadores');
+      alert(`Error al guardar modificadores: ${error.message}`);
     } finally {
       setSaving(false);
     }

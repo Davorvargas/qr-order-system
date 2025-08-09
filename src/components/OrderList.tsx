@@ -462,11 +462,22 @@ export default function OrderList({
         // Solo mostrar mensaje de éxito
         alert(successMessage);
       } else {
-        alert("Error al enviar la comanda");
+        // La impresión falló, pero la orden sigue disponible para preparar manualmente
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = errorData.error || "Error al enviar la comanda";
+        
+        alert(`❌ ${errorMessage}\n\n✅ La orden sigue disponible para preparar manualmente`);
+        
+        console.error("Print failed for order", orderId, {
+          status: res.status,
+          error: errorMessage,
+          note: "Order remains in pending state for manual preparation"
+        });
       }
     } catch (error) {
+      // Error de red o conexión, la orden sigue en pending
       console.error("Error printing order:", error);
-      alert("Error al enviar la comanda");
+      alert(`❌ Error de conexión al imprimir\n\n✅ La orden sigue disponible para preparar manualmente`);
     } finally {
       setUpdatingOrderId(null);
     }
@@ -746,31 +757,35 @@ export default function OrderList({
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // PRIMERA REGLA: NUNCA mostrar órdenes con estado "merged"
+      if (order.status === "merged") {
+        return false;
+      }
+
       // Para "cancelled", mostrar TODAS las órdenes canceladas (independientemente del estado de impresión)
       if (activeStatus === "cancelled") {
         return order.status === "cancelled";
       }
 
-      // Para "pending", mostrar órdenes que NO han sido impresas Y NO están canceladas
+      // Para "pending", mostrar órdenes que NO han sido impresas Y NO están canceladas Y NO están completadas
       if (activeStatus === "pending") {
-        return !isOrderReadyForProgress(order) && order.status !== "cancelled";
+        return !isOrderReadyForProgress(order) && 
+               order.status !== "cancelled" && 
+               order.status !== "completed";
       }
 
       // Para "in_progress", mostrar órdenes que estén en preparación (con impresora o sin ella)
       if (activeStatus === "in_progress") {
         // Si no hay impresoras activas, mostrar todas las órdenes con status pending o in_progress
-        // EXCLUIR órdenes merged (origen) - solo mostrar órdenes activas
         if (activePrinters.length === 0) {
           return (
-            (order.status === "pending" || order.status === "in_progress") &&
-            order.status !== "merged" // Excluir órdenes merged (origen)
+            order.status === "pending" || order.status === "in_progress"
           );
         }
-        // Si hay impresoras, usar la lógica original pero excluir merged
+        // Si hay impresoras, usar la lógica original
         return (
           isOrderReadyForProgress(order) &&
-          (order.status === "pending" || order.status === "in_progress") &&
-          order.status !== "merged" // Excluir órdenes merged (origen)
+          (order.status === "pending" || order.status === "in_progress")
         );
       }
 
@@ -964,21 +979,11 @@ export default function OrderList({
                 </button>
               </div>
 
-              {/* Botón principal a la derecha */}
+              {/* Subflujo: funciona tanto en pending como in_progress */}
               <div>
-                {order.status === "pending" && (
-                  <button
-                    onClick={() => handleUpdateStatus(order.id, "in_progress")}
-                    disabled={updatingOrderId === order.id}
-                    className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-gray-400 transition-all"
-                  >
-                    👨‍🍳 COMENZAR A PREPARAR
-                  </button>
-                )}
-
-                {order.status === "in_progress" &&
-                  !order.is_preparing &&
-                  !order.is_ready && (
+                {/* Primer paso: is_new_order -> is_preparing */}
+                {(order.status === "pending" || order.status === "in_progress") && 
+                  order.is_new_order && !order.is_preparing && !order.is_ready && (
                     <button
                       onClick={() => handleStartPreparing(order.id)}
                       disabled={updatingOrderId === order.id}
@@ -988,9 +993,9 @@ export default function OrderList({
                     </button>
                   )}
 
-                {order.status === "in_progress" &&
-                  order.is_preparing &&
-                  !order.is_ready && (
+                {/* Segundo paso: is_preparing -> is_ready */}
+                {(order.status === "pending" || order.status === "in_progress") && 
+                  !order.is_new_order && order.is_preparing && !order.is_ready && (
                     <button
                       onClick={() => handleMarkAsReady(order.id)}
                       disabled={updatingOrderId === order.id}
@@ -1000,15 +1005,17 @@ export default function OrderList({
                     </button>
                   )}
 
-                {order.status === "in_progress" && order.is_ready && (
-                  <button
-                    onClick={() => handleOpenConfirmModal(order)}
-                    disabled={updatingOrderId === order.id}
-                    className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-green-600 rounded hover:bg-green-700 disabled:bg-gray-400 transition-all"
-                  >
-                    💵 COBRAR Y CERRAR
-                  </button>
-                )}
+                {/* Tercer paso: is_ready -> completar */}
+                {(order.status === "pending" || order.status === "in_progress") && 
+                  !order.is_new_order && !order.is_preparing && order.is_ready && (
+                    <button
+                      onClick={() => handleOpenConfirmModal(order)}
+                      disabled={updatingOrderId === order.id}
+                      className="flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white bg-green-600 rounded hover:bg-green-700 disabled:bg-gray-400 transition-all"
+                    >
+                      💵 COBRAR Y CERRAR
+                    </button>
+                  )}
 
                 {/* Fallback si no coincide con ningún estado */}
                 {!["pending", "in_progress", "completed", "cancelled"].includes(
@@ -1034,28 +1041,32 @@ export default function OrderList({
       cancelled: 0,
     };
     orders.forEach((order) => {
-      // Contar en "cancelled" PRIMERO (independientemente del estado de impresión)
+      // PRIMERA REGLA: NUNCA contar órdenes con estado "merged"
+      if (order.status === "merged") {
+        return; // Ignorar completamente las órdenes merged
+      }
+
+      // Contar por estado PRIMERO, independientemente de la impresión
       if (order.status === "cancelled") {
         counts.cancelled++;
-        return; // No contar en otras categorías
+        return;
       }
-
-      // Contar en "pending" si NO está impreso Y NO está cancelada
-      if (!isOrderReadyForProgress(order)) {
-        counts.pending++;
-        return; // No contar en otras categorías
-      }
-
-      // Para pedidos impresos, contar según su status actual
+      
       if (order.status === "completed") {
         counts.completed++;
-      } else if (order.status === "pending" || order.status === "in_progress") {
-        // Solo contar órdenes activas (pending/in_progress) - EXCLUIR merged
-        if (order.status !== "merged") {
+        return;
+      }
+
+      // Para pending e in_progress, usar lógica de impresión para decidir en qué pestaña aparecen
+      if (order.status === "pending" || order.status === "in_progress") {
+        // Si NO está impreso, va a "pending"
+        if (!isOrderReadyForProgress(order)) {
+          counts.pending++;
+        } else {
+          // Si SÍ está impreso, va a "in_progress"
           counts.in_progress++;
         }
       }
-      // Las órdenes merged NO se cuentan en in_progress
     });
     return counts;
   }, [orders, activePrinters, isOrderReadyForProgress]);

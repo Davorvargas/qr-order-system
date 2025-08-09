@@ -154,6 +154,9 @@ export type Database = {
           customer_name: string
           drink_printed: boolean | null
           id: number
+          is_new_order: boolean | null
+          is_preparing: boolean | null
+          is_ready: boolean | null
           kitchen_printed: boolean | null
           notes: string | null
           restaurant_id: string | null
@@ -167,6 +170,9 @@ export type Database = {
           customer_name: string
           drink_printed?: boolean | null
           id?: never
+          is_new_order?: boolean | null
+          is_preparing?: boolean | null
+          is_ready?: boolean | null
           kitchen_printed?: boolean | null
           notes?: string | null
           restaurant_id?: string | null
@@ -180,6 +186,9 @@ export type Database = {
           customer_name?: string
           drink_printed?: boolean | null
           id?: never
+          is_new_order?: boolean | null
+          is_preparing?: boolean | null
+          is_ready?: boolean | null
           kitchen_printed?: boolean | null
           notes?: string | null
           restaurant_id?: string | null
@@ -496,6 +505,7 @@ export type Database = {
         | "kitchen_printed"
         | "pending"
         | "in_progress"
+        | "merged"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -631,6 +641,7 @@ export const Constants = {
         "kitchen_printed",
         "pending",
         "in_progress",
+        "merged",
       ],
     },
   },

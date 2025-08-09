@@ -1,5 +1,6 @@
 // src/app/api/modifiers/route.ts
 import { createClient } from "@/utils/supabase/server";
+import { createServiceClient } from "@/utils/supabase/service";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -119,8 +120,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Usar service client para operaciones que requieren bypassing RLS
+    const serviceSupabase = createServiceClient();
+
     // Eliminar grupos existentes (y sus modificadores por cascada)
-    await supabase
+    await serviceSupabase
       .from('modifier_groups')
       .delete()
       .eq('menu_item_id', menuItemId)
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     // Crear nuevos grupos y modificadores
     for (const group of groups) {
-      const { data: newGroup, error: groupError } = await supabase
+      const { data: newGroup, error: groupError } = await serviceSupabase
         .from('modifier_groups')
         .insert({
           menu_item_id: menuItemId,
@@ -160,7 +164,7 @@ export async function POST(request: NextRequest) {
           display_order: modifier.display_order || index
         }));
 
-        const { error: modifiersError } = await supabase
+        const { error: modifiersError } = await serviceSupabase
           .from('modifiers')
           .insert(modifiersToInsert);
 
