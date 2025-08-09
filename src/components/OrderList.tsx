@@ -171,6 +171,58 @@ export default function OrderList({
   const [activePrinters, setActivePrinters] = useState<Printer[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
+  // Audio de confirmación al activar/desactivar sonido
+  let uiAudioContextRef: { current: AudioContext | null } = (globalThis as any).__uiAudioCtxRef || { current: null };
+  ;(globalThis as any).__uiAudioCtxRef = uiAudioContextRef;
+
+  const ensureUiAudioContext = () => {
+    if (!uiAudioContextRef.current && typeof window !== "undefined") {
+      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (Ctx) {
+        uiAudioContextRef.current = new Ctx();
+      }
+    }
+    return uiAudioContextRef.current;
+  };
+
+  const playUiTone = (frequency: number, duration: number, offset: number, volume = 0.25) => {
+    const ctx = ensureUiAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      // Resume es seguro aquí porque viene de un click del usuario
+      ctx.resume().catch(() => {});
+    }
+    const startAt = ctx.currentTime + offset;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(frequency, startAt);
+    gain.gain.setValueAtTime(volume, startAt);
+    gain.gain.exponentialRampToValueAtTime(0.01, startAt + duration);
+    osc.start(startAt);
+    osc.stop(startAt + duration);
+  };
+
+  const playToggleFeedback = (enabled: boolean) => {
+    // Activado: tono ascendente corto; Desactivado: tono descendente
+    if (enabled) {
+      playUiTone(523.25, 0.12, 0.0); // Do
+      playUiTone(659.25, 0.12, 0.14); // Mi
+    } else {
+      playUiTone(659.25, 0.12, 0.0); // Mi
+      playUiTone(523.25, 0.12, 0.14); // Do
+    }
+  };
+
+  const handleToggleSound = () => {
+    const newValue = !soundEnabled;
+    setSoundEnabled(newValue);
+    try {
+      playToggleFeedback(newValue);
+    } catch {}
+  };
+
   // Obtener restaurant_id y impresoras activas
   useEffect(() => {
     const fetchRestaurantAndPrinters = async () => {
@@ -1115,7 +1167,7 @@ export default function OrderList({
 
             {/* Botón de control de sonido compacto */}
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={handleToggleSound}
               className={`p-1.5 rounded transition-colors ${
                 soundEnabled
                   ? "bg-blue-100 text-blue-600 hover:bg-blue-200"
