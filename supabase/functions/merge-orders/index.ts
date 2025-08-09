@@ -63,13 +63,28 @@ serve(async (req) => {
       );
     }
 
-    // Verificar que las órdenes no estén completadas o canceladas
+    // Verificar que las órdenes no estén completadas, canceladas o ya fusionadas
     const invalidOrders = orders.filter(o => 
-      o.status === "completed" || o.status === "cancelled"
+      o.status === "completed" || o.status === "cancelled" || o.status === "merged"
     );
     if (invalidOrders.length > 0) {
+      // Determinar el tipo de error específico
+      const completedOrCancelled = invalidOrders.filter(o => 
+        o.status === "completed" || o.status === "cancelled"
+      );
+      const merged = invalidOrders.filter(o => o.status === "merged");
+      
+      let errorMessage = "";
+      if (completedOrCancelled.length > 0 && merged.length > 0) {
+        errorMessage = "No se pueden fusionar órdenes completadas, canceladas o ya fusionadas";
+      } else if (merged.length > 0) {
+        errorMessage = "No se pueden fusionar órdenes que ya han sido fusionadas";
+      } else {
+        errorMessage = "No se pueden fusionar órdenes completadas o canceladas";
+      }
+      
       return new Response(
-        JSON.stringify({ error: "No se pueden fusionar órdenes completadas o canceladas" }),
+        JSON.stringify({ error: errorMessage }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
