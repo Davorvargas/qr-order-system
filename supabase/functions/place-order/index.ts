@@ -132,7 +132,10 @@ Deno.serve(async (req) => {
       restaurant_id: restaurantId,
       source: source || 'customer_qr', // Default to customer_qr if not specified
       kitchen_printed: false,  // Marcar para impresión
-      drink_printed: false     // Marcar para impresión
+      drink_printed: false,    // Marcar para impresión
+      is_new_order: true,      // Marcar como orden nueva para animación
+      is_preparing: false,     // Inicialmente no está en preparación
+      is_ready: false          // Inicialmente no está lista
     }
     console.log('📝 Order data:', JSON.stringify(orderInsertData, null, 2))
     

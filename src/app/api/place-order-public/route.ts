@@ -93,7 +93,10 @@ export async function POST(request: NextRequest) {
         status: initialStatus,
         source: source || 'customer_qr',
         kitchen_printed: false,  // Marcar para impresión
-        drink_printed: false     // Marcar para impresión
+        drink_printed: false,    // Marcar para impresión
+        is_new_order: true,      // Marcar como nueva orden para el latido
+        is_preparing: false,
+        is_ready: false
       })
       .select('id')
       .single();

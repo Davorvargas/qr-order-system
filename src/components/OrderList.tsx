@@ -172,12 +172,14 @@ export default function OrderList({
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
   // Audio de confirmación al activar/desactivar sonido
-  let uiAudioContextRef: { current: AudioContext | null } = (globalThis as any).__uiAudioCtxRef || { current: null };
-  ;(globalThis as any).__uiAudioCtxRef = uiAudioContextRef;
+  let uiAudioContextRef: { current: AudioContext | null } = (globalThis as any)
+    .__uiAudioCtxRef || { current: null };
+  (globalThis as any).__uiAudioCtxRef = uiAudioContextRef;
 
   const ensureUiAudioContext = () => {
     if (!uiAudioContextRef.current && typeof window !== "undefined") {
-      const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const Ctx =
+        (window as any).AudioContext || (window as any).webkitAudioContext;
       if (Ctx) {
         uiAudioContextRef.current = new Ctx();
       }
@@ -185,7 +187,12 @@ export default function OrderList({
     return uiAudioContextRef.current;
   };
 
-  const playUiTone = (frequency: number, duration: number, offset: number, volume = 0.25) => {
+  const playUiTone = (
+    frequency: number,
+    duration: number,
+    offset: number,
+    volume = 0.25
+  ) => {
     const ctx = ensureUiAudioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") {
@@ -349,7 +356,10 @@ export default function OrderList({
             .select(
               `
               *, 
-              notes, 
+              notes,
+              is_new_order,
+              is_preparing, 
+              is_ready,
               table:tables(table_number), 
               order_items(
                 *, 
@@ -517,19 +527,23 @@ export default function OrderList({
         // La impresión falló, pero la orden sigue disponible para preparar manualmente
         const errorData = await res.json().catch(() => ({}));
         const errorMessage = errorData.error || "Error al enviar la comanda";
-        
-        alert(`❌ ${errorMessage}\n\n✅ La orden sigue disponible para preparar manualmente`);
-        
+
+        alert(
+          `❌ ${errorMessage}\n\n✅ La orden sigue disponible para preparar manualmente`
+        );
+
         console.error("Print failed for order", orderId, {
           status: res.status,
           error: errorMessage,
-          note: "Order remains in pending state for manual preparation"
+          note: "Order remains in pending state for manual preparation",
         });
       }
     } catch (error) {
       // Error de red o conexión, la orden sigue en pending
       console.error("Error printing order:", error);
-      alert(`❌ Error de conexión al imprimir\n\n✅ La orden sigue disponible para preparar manualmente`);
+      alert(
+        `❌ Error de conexión al imprimir\n\n✅ La orden sigue disponible para preparar manualmente`
+      );
     } finally {
       setUpdatingOrderId(null);
     }
@@ -637,33 +651,17 @@ export default function OrderList({
 
       if (!profile?.restaurant_id) return;
 
-      // Buscar la última caja cerrada para determinar desde cuándo mostrar pedidos
-      const { data: lastClosedCash } = await supabase
-        .from("cash_registers")
-        .select("closed_at")
-        .eq("restaurant_id", profile.restaurant_id)
-        .eq("status", "closed")
-        .order("closed_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      // Determinar fecha de inicio para filtrar pedidos
-      let startDate;
-      if (lastClosedCash?.closed_at) {
-        // Si hay una caja cerrada, mostrar pedidos desde esa fecha
-        startDate = new Date(lastClosedCash.closed_at);
-      } else {
-        // Si no hay cajas cerradas, mostrar pedidos del día actual
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-      }
-
+      // Mostrar todos los pedidos activos (no archivados) sin filtro de fecha
+      // Los pedidos permanecen visibles hasta que se archive manualmente o se cierre caja
       const { data: ordersData, error } = await supabase
         .from("orders")
         .select(
           `
           *, 
-          notes, 
+          notes,
+          is_new_order,
+          is_preparing, 
+          is_ready,
           table:tables(table_number, restaurant_id), 
           order_items(
             *, 
@@ -681,7 +679,6 @@ export default function OrderList({
         )
         .eq("restaurant_id", profile.restaurant_id)
         .eq("archived", false)
-        .gte("created_at", startDate.toISOString())
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -821,18 +818,18 @@ export default function OrderList({
 
       // Para "pending", mostrar órdenes que NO han sido impresas Y NO están canceladas Y NO están completadas
       if (activeStatus === "pending") {
-        return !isOrderReadyForProgress(order) && 
-               order.status !== "cancelled" && 
-               order.status !== "completed";
+        return (
+          !isOrderReadyForProgress(order) &&
+          order.status !== "cancelled" &&
+          order.status !== "completed"
+        );
       }
 
       // Para "in_progress", mostrar órdenes que estén en preparación (con impresora o sin ella)
       if (activeStatus === "in_progress") {
         // Si no hay impresoras activas, mostrar todas las órdenes con status pending o in_progress
         if (activePrinters.length === 0) {
-          return (
-            order.status === "pending" || order.status === "in_progress"
-          );
+          return order.status === "pending" || order.status === "in_progress";
         }
         // Si hay impresoras, usar la lógica original
         return (
@@ -883,7 +880,7 @@ export default function OrderList({
         {showBlackHeader && (
           <div className="bg-gray-800 text-white p-2">
             <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold">
+              <h3 className="text-base font-bold text-white">
                 Mesa {order.table?.table_number || order.table_id}
               </h3>
               <div className="text-right">
@@ -1034,8 +1031,11 @@ export default function OrderList({
               {/* Subflujo: funciona tanto en pending como in_progress */}
               <div>
                 {/* Primer paso: is_new_order -> is_preparing */}
-                {(order.status === "pending" || order.status === "in_progress") && 
-                  order.is_new_order && !order.is_preparing && !order.is_ready && (
+                {(order.status === "pending" ||
+                  order.status === "in_progress") &&
+                  order.is_new_order &&
+                  !order.is_preparing &&
+                  !order.is_ready && (
                     <button
                       onClick={() => handleStartPreparing(order.id)}
                       disabled={updatingOrderId === order.id}
@@ -1046,8 +1046,11 @@ export default function OrderList({
                   )}
 
                 {/* Segundo paso: is_preparing -> is_ready */}
-                {(order.status === "pending" || order.status === "in_progress") && 
-                  !order.is_new_order && order.is_preparing && !order.is_ready && (
+                {(order.status === "pending" ||
+                  order.status === "in_progress") &&
+                  !order.is_new_order &&
+                  order.is_preparing &&
+                  !order.is_ready && (
                     <button
                       onClick={() => handleMarkAsReady(order.id)}
                       disabled={updatingOrderId === order.id}
@@ -1058,8 +1061,11 @@ export default function OrderList({
                   )}
 
                 {/* Tercer paso: is_ready -> completar */}
-                {(order.status === "pending" || order.status === "in_progress") && 
-                  !order.is_new_order && !order.is_preparing && order.is_ready && (
+                {(order.status === "pending" ||
+                  order.status === "in_progress") &&
+                  !order.is_new_order &&
+                  !order.is_preparing &&
+                  order.is_ready && (
                     <button
                       onClick={() => handleOpenConfirmModal(order)}
                       disabled={updatingOrderId === order.id}
@@ -1103,7 +1109,7 @@ export default function OrderList({
         counts.cancelled++;
         return;
       }
-      
+
       if (order.status === "completed") {
         counts.completed++;
         return;
@@ -1256,14 +1262,14 @@ export default function OrderList({
                                 {/* Header super compacto de la mesa */}
                                 <div className="bg-gray-800 text-white p-2">
                                   <div className="flex justify-between items-center">
-                                    <h3 className="text-base font-bold">
+                                    <h3 className="text-base font-bold text-white !text-white">
                                       Mesa {tableNumber}
                                     </h3>
                                     <div className="text-right">
-                                      <p className="text-xs opacity-90">
+                                      <p className="text-xs text-white">
                                         {item.tableOrders.length} pedido(s)
                                       </p>
-                                      <p className="text-sm font-bold">
+                                      <p className="text-sm font-bold text-white">
                                         Bs {tableTotal.toFixed(2)}
                                       </p>
                                     </div>
@@ -1294,12 +1300,12 @@ export default function OrderList({
                                       >
                                         <div
                                           className={`border rounded p-1 ${
-                                            order.status === "pending" &&
-                                            !isOrderReadyForProgress(order)
-                                              ? "border-blue-400 bg-blue-50 animate-pulse"
+                                            order.is_new_order &&
+                                            activeStatus === "pending"
+                                              ? "border-blue-400 bg-blue-50 animate-heartbeat"
                                               : order.is_new_order &&
                                                 activeStatus === "in_progress"
-                                              ? "border-orange-400 bg-orange-50 animate-pulse"
+                                              ? "border-orange-400 bg-orange-50 animate-heartbeat"
                                               : order.status === "pending" ||
                                                 order.status === "in_progress"
                                               ? "border-purple-300 bg-purple-50"
@@ -1343,12 +1349,12 @@ export default function OrderList({
                               >
                                 <div
                                   className={`rounded-lg shadow-sm overflow-hidden transition-all duration-300 ease-in-out ${
-                                    item.status === "pending" &&
-                                    !isOrderReadyForProgress(item)
-                                      ? "animate-pulse ring-2 ring-blue-500 ring-opacity-100 bg-blue-50"
+                                    item.is_new_order &&
+                                    activeStatus === "pending"
+                                      ? "animate-heartbeat ring-2 ring-blue-500 ring-opacity-100 bg-blue-50"
                                       : item.is_new_order &&
                                         activeStatus === "in_progress"
-                                      ? "animate-pulse ring-2 ring-orange-500 ring-opacity-100 bg-orange-50"
+                                      ? "animate-heartbeat ring-2 ring-orange-500 ring-opacity-100 bg-orange-50"
                                       : item.status === "pending" ||
                                         item.status === "in_progress"
                                       ? "ring-1 ring-purple-300 hover:ring-purple-400 bg-white"

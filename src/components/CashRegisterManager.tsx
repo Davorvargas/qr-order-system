@@ -26,6 +26,10 @@ interface ClosingReport {
   expectedCash: number;
   actualCash: number;
   difference: number;
+  openingBankBalance: number;
+  expectedBankBalance: number;
+  actualBankBalance: number;
+  bankDifference: number;
   totalSales: number;
   totalQr: number;
   totalQrWithTips: number;
@@ -53,6 +57,8 @@ export default function CashRegisterManager({
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState("");
   const [closingAmount, setClosingAmount] = useState("");
+  const [openingBankBalance, setOpeningBankBalance] = useState("");
+  const [closingBankBalance, setClosingBankBalance] = useState("");
   const [user, setUser] = useState<User | null>(null);
   const [closingReport, setClosingReport] = useState<ClosingReport | null>(
     null
@@ -100,11 +106,19 @@ export default function CashRegisterManager({
 
   const openCashRegister = async () => {
     if (!openingAmount || parseFloat(openingAmount) < 0) {
-      alert("Por favor ingresa un monto válido");
+      alert("Por favor ingresa un monto válido para el efectivo");
+      return;
+    }
+
+    if (!openingBankBalance || parseFloat(openingBankBalance) < 0) {
+      alert("Por favor ingresa un balance bancario válido");
       return;
     }
 
     try {
+      // Por ahora guardamos el balance bancario en el campo notes hasta que se agregue a la base
+      const bankBalanceNote = `Balance bancario inicial: ${openingBankBalance}`;
+      
       const { error } = await supabase
         .from("cash_registers")
         .insert({
@@ -112,6 +126,7 @@ export default function CashRegisterManager({
           opening_amount: parseFloat(openingAmount),
           opened_by: user?.id,
           status: "open",
+          notes: bankBalanceNote,
         })
         .select()
         .single();
@@ -119,9 +134,10 @@ export default function CashRegisterManager({
       if (error) throw error;
 
       setOpeningAmount("");
+      setOpeningBankBalance("");
       setIsOpenModalOpen(false);
       await fetchCashRegisters();
-      alert("Caja abierta exitosamente");
+      alert("Caja abierta exitosamente con balance bancario registrado");
     } catch (error) {
       console.error("Error opening cash register:", error);
       alert("Error al abrir la caja");
@@ -129,9 +145,19 @@ export default function CashRegisterManager({
   };
 
   const generateClosingReport = async (
-    closingAmount: number
+    closingAmount: number,
+    closingBankBalance: number
   ): Promise<ClosingReport> => {
     if (!activeCashRegister) throw new Error("No hay caja activa");
+
+    // Extraer balance bancario inicial de las notas
+    let openingBankBalance = 0;
+    if (activeCashRegister.notes) {
+      const bankBalanceMatch = activeCashRegister.notes.match(/Balance bancario inicial: ([\d.]+)/);
+      if (bankBalanceMatch) {
+        openingBankBalance = parseFloat(bankBalanceMatch[1]);
+      }
+    }
 
     // Obtener pagos de la caja
     const { data: payments } = await supabase
@@ -185,10 +211,15 @@ export default function CashRegisterManager({
     const cancelledOrders =
       orders?.filter((o) => o.status === "cancelled").length || 0;
 
-    // Calcular diferencias
+    // Calcular diferencias de efectivo
     const expectedCash = activeCashRegister.opening_amount + totalCash;
     const actualCash = closingAmount;
     const difference = actualCash - expectedCash;
+
+    // Calcular diferencias bancarias
+    const expectedBankBalance = openingBankBalance + totalCard + totalQrWithTips;
+    const actualBankBalance = closingBankBalance;
+    const bankDifference = actualBankBalance - expectedBankBalance;
 
     // Obtener nombre del cajero
     const { data: cashierProfile } = await supabase
@@ -203,6 +234,10 @@ export default function CashRegisterManager({
       expectedCash,
       actualCash,
       difference,
+      openingBankBalance,
+      expectedBankBalance,
+      actualBankBalance,
+      bankDifference,
       totalSales,
       totalQr,
       totalQrWithTips,
@@ -220,7 +255,12 @@ export default function CashRegisterManager({
 
   const handleCloseCashRegister = async () => {
     if (!closingAmount || parseFloat(closingAmount) < 0) {
-      alert("Por favor ingresa un monto válido");
+      alert("Por favor ingresa un monto válido para el efectivo");
+      return;
+    }
+
+    if (!closingBankBalance || parseFloat(closingBankBalance) < 0) {
+      alert("Por favor ingresa un balance bancario válido");
       return;
     }
 
@@ -260,7 +300,7 @@ export default function CashRegisterManager({
 
       // Generar reporte de cierre
       setGeneratingReport(true);
-      const report = await generateClosingReport(parseFloat(closingAmount));
+      const report = await generateClosingReport(parseFloat(closingAmount), parseFloat(closingBankBalance));
       setClosingReport(report);
       setGeneratingReport(false);
       setIsCloseModalOpen(false);
@@ -276,6 +316,12 @@ export default function CashRegisterManager({
     if (!closingReport || !activeCashRegister) return;
 
     try {
+      // Preparar notas actualizadas con balance bancario real
+      let updatedNotes = activeCashRegister.notes || "";
+      if (closingReport.actualBankBalance > 0) {
+        updatedNotes += `\nBalance bancario real: ${closingReport.actualBankBalance}`;
+      }
+
       // Actualizar caja como cerrada
       const { error } = await supabase
         .from("cash_registers")
@@ -289,6 +335,7 @@ export default function CashRegisterManager({
           difference: closingReport.difference,
           status: "closed",
           closed_by: user?.id,
+          notes: updatedNotes,
         })
         .eq("id", activeCashRegister.id);
 
@@ -306,6 +353,7 @@ export default function CashRegisterManager({
       }
 
       setClosingAmount("");
+      setClosingBankBalance("");
       setIsReportModalOpen(false);
       setClosingReport(null);
       await fetchCashRegisters();
@@ -612,7 +660,93 @@ export default function CashRegisterManager({
       .eq("id", cashRegister.closed_by)
       .single();
 
-    // Para cierres históricos, usamos los datos guardados
+    // Extraer balances bancarios de las notas (si existen)
+    let openingBankBalance = 0;
+    let actualBankBalance = 0;
+    if (cashRegister.notes) {
+      const openingBankMatch = cashRegister.notes.match(/Balance bancario inicial: ([\d.]+)/);
+      if (openingBankMatch) {
+        openingBankBalance = parseFloat(openingBankMatch[1]);
+      }
+      
+      const closingBankMatch = cashRegister.notes.match(/Balance bancario real: ([\d.]+)/);
+      if (closingBankMatch) {
+        actualBankBalance = parseFloat(closingBankMatch[1]);
+      }
+    }
+
+    // Obtener datos reales de pagos de esta caja histórica
+    console.log('🔍 Buscando pagos para cash_register_id:', cashRegister.id);
+    const { data: historicalPayments, error: paymentsError } = await supabase
+      .from("order_payments")
+      .select("*")
+      .eq("cash_register_id", cashRegister.id);
+
+    console.log('💰 Pagos encontrados:', historicalPayments?.length || 0, historicalPayments);
+    if (paymentsError) console.error('❌ Error buscando pagos:', paymentsError);
+
+    // Si no hay pagos por cash_register_id, intentar por rango de fechas
+    let alternativePayments = null;
+    if (!historicalPayments || historicalPayments.length === 0) {
+      console.log('🔄 Intentando buscar pagos por rango de fechas...');
+      const { data: dateBasedPayments } = await supabase
+        .from("order_payments")
+        .select("*")
+        .gte("created_at", cashRegister.opened_at)
+        .lt("created_at", cashRegister.closed_at || new Date().toISOString());
+      
+      alternativePayments = dateBasedPayments;
+      console.log('📅 Pagos por fecha encontrados:', alternativePayments?.length || 0);
+    }
+
+    const paymentsToUse = historicalPayments?.length > 0 ? historicalPayments : alternativePayments;
+
+    // Calcular propinas de los pagos históricos
+    const totalTipsQr =
+      paymentsToUse
+        ?.filter(
+          (p) =>
+            p.payment_method === "qr" && p.notes?.includes("Propina incluida")
+        )
+        .reduce((sum, p) => {
+          const tipMatch = p.notes?.match(/Propina incluida: Bs ([\d.]+)/);
+          return sum + (tipMatch ? parseFloat(tipMatch[1]) : 0);
+        }, 0) || 0;
+
+    // Obtener estadísticas reales de órdenes de este período
+    console.log('🔍 Buscando órdenes desde:', cashRegister.opened_at, 'hasta:', cashRegister.closed_at);
+    
+    // Primero verificar cuántas órdenes hay en total para este restaurant
+    const { data: allRestaurantOrders } = await supabase
+      .from("orders")
+      .select("status, created_at")
+      .eq("restaurant_id", restaurantId);
+    
+    console.log('🏪 Total órdenes del restaurante:', allRestaurantOrders?.length || 0);
+
+    const { data: historicalOrders, error: ordersError } = await supabase
+      .from("orders")
+      .select("status, created_at")
+      .eq("restaurant_id", restaurantId)
+      .gte("created_at", cashRegister.opened_at)
+      .lt("created_at", cashRegister.closed_at || new Date().toISOString());
+
+    console.log('📋 Órdenes encontradas en rango:', historicalOrders?.length || 0, historicalOrders);
+    if (ordersError) console.error('❌ Error buscando órdenes:', ordersError);
+
+    const completedOrders =
+      historicalOrders?.filter((o) => o.status === "completed").length || 0;
+    const cancelledOrders =
+      historicalOrders?.filter((o) => o.status === "cancelled").length || 0;
+    
+    console.log('📊 Estadísticas calculadas:', { 
+      completedOrders, 
+      cancelledOrders, 
+      totalPayments: paymentsToUse?.length || 0,
+      totalTips: totalTipsQr 
+    });
+
+    // Para cierres históricos, usamos los datos guardados y calculados
     return {
       openingAmount: cashRegister.opening_amount,
       closingAmount: cashRegister.closing_amount || 0,
@@ -620,15 +754,19 @@ export default function CashRegisterManager({
         cashRegister.opening_amount + (cashRegister.total_cash || 0),
       actualCash: cashRegister.closing_amount || 0,
       difference: cashRegister.difference || 0,
+      openingBankBalance,
+      expectedBankBalance: openingBankBalance + (cashRegister.total_card || 0) + (cashRegister.total_qr || 0),
+      actualBankBalance,
+      bankDifference: actualBankBalance - (openingBankBalance + (cashRegister.total_card || 0) + (cashRegister.total_qr || 0)),
       totalSales: cashRegister.total_sales || 0,
       totalQr: cashRegister.total_qr || 0,
-      totalQrWithTips: cashRegister.total_qr || 0, // Para históricos, asumimos que es igual
+      totalQrWithTips: (cashRegister.total_qr || 0) + totalTipsQr,
       totalCard: cashRegister.total_card || 0,
       totalCash: cashRegister.total_cash || 0,
-      totalTips: 0, // No disponible en cierres históricos
-      transactionCount: 0, // No disponible en cierres históricos
-      completedOrders: 0, // No disponible en cierres históricos
-      cancelledOrders: 0, // No disponible en cierres históricos
+      totalTips: totalTipsQr,
+      transactionCount: paymentsToUse?.length || 0,
+      completedOrders,
+      cancelledOrders,
       openingTime: cashRegister.opened_at,
       closingTime: cashRegister.closed_at || new Date().toISOString(),
       cashierName: cashierProfile?.full_name || "Usuario",
@@ -831,7 +969,7 @@ export default function CashRegisterManager({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monto de Apertura (Bs.)
+                  💵 Monto de Apertura - Efectivo (Bs.)
                 </label>
                 <input
                   type="number"
@@ -842,6 +980,23 @@ export default function CashRegisterManager({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="0.00"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🏦 Balance Inicial - Cuenta Bancaria (Bs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={openingBankBalance}
+                  onChange={(e) => setOpeningBankBalance(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Balance actual de la cuenta bancaria para contrastar con QR y tarjetas
+                </p>
               </div>
               <div className="flex space-x-3">
                 <button
@@ -870,7 +1025,7 @@ export default function CashRegisterManager({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Monto en Caja (Bs.)
+                  💵 Efectivo Real en Caja (Bs.)
                 </label>
                 <input
                   type="number"
@@ -881,6 +1036,23 @@ export default function CashRegisterManager({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="0.00"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🏦 Balance Actual - Cuenta Bancaria (Bs.)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={closingBankBalance}
+                  onChange={(e) => setClosingBankBalance(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Balance actual de la cuenta bancaria para verificar transacciones QR/tarjeta
+                </p>
               </div>
               <div className="flex space-x-3">
                 <button
@@ -1099,6 +1271,61 @@ export default function CashRegisterManager({
               </div>
             </div>
 
+            {/* Control Bancario */}
+            <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
+              <h4 className="font-semibold mb-3 text-blue-900 flex items-center">
+                🏦 Control de Cuenta Bancaria
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span>Balance Inicial:</span>
+                  <span>Bs {closingReport.openingBankBalance.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Transacciones QR:</span>
+                  <span className="text-blue-600">+Bs {closingReport.totalQrWithTips.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Transacciones Tarjeta:</span>
+                  <span className="text-purple-600">+Bs {closingReport.totalCard.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Balance Esperado:</span>
+                  <span className="font-medium">Bs {closingReport.expectedBankBalance.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Balance Real (Banco):</span>
+                  <span>Bs {closingReport.actualBankBalance.toFixed(2)}</span>
+                </div>
+                <div className="border-t pt-3">
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>DIFERENCIA BANCARIA:</span>
+                    <span
+                      className={
+                        closingReport.bankDifference >= 0
+                          ? "text-green-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {closingReport.bankDifference >= 0 ? "+" : ""}Bs{" "}
+                      {closingReport.bankDifference.toFixed(2)}
+                    </span>
+                  </div>
+                  {closingReport.bankDifference !== 0 && (
+                    <div className="flex items-center mt-2 text-sm text-orange-600">
+                      <AlertTriangle size={14} className="mr-1" />
+                      {closingReport.bankDifference > 0
+                        ? "Exceso en cuenta bancaria"
+                        : "Faltante en cuenta bancaria"}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-600 mt-2">
+                    💡 Verificar que todas las transacciones QR y tarjeta se hayan procesado correctamente
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Botones de Acción */}
             <div className="flex justify-end space-x-3">
               <button
@@ -1219,19 +1446,38 @@ export default function CashRegisterManager({
                     </div>
                     <div className="flex justify-between">
                       <span>Propinas Declaradas:</span>
-                      <span className="text-gray-400">No disponible</span>
+                      <span className="font-medium text-blue-600">
+                        Bs {closingReport.totalTips.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="border-t pt-2 mt-2">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-2">💳 Conciliación Bancaria</h4>
+                      <div className="flex justify-between text-sm">
+                        <span>Total QR a verificar en banco:</span>
+                        <span className="font-bold text-blue-800">
+                          Bs {closingReport.totalQrWithTips.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>- Ventas: Bs {closingReport.totalQr.toFixed(2)}</span>
+                        <span>- Propinas: Bs {closingReport.totalTips.toFixed(2)}</span>
+                      </div>
                     </div>
                     <div className="flex justify-between">
                       <span>Transacciones:</span>
-                      <span className="text-gray-400">No disponible</span>
+                      <span>{closingReport.transactionCount}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Pedidos Completados:</span>
-                      <span className="text-gray-400">No disponible</span>
+                      <span className="text-green-600">
+                        {closingReport.completedOrders}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Pedidos Cancelados:</span>
-                      <span className="text-gray-400">No disponible</span>
+                      <span className="text-red-600">
+                        {closingReport.cancelledOrders}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1250,10 +1496,17 @@ export default function CashRegisterManager({
                     <div className="text-sm text-gray-600">Efectivo</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-lg font-bold text-blue-600">
                       Bs {closingReport.totalQr.toFixed(2)}
                     </div>
-                    <div className="text-sm text-gray-600">QR</div>
+                    <div className="text-xs text-gray-600">QR Solo Órdenes</div>
+                    <div className="text-lg font-bold text-blue-800 mt-1">
+                      Bs {closingReport.totalQrWithTips.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-600">QR con Propinas</div>
+                    <div className="text-xs text-yellow-600 mt-1">
+                      💰 Bs {closingReport.totalTips.toFixed(2)} propinas
+                    </div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-purple-600">
@@ -1309,6 +1562,82 @@ export default function CashRegisterManager({
                   </div>
                 </div>
               </div>
+
+              {/* Control Bancario Histórico */}
+              {closingReport.openingBankBalance > 0 ? (
+                <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
+                  <h4 className="font-semibold mb-3 text-blue-900 flex items-center">
+                    🏦 Control de Cuenta Bancaria
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span>Balance Inicial:</span>
+                      <span>Bs {closingReport.openingBankBalance.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Transacciones QR:</span>
+                      <span className="text-blue-600">+Bs {closingReport.totalQrWithTips.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Transacciones Tarjeta:</span>
+                      <span className="text-purple-600">+Bs {closingReport.totalCard.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Balance Esperado:</span>
+                      <span className="font-medium">Bs {closingReport.expectedBankBalance.toFixed(2)}</span>
+                    </div>
+                    {closingReport.actualBankBalance > 0 ? (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Balance Real (Banco):</span>
+                          <span>Bs {closingReport.actualBankBalance.toFixed(2)}</span>
+                        </div>
+                        <div className="border-t pt-3">
+                          <div className="flex justify-between text-lg font-bold">
+                            <span>DIFERENCIA BANCARIA:</span>
+                            <span
+                              className={
+                                closingReport.bankDifference >= 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {closingReport.bankDifference >= 0 ? "+" : ""}Bs{" "}
+                              {closingReport.bankDifference.toFixed(2)}
+                            </span>
+                          </div>
+                          {closingReport.bankDifference !== 0 && (
+                            <div className="flex items-center mt-2 text-sm text-orange-600">
+                              <AlertTriangle size={14} className="mr-1" />
+                              {closingReport.bankDifference > 0
+                                ? "Exceso en cuenta bancaria"
+                                : "Faltante en cuenta bancaria"}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-600 mt-2">
+                            💡 Diferencia calculada con datos históricos del cierre
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-xs text-gray-500 mt-2 p-2 bg-yellow-50 rounded">
+                        ⚠️ Balance real no registrado en este cierre histórico
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-100 p-4 rounded-lg mb-6 border border-gray-200">
+                  <h4 className="font-semibold mb-3 text-gray-600 flex items-center">
+                    🏦 Control de Cuenta Bancaria
+                  </h4>
+                  <div className="text-sm text-gray-500 text-center py-4">
+                    No hay información bancaria disponible para este cierre histórico.
+                    <br />
+                    <span className="text-xs">Esta funcionalidad se agregó posteriormente.</span>
+                  </div>
+                </div>
+              )}
 
               {/* Botón de Cerrar */}
               <div className="flex justify-end">

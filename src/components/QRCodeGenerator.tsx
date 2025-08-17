@@ -829,7 +829,7 @@ export default function QRCodeGenerator({
                           className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                         >
                           <div className="text-center">
-                            <h4 className="font-semibold text-lg mb-2">
+                            <h4 className="font-semibold text-lg mb-2 text-white">
                               {item.displayName}
                             </h4>
                             <div className="mb-4">
