@@ -147,9 +147,12 @@ export async function POST(request: NextRequest) {
     console.log('Processing modifier save for:', { menuItemId, restaurantId: profile.restaurant_id, userRole: profile.role });
 
     // Usar service client para operaciones que requieren bypassing RLS
+    console.log('Creating service client...');
     const serviceSupabase = createServiceClient();
+    console.log('Service client created successfully');
 
     // Eliminar grupos existentes (y sus modificadores por cascada)
+    console.log('Deleting existing modifier groups for:', { menuItemId, restaurantId: profile.restaurant_id });
     const { error: deleteError } = await serviceSupabase
       .from('modifier_groups')
       .delete()
@@ -158,11 +161,14 @@ export async function POST(request: NextRequest) {
 
     if (deleteError) {
       console.error('Error deleting existing modifier groups:', deleteError);
+      console.error('Delete error details:', JSON.stringify(deleteError, null, 2));
       return NextResponse.json(
         { error: 'Failed to delete existing modifier groups', details: deleteError.message },
         { status: 500 }
       );
     }
+    
+    console.log('Successfully deleted existing modifier groups');
 
     console.log('Deleted existing modifier groups, creating new ones...');
 
@@ -170,27 +176,35 @@ export async function POST(request: NextRequest) {
     for (const group of groups) {
       console.log('Creating modifier group:', group.name);
       
+      const groupData = {
+        menu_item_id: menuItemId,
+        restaurant_id: profile.restaurant_id,
+        name: group.name,
+        is_required: group.is_required || false,
+        min_selections: group.min_selections || 0,
+        max_selections: group.max_selections || 1,
+        display_order: group.display_order || 0
+      };
+      
+      console.log('Creating modifier group with data:', groupData);
+      
       const { data: newGroup, error: groupError } = await serviceSupabase
         .from('modifier_groups')
-        .insert({
-          menu_item_id: menuItemId,
-          restaurant_id: profile.restaurant_id,
-          name: group.name,
-          is_required: group.is_required || false,
-          min_selections: group.min_selections || 0,
-          max_selections: group.max_selections || 1,
-          display_order: group.display_order || 0
-        })
+        .insert(groupData)
         .select()
         .single();
 
       if (groupError) {
         console.error('Error creating modifier group:', groupError);
+        console.error('Group error details:', JSON.stringify(groupError, null, 2));
+        console.error('Group data that failed:', groupData);
         return NextResponse.json(
           { error: 'Failed to create modifier group', details: groupError.message },
           { status: 500 }
         );
       }
+      
+      console.log('Successfully created modifier group:', newGroup.id);
 
       // Crear modificadores para este grupo
       if (group.modifiers && group.modifiers.length > 0) {
