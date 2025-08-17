@@ -25,6 +25,7 @@ interface MenuItemFormModalProps {
   categories: Category[];
   itemToEdit: MenuItem | null;
   categoryId: number | null; // To pre-select category when adding
+  restaurantId: string; // Required for creating new items
 }
 
 export default function MenuItemFormModal({
@@ -34,6 +35,7 @@ export default function MenuItemFormModal({
   categories,
   itemToEdit,
   categoryId,
+  restaurantId,
 }: MenuItemFormModalProps) {
   const supabase = createClient();
   const [formData, setFormData] = useState({
@@ -137,14 +139,22 @@ export default function MenuItemFormModal({
       }
     }
 
+    // Validar que restaurantId esté presente para nuevos items
+    if (!itemToEdit && !restaurantId) {
+      alert("Error: No se puede crear un ítem sin restaurant_id");
+      setSaving(false);
+      return;
+    }
+
     const dbData = {
       name: formData.name,
       description: formData.description,
       price: parseFloat(formData.price) || null,
       category_id: parseInt(formData.category_id, 10) || null,
-      image_url: imageUrl, // <-- Usar el estado separado de la URL
-      ...(restaurantId && { restaurant_id: restaurantId }), // Agregar restaurant_id solo si existe
-      ...(displayOrder && { display_order: displayOrder }), // Agregar display_order solo si existe
+      image_url: imageUrl,
+      // SIEMPRE incluir restaurant_id para nuevos items
+      ...(restaurantId && { restaurant_id: restaurantId }),
+      ...(displayOrder && { display_order: displayOrder }),
     };
 
     let savedItem: MenuItem | null = null;

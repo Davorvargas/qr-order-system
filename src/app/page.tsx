@@ -87,6 +87,7 @@ export default async function Home() {
                           width={96}
                           height={96}
                           className="w-24 h-24 object-cover rounded-md bg-gray-200"
+                          unoptimized
                         />
                         {!item.is_available && (
                           <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-md z-10">

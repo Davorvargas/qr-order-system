@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -26,18 +27,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Obtener restaurant_id del usuario
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('restaurant_id')
+      .select('restaurant_id, role')
       .eq('id', user.id)
       .single();
 
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to fetch user profile' },
+        { status: 500 }
+      );
+    }
+
     if (!profile?.restaurant_id) {
+      console.error('User not associated with restaurant:', { userId: user.id, profile });
       return NextResponse.json(
         { error: 'User not associated with any restaurant' },
         { status: 403 }
       );
     }
+
+    console.log('Fetching modifiers for:', { menuItemId, restaurantId: profile.restaurant_id, userRole: profile.role });
 
     // Obtener grupos de modificadores con sus opciones
     const { data: modifierGroups, error } = await supabase
@@ -65,7 +77,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching modifiers:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch modifiers' },
+        { error: 'Failed to fetch modifiers', details: error.message },
         { status: 500 }
       );
     }
@@ -76,9 +88,9 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in GET modifiers:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -90,6 +102,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { menuItemId, groups } = body;
 
+    console.log('Received modifier save request:', { menuItemId, groupsCount: groups?.length });
+
     if (!menuItemId || !groups) {
       return NextResponse.json(
         { error: 'menuItemId and groups are required' },
@@ -100,6 +114,7 @@ export async function POST(request: NextRequest) {
     // Verificar autenticación
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
+      console.error('Authentication error in POST:', authError);
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -107,31 +122,54 @@ export async function POST(request: NextRequest) {
     }
 
     // Obtener restaurant_id del usuario
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('restaurant_id')
+      .select('restaurant_id, role')
       .eq('id', user.id)
       .single();
 
+    if (profileError) {
+      console.error('Profile fetch error in POST:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to fetch user profile' },
+        { status: 500 }
+      );
+    }
+
     if (!profile?.restaurant_id) {
+      console.error('User not associated with restaurant in POST:', { userId: user.id, profile });
       return NextResponse.json(
         { error: 'User not associated with any restaurant' },
         { status: 403 }
       );
     }
 
+    console.log('Processing modifier save for:', { menuItemId, restaurantId: profile.restaurant_id, userRole: profile.role });
+
     // Usar service client para operaciones que requieren bypassing RLS
     const serviceSupabase = createServiceClient();
 
     // Eliminar grupos existentes (y sus modificadores por cascada)
-    await serviceSupabase
+    const { error: deleteError } = await serviceSupabase
       .from('modifier_groups')
       .delete()
       .eq('menu_item_id', menuItemId)
       .eq('restaurant_id', profile.restaurant_id);
 
+    if (deleteError) {
+      console.error('Error deleting existing modifier groups:', deleteError);
+      return NextResponse.json(
+        { error: 'Failed to delete existing modifier groups', details: deleteError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log('Deleted existing modifier groups, creating new ones...');
+
     // Crear nuevos grupos y modificadores
     for (const group of groups) {
+      console.log('Creating modifier group:', group.name);
+      
       const { data: newGroup, error: groupError } = await serviceSupabase
         .from('modifier_groups')
         .insert({
@@ -149,13 +187,15 @@ export async function POST(request: NextRequest) {
       if (groupError) {
         console.error('Error creating modifier group:', groupError);
         return NextResponse.json(
-          { error: 'Failed to create modifier group' },
+          { error: 'Failed to create modifier group', details: groupError.message },
           { status: 500 }
         );
       }
 
       // Crear modificadores para este grupo
       if (group.modifiers && group.modifiers.length > 0) {
+        console.log(`Creating ${group.modifiers.length} modifiers for group ${group.name}`);
+        
         const modifiersToInsert = group.modifiers.map((modifier: any, index: number) => ({
           modifier_group_id: newGroup.id,
           name: modifier.name,
@@ -171,12 +211,14 @@ export async function POST(request: NextRequest) {
         if (modifiersError) {
           console.error('Error creating modifiers:', modifiersError);
           return NextResponse.json(
-            { error: 'Failed to create modifiers' },
+            { error: 'Failed to create modifiers', details: modifiersError.message },
             { status: 500 }
           );
         }
       }
     }
+
+    console.log('Successfully saved all modifiers');
 
     return NextResponse.json({
       success: true,
@@ -184,9 +226,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Unexpected error in POST modifiers:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

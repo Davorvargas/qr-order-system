@@ -438,14 +438,18 @@ export default function MenuManager({
           Add menu group
         </button>
       </div>
-      <MenuItemFormModal
-        isOpen={isItemModalOpen}
-        onClose={() => setIsItemModalOpen(false)}
-        onSave={handleSaveItem}
-        categories={menuCategories}
-        itemToEdit={editingItem}
-        categoryId={editingCategory?.id ?? null}
-      />
+      {/* Solo mostrar el modal si tenemos restaurantId */}
+      {restaurantId && (
+        <MenuItemFormModal
+          isOpen={isItemModalOpen}
+          onClose={() => setIsItemModalOpen(false)}
+          onSave={handleSaveItem}
+          categories={menuCategories}
+          itemToEdit={editingItem}
+          categoryId={editingCategory?.id ?? null}
+          restaurantId={restaurantId}
+        />
+      )}
       
       {/* Modal de gestión de modificadores */}
       {selectedItemForModifiers && restaurantId && (

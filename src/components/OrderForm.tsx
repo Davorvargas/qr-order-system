@@ -383,6 +383,7 @@ export default function OrderForm({
                           alt={item.name}
                           layout="fill"
                           className="object-cover rounded-md"
+                          unoptimized
                         />
                       </div>
                     </div>
