@@ -146,7 +146,6 @@ function ProductCard({
             alt={item.name}
             fill
             className="object-cover"
-            unoptimized
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400">

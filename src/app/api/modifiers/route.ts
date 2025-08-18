@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('=== STARTING MODIFIERS API POST ===');
+    
     const supabase = await createClient();
     const body = await request.json();
     const { menuItemId, groups } = body;
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest) {
     console.log('Received modifier save request:', { menuItemId, groupsCount: groups?.length });
 
     if (!menuItemId || !groups) {
+      console.error('Missing required parameters:', { menuItemId, hasGroups: !!groups });
       return NextResponse.json(
         { error: 'menuItemId and groups are required' },
         { status: 400 }
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verificar autenticación
+    console.log('Checking authentication...');
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       console.error('Authentication error in POST:', authError);
@@ -120,8 +124,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    console.log('Authentication successful for user:', user.id);
 
     // Obtener restaurant_id del usuario
+    console.log('Fetching user profile...');
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('restaurant_id, role')
@@ -131,7 +137,7 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       console.error('Profile fetch error in POST:', profileError);
       return NextResponse.json(
-        { error: 'Failed to fetch user profile' },
+        { error: 'Failed to fetch user profile', details: profileError.message },
         { status: 500 }
       );
     }
@@ -145,6 +151,23 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Processing modifier save for:', { menuItemId, restaurantId: profile.restaurant_id, userRole: profile.role });
+
+    // Verificar que las variables de entorno estén disponibles
+    console.log('Checking environment variables...');
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Missing environment variables:', { 
+        hasSupabaseUrl: !!supabaseUrl, 
+        hasServiceRoleKey: !!serviceRoleKey 
+      });
+      return NextResponse.json(
+        { error: 'Server configuration error - missing environment variables' },
+        { status: 500 }
+      );
+    }
+    console.log('Environment variables are available');
 
     // Usar service client para operaciones que requieren bypassing RLS
     console.log('Creating service client...');
@@ -176,34 +199,29 @@ export async function POST(request: NextRequest) {
     for (const group of groups) {
       console.log('Creating modifier group:', group.name);
       
-      const groupData = {
-        menu_item_id: menuItemId,
-        restaurant_id: profile.restaurant_id,
-        name: group.name,
-        is_required: group.is_required || false,
-        min_selections: group.min_selections || 0,
-        max_selections: group.max_selections || 1,
-        display_order: group.display_order || 0
-      };
-      
-      console.log('Creating modifier group with data:', groupData);
-      
       const { data: newGroup, error: groupError } = await serviceSupabase
         .from('modifier_groups')
-        .insert(groupData)
+        .insert({
+          menu_item_id: menuItemId,
+          restaurant_id: profile.restaurant_id,
+          name: group.name,
+          is_required: group.is_required || false,
+          min_selections: group.min_selections || 0,
+          max_selections: group.max_selections || 1,
+          display_order: group.display_order || 0
+        })
         .select()
         .single();
 
       if (groupError) {
         console.error('Error creating modifier group:', groupError);
         console.error('Group error details:', JSON.stringify(groupError, null, 2));
-        console.error('Group data that failed:', groupData);
         return NextResponse.json(
           { error: 'Failed to create modifier group', details: groupError.message },
           { status: 500 }
         );
       }
-      
+
       console.log('Successfully created modifier group:', newGroup.id);
 
       // Crear modificadores para este grupo
@@ -224,15 +242,19 @@ export async function POST(request: NextRequest) {
 
         if (modifiersError) {
           console.error('Error creating modifiers:', modifiersError);
+          console.error('Modifiers error details:', JSON.stringify(modifiersError, null, 2));
           return NextResponse.json(
             { error: 'Failed to create modifiers', details: modifiersError.message },
             { status: 500 }
           );
         }
+        
+        console.log(`Successfully created ${group.modifiers.length} modifiers for group ${group.name}`);
       }
     }
 
     console.log('Successfully saved all modifiers');
+    console.log('=== MODIFIERS API POST COMPLETED SUCCESSFULLY ===');
 
     return NextResponse.json({
       success: true,
@@ -240,7 +262,12 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Unexpected error in POST modifiers:', error);
+    console.error('=== UNEXPECTED ERROR IN MODIFIERS API POST ===');
+    console.error('Error type:', typeof error);
+    console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    console.error('Full error object:', JSON.stringify(error, null, 2));
+    
     return NextResponse.json(
       { error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
