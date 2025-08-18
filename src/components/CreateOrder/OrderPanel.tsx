@@ -14,7 +14,7 @@ interface OrderItemDetail {
 }
 
 interface OrderState {
-  [itemId: number]: OrderItemDetail;
+  [itemId: string]: OrderItemDetail;
 }
 
 interface Table {
@@ -28,9 +28,9 @@ interface OrderPanelProps {
   onCustomerNameChange: (name: string) => void;
   generalNotes: string;
   onGeneralNotesChange: (notes: string) => void;
-  onUpdateQuantity: (itemId: number, quantity: number) => void;
-  onRemoveItem: (itemId: number) => void;
-  onUpdateItemNotes: (itemId: number, notes: string) => void;
+  onUpdateQuantity: (itemId: string | number, quantity: number) => void;
+  onRemoveItem: (itemId: string | number) => void;
+  onUpdateItemNotes: (itemId: string | number, notes: string) => void;
   onConfirmOrder: () => void;
   isLoading: boolean;
   selectedTableNumber?: string;
@@ -55,7 +55,7 @@ export default function OrderPanel({
   selectedTableId,
   onTableChange,
 }: OrderPanelProps) {
-  const orderItemsArray = Object.entries(orderItems);
+  const orderItemsArray = Object.entries(orderItems).filter(([, item]) => item.quantity > 0);
   const totalItems = orderItemsArray.reduce((sum, [, item]) => sum + item.quantity, 0);
   const totalPrice = orderItemsArray.reduce(
     (sum, [, item]) => sum + (item.price ?? 0) * item.quantity,
@@ -105,7 +105,7 @@ export default function OrderPanel({
                     </div>
                   </div>
                   <button
-                    onClick={() => onRemoveItem(parseInt(itemId))}
+                    onClick={() => onRemoveItem(itemId)}
                     className="text-red-500 hover:text-red-700 ml-2"
                   >
                     <Trash2 size={14} />
@@ -115,7 +115,7 @@ export default function OrderPanel({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => onUpdateQuantity(parseInt(itemId), item.quantity - 1)}
+                      onClick={() => onUpdateQuantity(itemId, item.quantity - 1)}
                       className="w-7 h-7 rounded bg-gray-200 flex items-center justify-center hover:bg-gray-300"
                     >
                       <Minus size={12} />
@@ -124,7 +124,7 @@ export default function OrderPanel({
                       {item.quantity}
                     </span>
                     <button
-                      onClick={() => onUpdateQuantity(parseInt(itemId), item.quantity + 1)}
+                      onClick={() => onUpdateQuantity(itemId, item.quantity + 1)}
                       className="w-7 h-7 rounded bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700"
                     >
                       <Plus size={12} />
@@ -136,7 +136,7 @@ export default function OrderPanel({
                     <input
                       type="text"
                       value={item.notes}
-                      onChange={(e) => onUpdateItemNotes(parseInt(itemId), e.target.value)}
+                      onChange={(e) => onUpdateItemNotes(itemId, e.target.value)}
                       placeholder="Comentarios..."
                       className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-transparent"
                     />

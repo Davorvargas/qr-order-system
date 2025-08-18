@@ -32,7 +32,7 @@ interface OrderItemDetail {
 }
 
 interface OrderState {
-  [itemId: number]: OrderItemDetail;
+  [itemId: string]: OrderItemDetail;
 }
 
 interface CustomProduct {
@@ -189,11 +189,11 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       // Agregar directo al carrito (comportamiento actual)
       setOrderItems((prev) => ({
         ...prev,
-        [item.id]: {
-          quantity: (prev[item.id]?.quantity || 0) + 1,
+        [item.id.toString()]: {
+          quantity: (prev[item.id.toString()]?.quantity || 0) + 1,
           name: item.name,
           price: item.price,
-          notes: prev[item.id]?.notes || "",
+          notes: prev[item.id.toString()]?.notes || "",
           isCustom: false,
         },
       }));
@@ -202,7 +202,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
 
   // Handler para productos personalizados
   const handleAddCustomProduct = (customProduct: CustomProduct) => {
-    const customId = -customProductCounter; // Usar IDs negativos para productos personalizados
+    const customId = (-customProductCounter).toString(); // Usar IDs negativos para productos personalizados
     setCustomProductCounter((prev) => prev + 1);
 
     setOrderItems((prev) => ({
@@ -309,12 +309,12 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   ) => {
     setOrderItems((prev) => ({
       ...prev,
-      [item.id]: {
-        quantity: (prev[item.id]?.quantity || 0) + quantity,
+      [item.id.toString()]: {
+        quantity: (prev[item.id.toString()]?.quantity || 0) + quantity,
         name: item.name,
         price: item.price,
-        notes: prev[item.id]?.notes
-          ? `${prev[item.id].notes}; ${notes}`
+        notes: prev[item.id.toString()]?.notes
+          ? `${prev[item.id.toString()].notes}; ${notes}`
           : notes,
         isCustom: false,
       },
@@ -322,37 +322,39 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   };
 
   // Handlers para el carrito
-  const handleUpdateQuantity = (itemId: number, newQuantity: number) => {
+  const handleUpdateQuantity = (itemId: string | number, newQuantity: number) => {
     if (newQuantity <= 0) {
       handleRemoveItem(itemId);
     } else {
       setOrderItems((prev) => ({
         ...prev,
-        [itemId]: { ...prev[itemId], quantity: newQuantity },
+        [itemId]: { ...prev[itemId as string], quantity: newQuantity },
       }));
     }
   };
 
-  const handleRemoveItem = (itemId: number) => {
+  const handleRemoveItem = (itemId: string | number) => {
     setOrderItems((prev) => {
       const newOrder = { ...prev };
-      delete newOrder[itemId];
+      delete newOrder[itemId as string];
       return newOrder;
     });
   };
 
-  const handleUpdateItemNotes = (itemId: number, notes: string) => {
+  const handleUpdateItemNotes = (itemId: string | number, notes: string) => {
     setOrderItems((prev) => ({
       ...prev,
-      [itemId]: { ...prev[itemId], notes },
+      [itemId]: { ...prev[itemId as string], notes },
     }));
   };
 
   // Calcular total
   const totalPrice = useMemo(() => {
-    return Object.values(orderItems).reduce((sum, item) => {
-      return sum + (item.price ?? 0) * item.quantity;
-    }, 0);
+    return Object.values(orderItems)
+      .filter(item => item.quantity > 0)
+      .reduce((sum, item) => {
+        return sum + (item.price ?? 0) * item.quantity;
+      }, 0);
   }, [orderItems]);
 
   // Confirmar pedido
