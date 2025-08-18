@@ -111,9 +111,7 @@ export default function FloatingConfirmation({
               onClose();
             }, 300);
           }}
-          className="text-white/80 hover:text-white hover:bg-white/10 
-                     transition-all duration-200 p-1 rounded-full relative z-10
-                     hover:scale-110"
+          className="text-white/80 hover:text-white hover:bg-white/10 transition-all duration-200 p-1 rounded-full relative z-10 hover:scale-110"
           aria-label="Cerrar notificación"
         >
           <X size={14} strokeWidth={2.5} />

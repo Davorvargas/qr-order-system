@@ -8,9 +8,13 @@ interface OrderItemDetail {
   name: string;
   price: number | null;
   notes: string;
+  isCustom?: boolean;
+  originalItemId?: number;
+  selectedModifiers?: Record<string, string[]>;
+  modifierDetails?: string;
 }
 interface OrderState {
-  [itemId: number]: OrderItemDetail;
+  [itemId: string]: OrderItemDetail;
 }
 
 interface FloatingCartProps {
