@@ -20,8 +20,8 @@ interface OrderSummaryModalProps {
   setCustomerName: (name: string) => void;
   notes: string;
   setNotes: (notes: string) => void;
-  onUpdateQuantity: (itemId: number, newQuantity: number) => void;
-  onRemoveItem: (itemId: number) => void;
+  onUpdateQuantity: (itemId: string | number, newQuantity: number) => void;
+  onRemoveItem: (itemId: string | number) => void;
   onSubmit: () => void;
   isLoading: boolean;
 }
@@ -94,10 +94,9 @@ export default function OrderSummaryModal({
 
           {/* Order Items */}
           <ul className="space-y-3">
-            {itemEntries.map(([itemId, itemDetail]) => {
-              const id = parseInt(itemId, 10);
+            {itemEntries.filter(([itemId, itemDetail]) => itemDetail.quantity > 0).map(([itemId, itemDetail]) => {
               return (
-                <li key={id} className="flex items-center justify-between">
+                <li key={itemId} className="flex items-center justify-between">
                   <div className="flex-grow">
                     <p className="font-semibold">{itemDetail.name}</p>
                     {itemDetail.notes && itemDetail.notes.trim() !== "" && (
@@ -112,7 +111,7 @@ export default function OrderSummaryModal({
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() =>
-                        onUpdateQuantity(id, itemDetail.quantity - 1)
+                        onUpdateQuantity(itemId, itemDetail.quantity - 1)
                       }
                       className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
                     >
@@ -123,14 +122,14 @@ export default function OrderSummaryModal({
                     </span>
                     <button
                       onClick={() =>
-                        onUpdateQuantity(id, itemDetail.quantity + 1)
+                        onUpdateQuantity(itemId, itemDetail.quantity + 1)
                       }
                       className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
                     >
                       +
                     </button>
                     <button
-                      onClick={() => onRemoveItem(id)}
+                      onClick={() => onRemoveItem(itemId)}
                       className="text-red-500 hover:text-red-700 ml-2"
                     >
                       <TrashIcon />

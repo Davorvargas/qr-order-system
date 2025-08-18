@@ -23,7 +23,7 @@ export default function FloatingCart({
   onClick,
 }: FloatingCartProps) {
   const { totalItems, totalPrice } = useMemo(() => {
-    const items = Object.values(orderItems);
+    const items = Object.values(orderItems).filter(item => item.quantity > 0);
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
     const totalPrice = items.reduce(
       (sum, item) => sum + (item.price ?? 0) * item.quantity,

@@ -82,9 +82,11 @@ export default function OrderForm({
   }, [items]);
 
   const totalPrice = useMemo(() => {
-    return Object.values(orderItems).reduce((sum, item) => {
-      return sum + (item.price ?? 0) * item.quantity;
-    }, 0);
+    return Object.values(orderItems)
+      .filter(item => item.quantity > 0)
+      .reduce((sum, item) => {
+        return sum + (item.price ?? 0) * item.quantity;
+      }, 0);
   }, [orderItems]);
 
   // Verificar si un producto tiene modificadores
@@ -212,7 +214,7 @@ export default function OrderForm({
     }));
   };
 
-  const handleUpdateQuantity = (itemId: number, newQuantity: number) => {
+  const handleUpdateQuantity = (itemId: string | number, newQuantity: number) => {
     if (newQuantity <= 0) {
       handleRemoveItem(itemId);
     } else {
@@ -223,7 +225,7 @@ export default function OrderForm({
     }
   };
 
-  const handleRemoveItem = (itemId: number) => {
+  const handleRemoveItem = (itemId: string | number) => {
     setOrderItems((prev) => {
       const newOrder = { ...prev };
       delete newOrder[itemId];
@@ -240,36 +242,38 @@ export default function OrderForm({
       customer_name: customerName.trim(),
       total_price: totalPrice,
       notes, // Usar la nota global real
-      order_items: Object.entries(orderItems).map(([itemId, details]) => {
-        console.log(`🔍 OrderForm: Processing item ${itemId}:`, {
-          name: details.name,
-          hasSelectedModifiers: !!details.selectedModifiers,
-          selectedModifiers: details.selectedModifiers,
-          isStringId: typeof itemId === "string",
-          notes: details.notes,
-        });
+      order_items: Object.entries(orderItems)
+        .filter(([itemId, details]) => details.quantity > 0)
+        .map(([itemId, details]) => {
+          console.log(`🔍 OrderForm: Processing item ${itemId}:`, {
+            name: details.name,
+            hasSelectedModifiers: !!details.selectedModifiers,
+            selectedModifiers: details.selectedModifiers,
+            isStringId: typeof itemId === "string",
+            notes: details.notes,
+          });
 
-        // Handle items with modifiers (these have string IDs)
-        if (typeof itemId === "string" && itemId.includes("_")) {
+          // Handle items with modifiers (these have string IDs)
+          if (typeof itemId === "string" && itemId.includes("_")) {
+            return {
+              menu_item_id: parseInt(itemId.split("_")[0], 10),
+              quantity: details.quantity,
+              price_at_order: details.price,
+              notes: details.selectedModifiers
+                ? JSON.stringify({
+                    selectedModifiers: details.selectedModifiers,
+                    original_notes: details.notes.trim() || "",
+                  })
+                : details.notes,
+            };
+          }
+          // Handle regular items
           return {
-            menu_item_id: parseInt(itemId.split("_")[0], 10),
+            menu_item_id: parseInt(itemId, 10),
             quantity: details.quantity,
             price_at_order: details.price,
-            notes: details.selectedModifiers
-              ? JSON.stringify({
-                  selectedModifiers: details.selectedModifiers,
-                  original_notes: details.notes.trim() || "",
-                })
-              : details.notes,
+            notes: details.notes,
           };
-        }
-        // Handle regular items
-        return {
-          menu_item_id: parseInt(itemId, 10),
-          quantity: details.quantity,
-          price_at_order: details.price,
-          notes: details.notes,
-        };
       }),
     };
 
