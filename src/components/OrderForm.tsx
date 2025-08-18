@@ -28,7 +28,7 @@ interface OrderItemDetail {
   modifierDetails?: string;
 }
 interface OrderState {
-  [itemId: number]: OrderItemDetail;
+  [itemId: string]: OrderItemDetail;
 }
 interface OrderFormProps {
   categories: Category[];
@@ -71,19 +71,15 @@ export default function OrderForm({
       }
     });
 
-    // Ordenar items dentro de cada categoría por display_order
-    Object.keys(grouped).forEach((categoryId) => {
-      grouped[parseInt(categoryId)].sort(
-        (a, b) => (a.display_order || 0) - (b.display_order || 0)
-      );
-    });
+    // Items are ordered by their natural order in the database
+    // display_order sorting removed as it's not available in MenuItem type
 
     return grouped;
   }, [items]);
 
   const totalPrice = useMemo(() => {
     return Object.values(orderItems)
-      .filter(item => item.quantity > 0)
+      .filter((item) => item.quantity > 0)
       .reduce((sum, item) => {
         return sum + (item.price ?? 0) * item.quantity;
       }, 0);
@@ -148,11 +144,11 @@ export default function OrderForm({
       // Agregar directo al carrito
       setOrderItems((prev) => ({
         ...prev,
-        [itemToAdd.id]: {
-          quantity: (prev[itemToAdd.id]?.quantity || 0) + 1,
+        [itemToAdd.id.toString()]: {
+          quantity: (prev[itemToAdd.id.toString()]?.quantity || 0) + 1,
           name: itemToAdd.name,
           price: itemToAdd.price,
-          notes: prev[itemToAdd.id]?.notes || "", // Preservar notas existentes si se vuelve a añadir
+          notes: prev[itemToAdd.id.toString()]?.notes || "", // Preservar notas existentes si se vuelve a añadir
         },
       }));
     }
@@ -165,13 +161,13 @@ export default function OrderForm({
   ) => {
     setOrderItems((prev) => ({
       ...prev,
-      [item.id]: {
-        quantity: (prev[item.id]?.quantity || 0) + quantity,
+      [item.id.toString()]: {
+        quantity: (prev[item.id.toString()]?.quantity || 0) + quantity,
         name: item.name,
         price: item.price,
         // Concatenamos las notas si el ítem ya estaba en el carrito
-        notes: prev[item.id]?.notes
-          ? `${prev[item.id].notes}; ${notes}`
+        notes: prev[item.id.toString()]?.notes
+          ? `${prev[item.id.toString()].notes}; ${notes}`
           : notes,
       },
     }));
@@ -183,13 +179,14 @@ export default function OrderForm({
     quantity: number,
     notes: string,
     selectedModifiers: Record<string, string[]>,
-    totalPrice: number
+    totalPrice: number,
+    existingItemId?: number
   ) => {
     // Crear un ID único para este item con modificadores
     const modifierHash = JSON.stringify(selectedModifiers);
     const uniqueId = `${item.id}_${Date.now()}_${Math.random()
       .toString(36)
-      .substr(2, 9)}`;
+      .substring(2, 11)}`;
 
     console.log("🔍 OrderForm: Adding item with modifiers:", {
       itemId: item.id,
@@ -214,13 +211,16 @@ export default function OrderForm({
     }));
   };
 
-  const handleUpdateQuantity = (itemId: string | number, newQuantity: number) => {
+  const handleUpdateQuantity = (
+    itemId: string | number,
+    newQuantity: number
+  ) => {
     if (newQuantity <= 0) {
       handleRemoveItem(itemId);
     } else {
       setOrderItems((prev) => ({
         ...prev,
-        [itemId]: { ...prev[itemId], quantity: newQuantity },
+        [itemId]: { ...prev[itemId as string], quantity: newQuantity },
       }));
     }
   };
@@ -228,7 +228,7 @@ export default function OrderForm({
   const handleRemoveItem = (itemId: string | number) => {
     setOrderItems((prev) => {
       const newOrder = { ...prev };
-      delete newOrder[itemId];
+      delete newOrder[itemId as string];
       return newOrder;
     });
   };
@@ -274,7 +274,7 @@ export default function OrderForm({
             price_at_order: details.price,
             notes: details.notes,
           };
-      }),
+        }),
     };
 
     console.log(
@@ -285,16 +285,19 @@ export default function OrderForm({
     try {
       console.log("🔍 Attempting to call public API route...");
       // Try the public API route first (for unauthenticated users)
-      const response = await fetch('/api/place-order-public', {
-        method: 'POST',
+      const response = await fetch("/api/place-order-public", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
 
       const result = await response.json();
-      console.log("📡 Public API response:", { status: response.status, result });
+      console.log("📡 Public API response:", {
+        status: response.status,
+        result,
+      });
 
       if (!response.ok) {
         console.log("⚠️ Public API failed, trying authenticated function...");
@@ -304,7 +307,10 @@ export default function OrderForm({
             body: payload,
           });
 
-        console.log("📡 Authenticated function response:", { authData, authError });
+        console.log("📡 Authenticated function response:", {
+          authData,
+          authError,
+        });
 
         if (authError) {
           setSubmitError(authError.message);
@@ -356,9 +362,7 @@ export default function OrderForm({
                           ? "cursor-pointer hover:bg-gray-50"
                           : "cursor-not-allowed"
                       }`}
-                      onClick={() =>
-                        item.is_available && handleItemClick(item)
-                      }
+                      onClick={() => item.is_available && handleItemClick(item)}
                     >
                       <div className="flex-grow">
                         <h3 className="text-base font-semibold text-gray-900">
@@ -401,9 +405,7 @@ export default function OrderForm({
                           ? "cursor-pointer hover:bg-gray-50"
                           : "cursor-not-allowed"
                       }`}
-                      onClick={() =>
-                        item.is_available && handleItemClick(item)
-                      }
+                      onClick={() => item.is_available && handleItemClick(item)}
                     >
                       <div className="flex-grow">
                         <h3 className="text-base font-semibold text-gray-900">
