@@ -117,6 +117,13 @@ export default function OrderForm({
         return false;
       }
 
+      // Verificar que la respuesta sea JSON válida
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn("API response is not JSON, falling back to simple mode");
+        return false;
+      }
+
       const result = await response.json();
       return result.success && result.data && result.data.length > 0;
     } catch (error) {

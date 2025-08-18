@@ -69,13 +69,25 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   // Estado para confirmación flotante
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
+  const [confirmationType, setConfirmationType] = useState<'success' | 'info' | 'warning'>('success');
   
-  // Helper para mostrar confirmación
+  // Helper para mostrar confirmación de items agregados
   const showItemAddedConfirmation = (itemName: string, quantity: number = 1) => {
     const message = quantity === 1 
       ? `✓ ${itemName} agregado al carrito`
       : `✓ ${quantity}x ${itemName} agregado al carrito`;
     setConfirmationMessage(message);
+    setConfirmationType('success');
+    setShowConfirmation(true);
+  };
+  
+  // Helper para mostrar confirmación de orden enviada
+  const showOrderSentConfirmation = (customerName: string, tableNumber?: string) => {
+    const message = tableNumber 
+      ? `✅ Orden para ${customerName} (Mesa ${tableNumber}) enviada exitosamente`
+      : `✅ Orden para ${customerName} enviada exitosamente`;
+    setConfirmationMessage(message);
+    setConfirmationType('success');
     setShowConfirmation(true);
   };
 
@@ -161,6 +173,19 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const checkHasModifiers = async (item: MenuItem): Promise<boolean> => {
     try {
       const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
+      
+      if (!response.ok) {
+        console.warn("Modifiers API not available, falling back to simple mode");
+        return false;
+      }
+
+      // Verificar que la respuesta sea JSON válida
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn("API response is not JSON, falling back to simple mode");
+        return false;
+      }
+
       const result = await response.json();
       return result.success && result.data && result.data.length > 0;
     } catch (error) {
@@ -541,8 +566,11 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           `Error del servidor: ${error.message || "Error desconocido"}`
         );
       } else {
-        // Mostrar mensaje de éxito sin usar alert para evitar problemas de sonido
+        // Mostrar mensaje de éxito
         console.log("✅ Orden enviada exitosamente");
+
+        // Mostrar confirmación flotante
+        showOrderSentConfirmation(customerName, selectedTableNumber);
 
         // Limpiar formulario
         setOrderItems({});
@@ -550,9 +578,8 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         setGeneralNotes("");
         setSearchTerm("");
 
-        // Mostrar notificación visual en lugar de alert
-        setSubmitError(""); // Limpiar errores previos
-        // Nota: Aquí podrías implementar un toast notification si lo deseas
+        // Limpiar errores previos
+        setSubmitError("");
       }
     } catch (error) {
       console.error("Catch block error:", error);
@@ -697,8 +724,8 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isVisible={showConfirmation}
         message={confirmationMessage}
         onClose={() => setShowConfirmation(false)}
-        type="success"
-        duration={2500}
+        type={confirmationType}
+        duration={3000}
       />
     </div>
   );
