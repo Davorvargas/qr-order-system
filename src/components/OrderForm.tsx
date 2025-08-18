@@ -8,6 +8,7 @@ import FloatingCart from "./FloatingCart";
 import OrderSummaryModal from "./OrderSummaryModal";
 import MenuItemDetailModal from "./MenuItemDetailModal";
 import ProductModalWithModifiers from "./ProductModalWithModifiers";
+import FloatingConfirmation from "./FloatingConfirmation";
 import { Plus } from "lucide-react"; // Importar el icono Plus
 import type { MenuItem } from "@/types/MenuItem";
 
@@ -60,6 +61,19 @@ export default function OrderForm({
   const [selectedItemWithModifiers, setSelectedItemWithModifiers] =
     useState<MenuItem | null>(null);
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
+  
+  // Estado para confirmación flotante
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  
+  // Helper para mostrar confirmación
+  const showItemAddedConfirmation = (itemName: string, quantity: number = 1) => {
+    const message = quantity === 1 
+      ? `✓ ${itemName} agregado al carrito`
+      : `✓ ${quantity}x ${itemName} agregado al carrito`;
+    setConfirmationMessage(message);
+    setShowConfirmation(true);
+  };
 
   // --- MEMOS & HELPER FUNCTIONS ---
   const itemsByCategory = useMemo(() => {
@@ -151,6 +165,9 @@ export default function OrderForm({
           notes: prev[itemToAdd.id.toString()]?.notes || "", // Preservar notas existentes si se vuelve a añadir
         },
       }));
+      
+      // Mostrar confirmación
+      showItemAddedConfirmation(itemToAdd.name);
     }
   };
 
@@ -171,6 +188,9 @@ export default function OrderForm({
           : notes,
       },
     }));
+    
+    // Mostrar confirmación
+    showItemAddedConfirmation(item.name, quantity);
   };
 
   // Handler para productos con modificadores
@@ -209,6 +229,9 @@ export default function OrderForm({
         modifierDetails: modifierHash,
       },
     }));
+    
+    // Mostrar confirmación
+    showItemAddedConfirmation(item.name, quantity);
   };
 
   const handleUpdateQuantity = (
@@ -482,6 +505,15 @@ export default function OrderForm({
         }}
         item={selectedItemWithModifiers}
         onAddToCart={handleAddToCartWithModifiers}
+      />
+      
+      {/* Confirmación flotante */}
+      <FloatingConfirmation
+        isVisible={showConfirmation}
+        message={confirmationMessage}
+        onClose={() => setShowConfirmation(false)}
+        type="success"
+        duration={2500}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import OrderPanel from "./OrderPanel";
 import MenuItemDetailModal from "../MenuItemDetailModal";
 import CustomProductModal from "../CustomProductModal";
 import ProductModalWithModifiers from "../ProductModalWithModifiers";
+import FloatingConfirmation from "../FloatingConfirmation";
 import type { MenuItem } from "@/types/MenuItem";
 
 interface Category {
@@ -64,6 +65,19 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const [selectedItemWithModifiers, setSelectedItemWithModifiers] =
     useState<MenuItem | null>(null);
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
+  
+  // Estado para confirmación flotante
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState("");
+  
+  // Helper para mostrar confirmación
+  const showItemAddedConfirmation = (itemName: string, quantity: number = 1) => {
+    const message = quantity === 1 
+      ? `✓ ${itemName} agregado al carrito`
+      : `✓ ${quantity}x ${itemName} agregado al carrito`;
+    setConfirmationMessage(message);
+    setShowConfirmation(true);
+  };
 
   // Modal de producto personalizado
   const [isCustomProductModalOpen, setIsCustomProductModalOpen] =
@@ -197,6 +211,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           isCustom: false,
         },
       }));
+      
+      // Mostrar confirmación
+      showItemAddedConfirmation(item.name);
     }
   };
 
@@ -215,6 +232,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isCustom: true,
       },
     }));
+    
+    // Mostrar confirmación
+    showItemAddedConfirmation(customProduct.name);
   };
 
   const handleItemClick = async (item: MenuItem) => {
@@ -300,6 +320,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         };
       }
     });
+    
+    // Mostrar confirmación
+    showItemAddedConfirmation(item.name, quantity);
   };
 
   const handleAddToCartFromModal = (
@@ -319,6 +342,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isCustom: false,
       },
     }));
+    
+    // Mostrar confirmación
+    showItemAddedConfirmation(item.name, quantity);
   };
 
   // Handlers para el carrito
@@ -664,6 +690,15 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         }}
         item={selectedItemWithModifiers}
         onAddToCart={handleAddToCartWithModifiers}
+      />
+      
+      {/* Confirmación flotante */}
+      <FloatingConfirmation
+        isVisible={showConfirmation}
+        message={confirmationMessage}
+        onClose={() => setShowConfirmation(false)}
+        type="success"
+        duration={2500}
       />
     </div>
   );
