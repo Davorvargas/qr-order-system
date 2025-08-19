@@ -14,6 +14,7 @@ interface PublicOrderPayload {
     menu_item_id: number | null;
     quantity: number;
     price_at_order: number;
+    cost_at_order?: number;
     notes: string | null;
   }[];
 }
@@ -109,13 +110,37 @@ Deno.serve(async (req) => {
 
     // 4. Crear los items del pedido
     console.log('📝 Creating order items...')
-    const orderItemsData = order_items.map(item => ({
-      order_id: orderId,
-      menu_item_id: item.menu_item_id,
-      quantity: item.quantity,
-      price_at_order: item.price_at_order,
-      notes: item.notes
-    }))
+    const orderItemsData: any[] = []
+    for (const item of order_items) {
+      if (item.menu_item_id === null) {
+        orderItemsData.push({
+          order_id: orderId,
+          menu_item_id: null,
+          quantity: item.quantity,
+          price_at_order: item.price_at_order,
+          cost_at_order: 0,
+          notes: item.notes
+        })
+      } else {
+        // fetch current cost snapshot
+        let costAtOrder = 0
+        const { data: costRow, error: costError } = await supabaseClient
+          .from('menu_items')
+          .select('cost')
+          .eq('id', item.menu_item_id)
+          .single()
+        if (!costError) costAtOrder = Number(costRow?.cost) || 0
+
+        orderItemsData.push({
+          order_id: orderId,
+          menu_item_id: item.menu_item_id,
+          quantity: item.quantity,
+          price_at_order: item.price_at_order,
+          cost_at_order: costAtOrder,
+          notes: item.notes
+        })
+      }
+    }
 
     const { error: itemsError } = await supabaseClient
       .from('order_items')

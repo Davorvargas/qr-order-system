@@ -4,7 +4,13 @@
 import { useState, useMemo, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import Image from "next/image";
-import { ChevronDown, PlusCircle, Settings, Trash2, Sliders } from "lucide-react";
+import {
+  ChevronDown,
+  PlusCircle,
+  Settings,
+  Trash2,
+  Sliders,
+} from "lucide-react";
 import MenuItemFormModal from "./MenuItemFormModal";
 import ModifierManager from "./ModifierManager";
 
@@ -41,22 +47,27 @@ export default function MenuManager({
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
-  
+
   // Estados para el gestor de modificadores
   const [isModifierManagerOpen, setIsModifierManagerOpen] = useState(false);
-  const [selectedItemForModifiers, setSelectedItemForModifiers] = useState<MenuItem | null>(null);
-  const [itemsWithModifiers, setItemsWithModifiers] = useState<Set<number>>(new Set());
+  const [selectedItemForModifiers, setSelectedItemForModifiers] =
+    useState<MenuItem | null>(null);
+  const [itemsWithModifiers, setItemsWithModifiers] = useState<Set<number>>(
+    new Set()
+  );
 
   // Get current user's restaurant_id
   useEffect(() => {
     const fetchRestaurantId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('restaurant_id')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("restaurant_id")
+        .eq("id", user.id)
         .single();
 
       if (profile?.restaurant_id) {
@@ -68,20 +79,45 @@ export default function MenuManager({
     fetchRestaurantId();
   }, [supabase]);
 
-  // Función para obtener qué productos tienen modificadores
+  // Función para obtener qué productos tienen modificadores (solo grupos con opciones activas)
   const fetchItemsWithModifiers = async (restaurantId: string) => {
     try {
-      const { data: modifierGroups } = await supabase
-        .from('modifier_groups')
-        .select('menu_item_id')
-        .eq('restaurant_id', restaurantId);
+      // Traer grupos con sus modifiers y considerar que sólo mostramos chip si existe al menos 1 opción
+      const { data, error } = await supabase
+        .from("modifier_groups")
+        .select(
+          `
+          menu_item_id,
+          name,
+          modifiers ( id )
+        `
+        )
+        .eq("restaurant_id", restaurantId);
 
-      if (modifierGroups) {
-        const itemIds = new Set(modifierGroups.map(group => group.menu_item_id));
-        setItemsWithModifiers(itemIds);
+      if (error) {
+        console.error("Error fetching items with modifiers:", error);
+        return;
       }
+
+      const itemIds = new Set<number>();
+      (data || []).forEach((group: any) => {
+        const hasActiveModifiers =
+          Array.isArray(group?.modifiers) && group.modifiers.length > 0;
+        const name: string = String(group?.name ?? "");
+        const isArchivedByName =
+          name.startsWith("[ARCHIVED_") || name.startsWith("ARCHIVED_");
+        if (
+          !isArchivedByName &&
+          hasActiveModifiers &&
+          typeof group.menu_item_id === "number"
+        ) {
+          itemIds.add(group.menu_item_id);
+        }
+      });
+
+      setItemsWithModifiers(itemIds);
     } catch (error) {
-      console.error('Error fetching items with modifiers:', error);
+      console.error("Error fetching items with modifiers:", error);
     }
   };
 
@@ -128,7 +164,7 @@ export default function MenuManager({
       alert("Error: No se pudo verificar el restaurante");
       return;
     }
-    
+
     const newStatus = !category.is_available;
     const { error } = await supabase
       .from("menu_categories")
@@ -450,7 +486,7 @@ export default function MenuManager({
           restaurantId={restaurantId}
         />
       )}
-      
+
       {/* Modal de gestión de modificadores */}
       {selectedItemForModifiers && restaurantId && (
         <ModifierManager

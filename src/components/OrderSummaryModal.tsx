@@ -6,6 +6,7 @@ interface OrderItemDetail {
   name: string;
   price: number | null;
   notes?: string; // Added notes to the interface
+  selectedModifiers?: Record<string, string[]>; // Grupos -> opciones elegidas
 }
 interface OrderState {
   [itemId: number]: OrderItemDetail;
@@ -94,50 +95,74 @@ export default function OrderSummaryModal({
 
           {/* Order Items */}
           <ul className="space-y-3">
-            {itemEntries.filter(([itemId, itemDetail]) => itemDetail.quantity > 0).map(([itemId, itemDetail]) => {
-              return (
-                <li key={itemId} className="flex items-center justify-between">
-                  <div className="flex-grow">
-                    <p className="font-semibold">{itemDetail.name}</p>
-                    {itemDetail.notes && itemDetail.notes.trim() !== "" && (
-                      <p className="text-xs text-gray-700 mt-1 ml-1 whitespace-pre-wrap">
-                        &#x1F4AC; {itemDetail.notes}
+            {itemEntries
+              .filter(([itemId, itemDetail]) => itemDetail.quantity > 0)
+              .map(([itemId, itemDetail]) => {
+                return (
+                  <li
+                    key={itemId}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex-grow">
+                      <p className="font-semibold">{itemDetail.name}</p>
+                      {/* Modificadores seleccionados (si existen) */}
+                      {itemDetail.selectedModifiers && (
+                        <div className="mt-1 ml-1 space-y-0.5">
+                          {Object.entries(itemDetail.selectedModifiers).map(
+                            ([groupName, options]) => (
+                              <p
+                                key={groupName}
+                                className="text-xs text-gray-600"
+                              >
+                                <span className="font-medium text-gray-700">
+                                  {groupName}:
+                                </span>{" "}
+                                {options.join(", ")}
+                              </p>
+                            )
+                          )}
+                        </div>
+                      )}
+                      {/* Notas */}
+                      {itemDetail.notes && itemDetail.notes.trim() !== "" && (
+                        <p className="text-xs text-gray-700 mt-1 ml-1 whitespace-pre-wrap">
+                          &#x1F4AC; {itemDetail.notes}
+                        </p>
+                      )}
+                      <p className="text-sm text-gray-800">
+                        Bs {(itemDetail.price ?? 0).toFixed(2)}
                       </p>
-                    )}
-                    <p className="text-sm text-gray-800">
-                      Bs {(itemDetail.price ?? 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() =>
-                        onUpdateQuantity(itemId, itemDetail.quantity - 1)
-                      }
-                      className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
-                    >
-                      -
-                    </button>
-                    <span className="w-4 text-center">
-                      {itemDetail.quantity}
-                    </span>
-                    <button
-                      onClick={() =>
-                        onUpdateQuantity(itemId, itemDetail.quantity + 1)
-                      }
-                      className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => onRemoveItem(itemId)}
-                      className="text-red-500 hover:text-red-700 ml-2"
-                    >
-                      <TrashIcon />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() =>
+                          onUpdateQuantity(itemId, itemDetail.quantity - 1)
+                        }
+                        className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
+                      >
+                        -
+                      </button>
+                      <span className="w-4 text-center">
+                        {itemDetail.quantity}
+                      </span>
+                      <button
+                        onClick={() =>
+                          onUpdateQuantity(itemId, itemDetail.quantity + 1)
+                        }
+                        className="border rounded-full w-7 h-7 flex items-center justify-center font-bold text-lg"
+                      >
+                        +
+                      </button>
+                      <button
+                        onClick={() => onRemoveItem(itemId)}
+                        className="text-red-500 hover:text-red-700 ml-2"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
           </ul>
 
           {/* Order Notes */}

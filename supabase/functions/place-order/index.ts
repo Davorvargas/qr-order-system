@@ -14,6 +14,7 @@ interface OrderPayload {
     menu_item_id: number | null; // Allow null for custom products
     quantity: number;
     price_at_order: number;
+    cost_at_order?: number;
     notes: string | null;
   }[];
 }
@@ -189,6 +190,7 @@ Deno.serve(async (req) => {
           menu_item_id: null, // Keep null for custom products
           quantity: item.quantity,
           price_at_order: item.price_at_order,
+          cost_at_order: 0,
           notes: JSON.stringify({
             type: 'custom_product',
             name: customProductName,
@@ -196,12 +198,25 @@ Deno.serve(async (req) => {
           })
         })
       } else {
-        // Regular menu item
+        // Regular menu item: fetch current cost and store snapshot
+        let costAtOrder = 0
+        const { data: costRow, error: costError } = await supabaseClient
+          .from('menu_items')
+          .select('cost')
+          .eq('id', item.menu_item_id)
+          .single()
+        if (costError) {
+          console.log('⚠️ Could not fetch cost, defaulting to 0:', costError)
+        } else {
+          costAtOrder = Number(costRow?.cost) || 0
+        }
+
         itemsToInsert.push({
           order_id: orderId,
           menu_item_id: item.menu_item_id,
           quantity: item.quantity,
           price_at_order: item.price_at_order,
+          cost_at_order: costAtOrder,
           notes: item.notes ?? null,
         })
       }

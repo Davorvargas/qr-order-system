@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     console.log('🔍 Looking for modifier groups for restaurant:', menuItem.restaurant_id);
     
     // Obtener grupos de modificadores con sus opciones (acceso público)
+    // Excluir grupos archivados para mantener consistencia con API privada
     const { data: modifierGroups, error } = await supabase
       .from('modifier_groups')
       .select(`
@@ -65,6 +66,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('menu_item_id', parseInt(menuItemId))
       .eq('restaurant_id', menuItem.restaurant_id)
+      .not('name', 'like', '[ARCHIVED_%')
       .order('display_order')
       .order('display_order', { foreignTable: 'modifiers' });
 
