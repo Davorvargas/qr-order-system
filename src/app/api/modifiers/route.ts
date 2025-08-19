@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Fetching modifiers for:', { menuItemId, restaurantId: profile.restaurant_id, userRole: profile.role });
 
-    // Obtener grupos de modificadores con sus opciones
+    // Obtener solo grupos de modificadores activos (excluir los archivados por nombre)
     const { data: modifierGroups, error } = await supabase
       .from('modifier_groups')
       .select(`
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       `)
       .eq('menu_item_id', parseInt(menuItemId))
       .eq('restaurant_id', profile.restaurant_id)
+      .not('name', 'like', '[ARCHIVED_%')
       .order('display_order')
       .order('display_order', { foreignTable: 'modifiers' });
 
@@ -174,26 +175,50 @@ export async function POST(request: NextRequest) {
     const serviceSupabase = createServiceClient();
     console.log('Service client created successfully');
 
-    // Eliminar grupos existentes (y sus modificadores por cascada)
-    console.log('Deleting existing modifier groups for:', { menuItemId, restaurantId: profile.restaurant_id });
-    const { error: deleteError } = await serviceSupabase
+    // Archivar grupos existentes usando prefijo de nombre (preserva integridad referencial)
+    console.log('Archiving existing modifier groups for:', { menuItemId, restaurantId: profile.restaurant_id });
+    
+    // Obtener grupos existentes que no están ya archivados
+    const { data: existingGroups, error: fetchError } = await serviceSupabase
       .from('modifier_groups')
-      .delete()
+      .select('id, name')
       .eq('menu_item_id', menuItemId)
-      .eq('restaurant_id', profile.restaurant_id);
+      .eq('restaurant_id', profile.restaurant_id)
+      .not('name', 'like', '[ARCHIVED_%');
 
-    if (deleteError) {
-      console.error('Error deleting existing modifier groups:', deleteError);
-      console.error('Delete error details:', JSON.stringify(deleteError, null, 2));
+    if (fetchError) {
+      console.error('Error fetching existing groups for archiving:', fetchError);
       return NextResponse.json(
-        { error: 'Failed to delete existing modifier groups', details: deleteError.message },
+        { error: 'Failed to fetch existing modifier groups', details: fetchError.message },
         { status: 500 }
       );
     }
-    
-    console.log('Successfully deleted existing modifier groups');
 
-    console.log('Deleted existing modifier groups, creating new ones...');
+    if (existingGroups && existingGroups.length > 0) {
+      const archiveDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Archivar cada grupo agregando prefijo al nombre
+      for (const group of existingGroups) {
+        const archivedName = `[ARCHIVED_${archiveDate}] ${group.name}`;
+        const { error: archiveError } = await serviceSupabase
+          .from('modifier_groups')
+          .update({ name: archivedName })
+          .eq('id', group.id);
+
+        if (archiveError) {
+          console.error('Error archiving group:', group.id, archiveError);
+          return NextResponse.json(
+            { error: 'Failed to archive existing modifier groups', details: archiveError.message },
+            { status: 500 }
+          );
+        }
+        
+        console.log(`Successfully archived group: ${group.name} -> ${archivedName}`);
+      }
+    }
+    
+    console.log('Successfully archived existing modifier groups');
+    console.log('Archived existing modifier groups, creating new ones...');
 
     // Crear nuevos grupos y modificadores
     for (const group of groups) {
