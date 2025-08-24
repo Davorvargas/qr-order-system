@@ -114,7 +114,6 @@ export default function DashboardContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
   const refreshAnalytics = async () => {
     setLoading(true);
     try {
@@ -162,7 +161,6 @@ export default function DashboardContent({
 
   // Para comparar con ayer, necesitaríamos datos adicionales (por ahora usamos 0)
   const mostOrderedChange = 0; // Placeholder - necesitaríamos datos de ayer para calcular
-
 
   return (
     <div className="space-y-4">
@@ -255,14 +253,13 @@ export default function DashboardContent({
             <div className="text-right">
               <p className="text-sm text-gray-500">Más pedido hoy</p>
               <p className="text-2xl font-bold text-gray-900">
-                {mostOrderedToday ? 
-                  `${mostOrderedToday.name}` : 
-                  "Sin datos"
-                }
+                {mostOrderedToday ? `${mostOrderedToday.name}` : "Sin datos"}
               </p>
               <div className="flex items-center justify-end mt-1">
                 <span className="text-sm text-gray-400">
-                  {mostOrderedToday ? `${mostOrderedToday.quantity} pedidos` : ""}
+                  {mostOrderedToday
+                    ? `${mostOrderedToday.quantity} pedidos`
+                    : ""}
                 </span>
               </div>
             </div>
@@ -294,10 +291,7 @@ export default function DashboardContent({
           {analytics?.weekly_data && analytics.weekly_data.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart
-                data={(() => {
-                  const chartData = [...analytics.weekly_data].reverse();
-                    return chartData;
-                })()}
+                data={analytics.weekly_data}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -309,13 +303,13 @@ export default function DashboardContent({
                   tickFormatter={(value) => {
                     const cleanDay = value?.toString().trim();
                     const dayMap: Record<string, string> = {
-                      'Monday': 'Lun',
-                      'Tuesday': 'Mar',
-                      'Wednesday': 'Mié',
-                      'Thursday': 'Jue',
-                      'Friday': 'Vie',
-                      'Saturday': 'Sáb',
-                      'Sunday': 'Dom',
+                      Monday: "Lun",
+                      Tuesday: "Mar",
+                      Wednesday: "Mié",
+                      Thursday: "Jue",
+                      Friday: "Vie",
+                      Saturday: "Sáb",
+                      Sunday: "Dom",
                     };
                     return dayMap[cleanDay] || cleanDay?.substring(0, 3) || "";
                   }}
@@ -324,8 +318,9 @@ export default function DashboardContent({
                 <Tooltip
                   cursor={{ stroke: "#000", strokeWidth: 1 }}
                   content={({ active, payload, label }) => {
-                    if (!active || !payload || payload.length === 0) return null;
-                    
+                    if (!active || !payload || payload.length === 0)
+                      return null;
+
                     const data = payload[0]?.payload;
                     if (!data) return null;
 
@@ -334,13 +329,13 @@ export default function DashboardContent({
                     const profit = revenue - cost;
 
                     const dayMap: Record<string, string> = {
-                      'Monday': 'Lunes',
-                      'Tuesday': 'Martes',
-                      'Wednesday': 'Miércoles',
-                      'Thursday': 'Jueves',
-                      'Friday': 'Viernes',
-                      'Saturday': 'Sábado',
-                      'Sunday': 'Domingo'
+                      Monday: "Lunes",
+                      Tuesday: "Martes",
+                      Wednesday: "Miércoles",
+                      Thursday: "Jueves",
+                      Friday: "Viernes",
+                      Saturday: "Sábado",
+                      Sunday: "Domingo",
                     };
 
                     // Limpiar el label y mapear correctamente
@@ -366,8 +361,14 @@ export default function DashboardContent({
                             </span>
                           </div>
                           <div className="flex justify-between items-center border-t pt-2">
-                            <span className="text-gray-700 font-medium">Ganancia:</span>
-                            <span className={`font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span className="text-gray-700 font-medium">
+                              Ganancia:
+                            </span>
+                            <span
+                              className={`font-bold ${
+                                profit >= 0 ? "text-green-600" : "text-red-600"
+                              }`}
+                            >
                               Bs {profit.toFixed(0)}
                             </span>
                           </div>
@@ -414,10 +415,7 @@ export default function DashboardContent({
           {analytics?.weekly_data && analytics.weekly_data.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
-                data={(() => {
-                  const chartData = [...analytics.weekly_data].reverse();
-                    return chartData;
-                })()}
+                data={analytics.weekly_data}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -429,13 +427,13 @@ export default function DashboardContent({
                   tickFormatter={(value) => {
                     const cleanDay = value?.toString().trim();
                     const dayMap: Record<string, string> = {
-                      'Monday': 'Lun',
-                      'Tuesday': 'Mar',
-                      'Wednesday': 'Mié',
-                      'Thursday': 'Jue',
-                      'Friday': 'Vie',
-                      'Saturday': 'Sáb',
-                      'Sunday': 'Dom',
+                      Monday: "Lun",
+                      Tuesday: "Mar",
+                      Wednesday: "Mié",
+                      Thursday: "Jue",
+                      Friday: "Vie",
+                      Saturday: "Sáb",
+                      Sunday: "Dom",
                     };
                     return dayMap[cleanDay] || cleanDay?.substring(0, 3) || "";
                   }}
@@ -450,17 +448,17 @@ export default function DashboardContent({
                     color: "#000",
                     padding: "8px",
                   }}
-                  formatter={(value, name) => [`${value} órdenes`, 'Pedidos']}
+                  formatter={(value, name) => [`${value} órdenes`, "Pedidos"]}
                   labelFormatter={(label) => {
                     const cleanDay = label?.toString().trim();
                     const dayMap: Record<string, string> = {
-                      'Monday': 'Lunes',
-                      'Tuesday': 'Martes',
-                      'Wednesday': 'Miércoles',
-                      'Thursday': 'Jueves',
-                      'Friday': 'Viernes',
-                      'Saturday': 'Sábado',
-                      'Sunday': 'Domingo'
+                      Monday: "Lunes",
+                      Tuesday: "Martes",
+                      Wednesday: "Miércoles",
+                      Thursday: "Jueves",
+                      Friday: "Viernes",
+                      Saturday: "Sábado",
+                      Sunday: "Domingo",
                     };
                     return dayMap[cleanDay] || cleanDay;
                   }}
@@ -489,18 +487,30 @@ export default function DashboardContent({
           {analytics?.top_items && analytics.top_items.length > 0 ? (
             <div className="space-y-2">
               {analytics.top_items.slice(0, 5).map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200"
+                >
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center justify-center w-6 h-6 bg-green-100 rounded-full">
-                      <span className="text-xs font-bold text-green-600">{index + 1}</span>
+                      <span className="text-xs font-bold text-green-600">
+                        {index + 1}
+                      </span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.name}
+                      </p>
                       <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                        <div 
-                          className="bg-green-600 h-1 rounded-full" 
-                          style={{ 
-                            width: `${Math.min((item.quantity / (analytics.top_items[0]?.quantity || 1)) * 100, 100)}%` 
+                        <div
+                          className="bg-green-600 h-1 rounded-full"
+                          style={{
+                            width: `${Math.min(
+                              (item.quantity /
+                                (analytics.top_items[0]?.quantity || 1)) *
+                                100,
+                              100
+                            )}%`,
                           }}
                         ></div>
                       </div>
@@ -508,11 +518,15 @@ export default function DashboardContent({
                   </div>
                   <div className="flex gap-4 text-right ml-3">
                     <div>
-                      <p className="text-sm font-bold text-green-600">{item.quantity}</p>
+                      <p className="text-sm font-bold text-green-600">
+                        {item.quantity}
+                      </p>
                       <p className="text-xs text-gray-500">unidades</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Bs {item.revenue.toFixed(0)}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Bs {item.revenue.toFixed(0)}
+                      </p>
                       <p className="text-xs text-gray-500">ingresos</p>
                     </div>
                   </div>
@@ -537,18 +551,38 @@ export default function DashboardContent({
           {analytics?.low_items && analytics.low_items.length > 0 ? (
             <div className="space-y-2">
               {analytics.low_items.slice(0, 5).map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200"
+                >
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center justify-center w-6 h-6 bg-red-100 rounded-full">
-                      <span className="text-xs font-bold text-red-600">{index + 1}</span>
+                      <span className="text-xs font-bold text-red-600">
+                        {index + 1}
+                      </span>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{item.name}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.name}
+                      </p>
                       <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                        <div 
-                          className="bg-red-600 h-1 rounded-full" 
-                          style={{ 
-                            width: `${analytics.low_items ? Math.min((item.quantity / Math.max(...analytics.low_items.map(i => i.quantity))) * 100, 100) : 0}%` 
+                        <div
+                          className="bg-red-600 h-1 rounded-full"
+                          style={{
+                            width: `${
+                              analytics.low_items
+                                ? Math.min(
+                                    (item.quantity /
+                                      Math.max(
+                                        ...analytics.low_items.map(
+                                          (i) => i.quantity
+                                        )
+                                      )) *
+                                      100,
+                                    100
+                                  )
+                                : 0
+                            }%`,
                           }}
                         ></div>
                       </div>
@@ -556,11 +590,15 @@ export default function DashboardContent({
                   </div>
                   <div className="flex gap-4 text-right ml-3">
                     <div>
-                      <p className="text-sm font-bold text-red-600">{item.quantity}</p>
+                      <p className="text-sm font-bold text-red-600">
+                        {item.quantity}
+                      </p>
                       <p className="text-xs text-gray-500">unidades</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">Bs {item.revenue.toFixed(0)}</p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Bs {item.revenue.toFixed(0)}
+                      </p>
                       <p className="text-xs text-gray-500">ingresos</p>
                     </div>
                   </div>
@@ -584,49 +622,76 @@ export default function DashboardContent({
           </h3>
           <span className="text-sm text-gray-500">Últimos 7 días</span>
         </div>
-        {analytics?.transaction_sources && analytics.transaction_sources.length > 0 ? (
+        {analytics?.transaction_sources &&
+        analytics.transaction_sources.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {analytics.transaction_sources.map((source, index) => {
-              const total = analytics.transaction_sources?.reduce((sum, s) => sum + s.total_revenue, 0) || 0;
-              const percentage = total > 0 ? (source.total_revenue / source.transaction_count) * 100 : 0;
-              const revenuePercentage = total > 0 ? (source.total_revenue / total) * 100 : 0;
-              
+              const total =
+                analytics.transaction_sources?.reduce(
+                  (sum, s) => sum + s.total_revenue,
+                  0
+                ) || 0;
+              const percentage =
+                total > 0
+                  ? (source.total_revenue / source.transaction_count) * 100
+                  : 0;
+              const revenuePercentage =
+                total > 0 ? (source.total_revenue / total) * 100 : 0;
+
               return (
-                <div key={index} className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 hover:shadow-sm transition-shadow">
+                <div
+                  key={index}
+                  className="p-5 rounded-xl border border-gray-200 bg-gray-50/50 hover:shadow-sm transition-shadow"
+                >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-8 bg-amber-400 rounded-full"></div>
                       <div>
-                        <h4 className="font-semibold text-gray-900 text-lg">{source.source_type}</h4>
-                        <p className="text-sm text-gray-500">{revenuePercentage.toFixed(1)}% del total</p>
+                        <h4 className="font-semibold text-gray-900 text-lg">
+                          {source.source_type}
+                        </h4>
+                        <p className="text-sm text-gray-500">
+                          {revenuePercentage.toFixed(1)}% del total
+                        </p>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-center p-3 bg-white rounded-lg border border-gray-100">
                       <p className="text-2xl font-bold text-gray-900">
                         Bs {source.total_revenue.toFixed(0)}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Ingresos totales</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Ingresos totales
+                      </p>
                     </div>
                     <div className="text-center p-3 bg-white rounded-lg border border-gray-100">
                       <p className="text-2xl font-bold text-gray-900">
                         {source.transaction_count}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Transacciones</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Transacciones
+                      </p>
                     </div>
                   </div>
-                  
+
                   <div className="p-3 bg-white rounded-lg border border-gray-100">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Promedio por transacción:</span>
+                      <span className="text-sm text-gray-600">
+                        Promedio por transacción:
+                      </span>
                       <span className="font-semibold text-gray-900">
-                        Bs {source.transaction_count > 0 ? (source.total_revenue / source.transaction_count).toFixed(0) : 0}
+                        Bs{" "}
+                        {source.transaction_count > 0
+                          ? (
+                              source.total_revenue / source.transaction_count
+                            ).toFixed(0)
+                          : 0}
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Progress bar */}
                   <div className="mt-4">
                     <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -634,7 +699,7 @@ export default function DashboardContent({
                       <span>{revenuePercentage.toFixed(1)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-1.5">
-                      <div 
+                      <div
                         className="h-1.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500"
                         style={{ width: `${revenuePercentage}%` }}
                       ></div>
@@ -660,7 +725,8 @@ export default function DashboardContent({
                 Matriz de Rentabilidad
               </h3>
               <p className="text-sm text-gray-600">
-                Análisis de productos por ventas vs margen de ganancia • Últimos 30 días
+                Análisis de productos por ventas vs margen de ganancia • Últimos
+                30 días
               </p>
             </div>
             <div className="flex items-center gap-6 text-xs">
@@ -684,160 +750,208 @@ export default function DashboardContent({
           </div>
         </div>
 
-        {analytics?.profit_matrix && (() => {
-          // Unificar en una sola serie con metadatos para tooltip/colores por punto
-          const allItems = [
-            ...analytics.profit_matrix.stars.map(item => ({ ...item, category: 'Estrellas', color: '#10b981' })),
-            ...analytics.profit_matrix.gems.map(item => ({ ...item, category: 'Joyas', color: '#3b82f6' })),
-            ...analytics.profit_matrix.popular.map(item => ({ ...item, category: 'Populares', color: '#f59e0b' })),
-            ...analytics.profit_matrix.problems.map(item => ({ ...item, category: 'Problemas', color: '#ef4444' }))
-          ];
-          
-          if (allItems.length === 0) {
-            return (
-              <div className="p-12 text-center">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-                  <Target className="text-gray-400" size={20} />
+        {analytics?.profit_matrix &&
+          (() => {
+            // Unificar en una sola serie con metadatos para tooltip/colores por punto
+            const allItems = [
+              ...analytics.profit_matrix.stars.map((item) => ({
+                ...item,
+                category: "Estrellas",
+                color: "#10b981",
+              })),
+              ...analytics.profit_matrix.gems.map((item) => ({
+                ...item,
+                category: "Joyas",
+                color: "#3b82f6",
+              })),
+              ...analytics.profit_matrix.popular.map((item) => ({
+                ...item,
+                category: "Populares",
+                color: "#f59e0b",
+              })),
+              ...analytics.profit_matrix.problems.map((item) => ({
+                ...item,
+                category: "Problemas",
+                color: "#ef4444",
+              })),
+            ];
+
+            if (allItems.length === 0) {
+              return (
+                <div className="p-12 text-center">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <Target className="text-gray-400" size={20} />
+                  </div>
+                  <p className="text-gray-500 text-sm">
+                    No hay datos disponibles para este período
+                  </p>
                 </div>
-                <p className="text-gray-500 text-sm">No hay datos disponibles para este período</p>
+              );
+            }
+
+            const avgSales =
+              allItems.reduce((sum, item) => sum + item.quantity, 0) /
+              allItems.length;
+            const avgMargin =
+              allItems.reduce((sum, item) => sum + item.profit_margin, 0) /
+              allItems.length;
+            const maxSales = Math.max(...allItems.map((item) => item.quantity));
+            const maxMargin = Math.max(
+              ...allItems.map((item) => item.profit_margin)
+            );
+
+            return (
+              <div className="p-6">
+                <div className="relative">
+                  <ResponsiveContainer width="100%" height={420}>
+                    <ScatterChart
+                      margin={{ top: 20, right: 30, bottom: 60, left: 60 }}
+                    >
+                      <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" />
+                      <XAxis
+                        type="number"
+                        dataKey="quantity"
+                        domain={[0, Math.ceil(maxSales * 1.1)]}
+                        axisLine={{ stroke: "#e2e8f0", strokeWidth: 1 }}
+                        tickLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                        tick={{ fontSize: 12, fill: "#64748b" }}
+                        label={{
+                          value: "Número de Ventas",
+                          position: "insideBottom",
+                          offset: -10,
+                          style: {
+                            textAnchor: "middle",
+                            fill: "#64748b",
+                            fontSize: 12,
+                          },
+                        }}
+                      />
+                      <YAxis
+                        type="number"
+                        dataKey="profit_margin"
+                        domain={[0, Math.ceil(maxMargin * 1.1)]}
+                        axisLine={{ stroke: "#e2e8f0", strokeWidth: 1 }}
+                        tickLine={{ stroke: "#cbd5e1", strokeWidth: 1 }}
+                        tick={{ fontSize: 12, fill: "#64748b" }}
+                        label={{
+                          value: "Margen (%)",
+                          angle: -90,
+                          position: "insideLeft",
+                          style: {
+                            textAnchor: "middle",
+                            fill: "#64748b",
+                            fontSize: 12,
+                          },
+                        }}
+                      />
+
+                      <ReferenceLine
+                        x={avgSales}
+                        stroke="#94a3b8"
+                        strokeDasharray="3 3"
+                        strokeWidth={1}
+                      />
+                      <ReferenceLine
+                        y={avgMargin}
+                        stroke="#94a3b8"
+                        strokeDasharray="3 3"
+                        strokeWidth={1}
+                      />
+
+                      <Tooltip
+                        cursor={false}
+                        content={({ active, payload }) => {
+                          if (!active || !payload || payload.length === 0)
+                            return null;
+                          const data = payload[0]?.payload as {
+                            name: string;
+                            quantity: number;
+                            profit_margin: number;
+                            category: string;
+                            color: string;
+                          };
+                          if (!data) return null;
+                          return (
+                            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[200px]">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{ backgroundColor: data.color }}
+                                ></div>
+                                <p className="font-medium text-gray-900">
+                                  {data.name}
+                                </p>
+                              </div>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">
+                                    Categoría:
+                                  </span>
+                                  <span className="font-medium">
+                                    {data.category}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Ventas:</span>
+                                  <span className="font-medium">
+                                    {data.quantity}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Margen:</span>
+                                  <span className="font-medium">
+                                    {Math.round(data.profit_margin)}%
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+
+                      {/* Serie única con colores por punto */}
+                      <Scatter name="Productos" data={allItems} shape="circle">
+                        {allItems.map((pt, idx) => (
+                          <Cell key={`pt-${idx}`} fill={pt.color} />
+                        ))}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+
+                  {/* Quadrant Labels - Each centered in its own quadrant */}
+
+                  {/* Top Left Quadrant - Joyas (Alto margen, Pocas ventas) */}
+                  <div className="absolute top-2 left-1/4 transform -translate-x-1/2">
+                    <div className="text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded">
+                      Joyas
+                    </div>
+                  </div>
+
+                  {/* Top Right Quadrant - Estrellas (Alto margen, Altas ventas) */}
+                  <div className="absolute top-2 right-1/4 transform translate-x-1/2">
+                    <div className="text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded">
+                      Estrellas
+                    </div>
+                  </div>
+
+                  {/* Bottom Left Quadrant - Problemas (Bajo margen, Pocas ventas) */}
+                  <div className="absolute bottom-24 left-1/4 transform -translate-x-1/2">
+                    <div className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded">
+                      Problemas
+                    </div>
+                  </div>
+
+                  {/* Bottom Right Quadrant - Populares (Bajo margen, Altas ventas) */}
+                  <div className="absolute bottom-24 right-1/4 transform translate-x-1/2">
+                    <div className="text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded">
+                      Populares
+                    </div>
+                  </div>
+                </div>
               </div>
             );
-          }
-
-          const avgSales = allItems.reduce((sum, item) => sum + item.quantity, 0) / allItems.length;
-          const avgMargin = allItems.reduce((sum, item) => sum + item.profit_margin, 0) / allItems.length;
-          const maxSales = Math.max(...allItems.map(item => item.quantity));
-          const maxMargin = Math.max(...allItems.map(item => item.profit_margin));
-          
-          return (
-            <div className="p-6">
-              <div className="relative">
-                <ResponsiveContainer width="100%" height={420}>
-                  <ScatterChart margin={{ top: 20, right: 30, bottom: 60, left: 60 }}>
-                    <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" />
-                    <XAxis 
-                      type="number" 
-                      dataKey="quantity" 
-                      domain={[0, Math.ceil(maxSales * 1.1)]}
-                      axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
-                      tickLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                      tick={{ fontSize: 12, fill: '#64748b' }}
-                      label={{ 
-                        value: 'Número de Ventas', 
-                        position: 'insideBottom', 
-                        offset: -10,
-                        style: { textAnchor: 'middle', fill: '#64748b', fontSize: 12 }
-                      }}
-                    />
-                    <YAxis 
-                      type="number" 
-                      dataKey="profit_margin" 
-                      domain={[0, Math.ceil(maxMargin * 1.1)]}
-                      axisLine={{ stroke: '#e2e8f0', strokeWidth: 1 }}
-                      tickLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
-                      tick={{ fontSize: 12, fill: '#64748b' }}
-                      label={{ 
-                        value: 'Margen (%)', 
-                        angle: -90, 
-                        position: 'insideLeft',
-                        style: { textAnchor: 'middle', fill: '#64748b', fontSize: 12 }
-                      }}
-                    />
-                    
-                    <ReferenceLine 
-                      x={avgSales} 
-                      stroke="#94a3b8" 
-                      strokeDasharray="3 3"
-                      strokeWidth={1}
-                    />
-                    <ReferenceLine 
-                      y={avgMargin} 
-                      stroke="#94a3b8" 
-                      strokeDasharray="3 3"
-                      strokeWidth={1}
-                    />
-
-                    <Tooltip 
-                      cursor={false}
-                      content={({ active, payload }) => {
-                        if (!active || !payload || payload.length === 0) return null;
-                        const data = payload[0]?.payload as { name: string; quantity: number; profit_margin: number; category: string; color: string };
-                        if (!data) return null;
-                        return (
-                          <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 min-w-[200px]">
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.color }}></div>
-                              <p className="font-medium text-gray-900">{data.name}</p>
-                            </div>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Categoría:</span>
-                                <span className="font-medium">{data.category}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Ventas:</span>
-                                <span className="font-medium">{data.quantity}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Margen:</span>
-                                <span className="font-medium">{Math.round(data.profit_margin)}%</span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }}
-                    />
-                    
-                    {/* Serie única con colores por punto */}
-                    <Scatter
-                      name="Productos"
-                      data={allItems}
-                      shape="circle"
-                    >
-                      {allItems.map((pt, idx) => (
-                        <Cell key={`pt-${idx}`} fill={pt.color} />
-                      ))}
-                    </Scatter>
-                  </ScatterChart>
-                </ResponsiveContainer>
-
-                {/* Quadrant Labels - Each centered in its own quadrant */}
-                
-                {/* Top Left Quadrant - Joyas (Alto margen, Pocas ventas) */}
-                <div className="absolute top-2 left-1/4 transform -translate-x-1/2">
-                  <div className="text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded">
-                    Joyas
-                  </div>
-                </div>
-                
-                {/* Top Right Quadrant - Estrellas (Alto margen, Altas ventas) */}
-                <div className="absolute top-2 right-1/4 transform translate-x-1/2">
-                  <div className="text-xs font-medium text-emerald-600 bg-emerald-50 px-3 py-1 rounded">
-                    Estrellas
-                  </div>
-                </div>
-                
-                {/* Bottom Left Quadrant - Problemas (Bajo margen, Pocas ventas) */}
-                <div className="absolute bottom-24 left-1/4 transform -translate-x-1/2">
-                  <div className="text-xs font-medium text-red-600 bg-red-50 px-3 py-1 rounded">
-                    Problemas
-                  </div>
-                </div>
-                
-                {/* Bottom Right Quadrant - Populares (Bajo margen, Altas ventas) */}
-                <div className="absolute bottom-24 right-1/4 transform translate-x-1/2">
-                  <div className="text-xs font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded">
-                    Populares
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+          })()}
       </div>
     </div>
   );
 }
-
-
-
