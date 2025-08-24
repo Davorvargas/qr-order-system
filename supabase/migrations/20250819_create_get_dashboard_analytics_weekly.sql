@@ -11,14 +11,14 @@ WITH
   ),
   weekly AS (
     SELECT 
-      to_char((CURRENT_DATE - d)::date, 'Day')::text AS day,
-      (CURRENT_DATE - d)::date AS date,
+      to_char((CURRENT_DATE AT TIME ZONE 'America/La_Paz' - d)::date, 'Day')::text AS day,
+      (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - d)::date AS date,
       COALESCE(
         (
           SELECT SUM(o.total_price)
           FROM public.orders o
           WHERE o.restaurant_id = p_restaurant_id
-            AND DATE(o.created_at) = (CURRENT_DATE - d)
+            AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - d)
             AND o.status NOT IN ('cancelled', 'refunded')
         ), 0
       )::numeric AS revenue,
@@ -27,7 +27,7 @@ WITH
           SELECT COUNT(*)
           FROM public.orders o
           WHERE o.restaurant_id = p_restaurant_id
-            AND DATE(o.created_at) = (CURRENT_DATE - d)
+            AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - d)
             AND o.status NOT IN ('cancelled', 'refunded')
         ), 0
       )::int AS orders,
@@ -37,7 +37,7 @@ WITH
           FROM public.order_items oi
           JOIN public.orders o ON o.id = oi.order_id
           WHERE o.restaurant_id = p_restaurant_id
-            AND DATE(o.created_at) = (CURRENT_DATE - d)
+            AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - d)
             AND o.status NOT IN ('cancelled', 'refunded')
         ), 0
       )::numeric AS cost
@@ -47,28 +47,28 @@ WITH
     SELECT COALESCE(SUM(o.total_price), 0)::numeric AS value
     FROM public.orders o
     WHERE o.restaurant_id = p_restaurant_id
-      AND DATE(o.created_at) = CURRENT_DATE
+      AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = CURRENT_DATE AT TIME ZONE 'America/La_Paz'
       AND o.status NOT IN ('cancelled', 'refunded')
   ),
   orders_today AS (
     SELECT COALESCE(COUNT(*), 0)::int AS value
     FROM public.orders o
     WHERE o.restaurant_id = p_restaurant_id
-      AND DATE(o.created_at) = CURRENT_DATE
+      AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = CURRENT_DATE AT TIME ZONE 'America/La_Paz'
       AND o.status NOT IN ('cancelled', 'refunded')
   ),
   revenue_yesterday AS (
     SELECT COALESCE(SUM(o.total_price), 0)::numeric AS value
     FROM public.orders o
     WHERE o.restaurant_id = p_restaurant_id
-      AND DATE(o.created_at) = CURRENT_DATE - INTERVAL '1 day'
+      AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - INTERVAL '1 day')
       AND o.status NOT IN ('cancelled', 'refunded')
   ),
   orders_yesterday AS (
     SELECT COALESCE(COUNT(*), 0)::int AS value
     FROM public.orders o
     WHERE o.restaurant_id = p_restaurant_id
-      AND DATE(o.created_at) = CURRENT_DATE - INTERVAL '1 day'
+      AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - INTERVAL '1 day')
       AND o.status NOT IN ('cancelled', 'refunded')
   ),
   top_items AS (
@@ -81,7 +81,7 @@ WITH
       JOIN public.orders o ON o.id = oi.order_id
       LEFT JOIN public.menu_items mi ON mi.id = oi.menu_item_id
       WHERE o.restaurant_id = p_restaurant_id
-        AND DATE(o.created_at) = CURRENT_DATE
+        AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = CURRENT_DATE AT TIME ZONE 'America/La_Paz'
         AND o.status NOT IN ('cancelled', 'refunded')
       GROUP BY 1
       ORDER BY quantity DESC
@@ -98,7 +98,7 @@ WITH
       JOIN public.orders o ON o.id = oi.order_id
       LEFT JOIN public.menu_items mi ON mi.id = oi.menu_item_id
       WHERE o.restaurant_id = p_restaurant_id
-        AND DATE(o.created_at) >= CURRENT_DATE - INTERVAL '7 days'
+        AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') >= (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - INTERVAL '7 days')
         AND o.status NOT IN ('cancelled', 'refunded')
       GROUP BY 1
       HAVING SUM(oi.quantity) > 0
@@ -114,7 +114,7 @@ WITH
         COUNT(*)::int AS count
       FROM public.orders o
       WHERE o.restaurant_id = p_restaurant_id
-        AND DATE(o.created_at) = CURRENT_DATE
+        AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') = CURRENT_DATE AT TIME ZONE 'America/La_Paz'
         AND o.status NOT IN ('cancelled', 'refunded')
       GROUP BY 1
     ) x
@@ -133,7 +133,7 @@ WITH
     JOIN public.orders o ON o.id = oi.order_id
     LEFT JOIN public.menu_items mi ON mi.id = oi.menu_item_id
     WHERE o.restaurant_id = p_restaurant_id
-      AND DATE(o.created_at) >= CURRENT_DATE - INTERVAL '30 days'
+      AND DATE(o.created_at AT TIME ZONE 'America/La_Paz') >= (CURRENT_DATE AT TIME ZONE 'America/La_Paz' - INTERVAL '30 days')
       AND o.status NOT IN ('cancelled', 'refunded')
     GROUP BY 1
     HAVING SUM(oi.quantity) > 0
