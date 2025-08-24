@@ -3,9 +3,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Plus, Minus, Trash2, Save, Search } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
-import { Order, OrderItem } from "@/app/staff/dashboard/page";
+import { Order } from "@/app/staff/dashboard/page";
 import CustomProductModal from "./CustomProductModal";
 import { getItemName } from "@/utils/getItemName";
+
+interface OrderItem {
+  id: number;
+  quantity: number;
+  price_at_order: number | null;
+  notes: string | null;
+  menu_items: {
+    name: string;
+    description: string | null;
+    price: number | null;
+  } | null;
+}
 
 interface MenuItem {
   id: number;
@@ -22,7 +34,8 @@ interface Category {
   name: string;
 }
 
-interface ModifiedOrderItem extends OrderItem {
+interface ModifiedOrderItem extends Omit<OrderItem, "price_at_order"> {
+  price_at_order?: number | null;
   isNew?: boolean;
   isDeleted?: boolean;
   originalQuantity?: number;
@@ -55,18 +68,28 @@ export default function ModifyOrderModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isCustomProductModalOpen, setIsCustomProductModalOpen] = useState(false);
+  const [isCustomProductModalOpen, setIsCustomProductModalOpen] =
+    useState(false);
   const [customProductCounter, setCustomProductCounter] = useState(1);
 
   useEffect(() => {
     if (isOpen) {
       fetchMenuData();
       // Initialize with current order items
-      const initialItems: ModifiedOrderItem[] = order.order_items.map(item => ({
-        ...item,
-        originalQuantity: item.quantity,
-        isCustom: !item.menu_items?.name, // Es personalizado si no tiene menu_items
-      }));
+      const initialItems: ModifiedOrderItem[] = order.order_items.map(
+        (item) => ({
+          ...item,
+          notes: item.notes ?? null,
+          menu_items: item.menu_items
+            ? {
+                ...item.menu_items,
+                description: null,
+              }
+            : null,
+          originalQuantity: item.quantity,
+          isCustom: !item.menu_items?.name, // Es personalizado si no tiene menu_items
+        })
+      );
       setModifiedItems(initialItems);
     }
   }, [isOpen, order]);
@@ -115,16 +138,17 @@ export default function ModifyOrderModal({
   // Filter menu items for search
   const filteredMenuItems = useMemo(() => {
     if (!searchTerm) return menuItems;
-    return menuItems.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    return menuItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [menuItems, searchTerm]);
 
   // Group filtered items by category
   const itemsByCategory = useMemo(() => {
     const grouped: { [key: number]: MenuItem[] } = {};
-    filteredMenuItems.forEach(item => {
+    filteredMenuItems.forEach((item) => {
       if (item.category_id) {
         if (!grouped[item.category_id]) grouped[item.category_id] = [];
         grouped[item.category_id].push(item);
@@ -135,18 +159,32 @@ export default function ModifyOrderModal({
 
   // Calculate totals
   const { totalItems, totalPrice, hasChanges } = useMemo(() => {
-    const activeItems = modifiedItems.filter(item => !item.isDeleted);
-    const totalItems = activeItems.reduce((sum, item) => sum + item.quantity, 0);
+    const activeItems = modifiedItems.filter((item) => !item.isDeleted);
+    const totalItems = activeItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
     const totalPrice = activeItems.reduce((sum, item) => {
-      const price = item.menu_items?.price || 0;
-      return sum + (price * item.quantity);
+      // Usar la misma lógica que al guardar para consistencia
+      let price = 0;
+
+      if (item.isNew) {
+        // Item nuevo: usar precio del menú
+        price = item.menu_items?.price || 0;
+      } else {
+        // Item existente: usar price_at_order original o precio del menú
+        price = item.price_at_order || item.menu_items?.price || 0;
+      }
+
+      return sum + price * item.quantity;
     }, 0);
 
     // Check if there are changes
-    const hasChanges = modifiedItems.some(item => 
-      item.isNew || 
-      item.isDeleted || 
-      item.quantity !== (item.originalQuantity || 0)
+    const hasChanges = modifiedItems.some(
+      (item) =>
+        item.isNew ||
+        item.isDeleted ||
+        item.quantity !== (item.originalQuantity || 0)
     );
 
     return { totalItems, totalPrice, hasChanges };
@@ -154,7 +192,7 @@ export default function ModifyOrderModal({
 
   const handleAddItem = (menuItem: MenuItem) => {
     const existingItemIndex = modifiedItems.findIndex(
-      item => item.menu_items?.name === menuItem.name && !item.isDeleted
+      (item) => item.menu_items?.name === menuItem.name && !item.isDeleted
     );
 
     if (existingItemIndex >= 0) {
@@ -170,7 +208,11 @@ export default function ModifyOrderModal({
       const newItem: ModifiedOrderItem = {
         id: Date.now(), // Temporary ID for new items
         quantity: 1,
-        menu_items: { name: menuItem.name, price: menuItem.price },
+        menu_items: {
+          name: menuItem.name,
+          description: menuItem.description,
+          price: menuItem.price,
+        },
         notes: "",
         isNew: true,
         originalQuantity: 0,
@@ -221,12 +263,16 @@ export default function ModifyOrderModal({
 
   const handleAddCustomProduct = (customProduct: CustomProduct) => {
     const customId = -(Date.now() + customProductCounter); // Usar IDs únicos negativos para productos personalizados
-    setCustomProductCounter(prev => prev + 1);
-    
+    setCustomProductCounter((prev) => prev + 1);
+
     const newItem: ModifiedOrderItem = {
       id: customId,
       quantity: 1,
-      menu_items: { name: customProduct.name, price: customProduct.price },
+      menu_items: {
+        name: customProduct.name,
+        description: null,
+        price: customProduct.price,
+      },
       notes: customProduct.notes || "",
       isNew: true,
       isCustom: true,
@@ -244,22 +290,24 @@ export default function ModifyOrderModal({
     setSaving(true);
     try {
       // Delete removed items
-      const itemsToDelete = modifiedItems.filter(item => item.isDeleted && !item.isNew);
+      const itemsToDelete = modifiedItems.filter(
+        (item) => item.isDeleted && !item.isNew
+      );
       for (const item of itemsToDelete) {
-        await supabase
-          .from("order_items")
-          .delete()
-          .eq("id", item.id);
+        await supabase.from("order_items").delete().eq("id", item.id);
       }
 
       // Update existing items
       const itemsToUpdate = modifiedItems.filter(
-        item => !item.isNew && !item.isDeleted && item.quantity !== item.originalQuantity
+        (item) =>
+          !item.isNew &&
+          !item.isDeleted &&
+          item.quantity !== item.originalQuantity
       );
       for (const item of itemsToUpdate) {
         await supabase
           .from("order_items")
-          .update({ 
+          .update({
             quantity: item.quantity,
             notes: item.notes || null,
           })
@@ -267,16 +315,18 @@ export default function ModifyOrderModal({
       }
 
       // Add new items
-      const itemsToAdd = modifiedItems.filter(item => item.isNew && !item.isDeleted);
+      const itemsToAdd = modifiedItems.filter(
+        (item) => item.isNew && !item.isDeleted
+      );
       if (itemsToAdd.length > 0) {
-        const newOrderItems = itemsToAdd.map(item => {
+        const newOrderItems = itemsToAdd.map((item) => {
           if (item.isCustom) {
             // Para productos personalizados, usar un menu_item_id especial (0 o crear uno)
             // y almacenar la información en notes como JSON
             const customInfo = {
-              type: 'custom_product',
+              type: "custom_product",
               name: item.menu_items?.name,
-              original_notes: item.notes || ''
+              original_notes: item.notes || "",
             };
             return {
               order_id: order.id,
@@ -287,7 +337,9 @@ export default function ModifyOrderModal({
             };
           } else {
             // Para productos del menú
-            const menuItem = menuItems.find(mi => mi.name === item.menu_items?.name);
+            const menuItem = menuItems.find(
+              (mi) => mi.name === item.menu_items?.name
+            );
             return {
               order_id: order.id,
               menu_item_id: menuItem?.id,
@@ -298,17 +350,32 @@ export default function ModifyOrderModal({
           }
         });
 
-        await supabase
-          .from("order_items")
-          .insert(newOrderItems);
+        await supabase.from("order_items").insert(newOrderItems);
       }
 
-      // Update order total
-      const activeItems = modifiedItems.filter(item => !item.isDeleted);
+      // Update order total - Fix para órdenes QR
+      const activeItems = modifiedItems.filter((item) => !item.isDeleted);
       const newTotal = activeItems.reduce((sum, item) => {
-        const price = item.menu_items?.price || 0;
-        return sum + (price * item.quantity);
+        // Para items existentes, usar price_at_order del item original
+        let price = 0;
+
+        if (item.isNew) {
+          // Item nuevo: usar precio del menú
+          price = item.menu_items?.price || 0;
+        } else {
+          // Item existente: usar price_at_order original o precio del menú
+          price = item.price_at_order || item.menu_items?.price || 0;
+        }
+
+        console.log(
+          `🔍 ModifyOrder: Item ${item.menu_items?.name}: price=${price}, quantity=${item.quantity}, isNew=${item.isNew}`
+        );
+        return sum + price * item.quantity;
       }, 0);
+
+      console.log(
+        `📊 ModifyOrder: Total calculado: ${newTotal}, Items activos: ${activeItems.length}`
+      );
 
       await supabase
         .from("orders")
@@ -338,7 +405,8 @@ export default function ModifyOrderModal({
               Modificar Pedido #{order.id}
             </h2>
             <p className="text-sm text-gray-600">
-              Mesa {order.table?.table_number || order.table_id} • {order.customer_name}
+              Mesa {order.table?.table_number || order.table_id} •{" "}
+              {order.customer_name}
             </p>
           </div>
           <button
@@ -379,7 +447,7 @@ export default function ModifyOrderModal({
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {categories.map(category => {
+                  {categories.map((category) => {
                     const categoryItems = itemsByCategory[category.id] || [];
                     if (categoryItems.length === 0) return null;
 
@@ -389,13 +457,15 @@ export default function ModifyOrderModal({
                           {category.name}
                         </h3>
                         <div className="grid gap-2">
-                          {categoryItems.map(item => (
+                          {categoryItems.map((item) => (
                             <div
                               key={item.id}
                               className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100"
                             >
                               <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                <h4 className="font-medium text-gray-900">
+                                  {item.name}
+                                </h4>
                                 <p className="text-sm text-gray-600">
                                   Bs {(item.price || 0).toFixed(2)}
                                 </p>
@@ -420,7 +490,9 @@ export default function ModifyOrderModal({
           {/* Right Panel - Current Order Items */}
           <div className="w-96 flex flex-col">
             <div className="p-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800">Items del Pedido</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Items del Pedido
+              </h3>
               <p className="text-sm text-gray-600">
                 {totalItems} productos • Bs {totalPrice.toFixed(2)}
               </p>
@@ -429,12 +501,14 @@ export default function ModifyOrderModal({
             <div className="flex-1 overflow-y-auto p-4">
               <div className="space-y-3">
                 {modifiedItems
-                  .filter(item => !item.isDeleted)
+                  .filter((item) => !item.isDeleted)
                   .map((item, index) => (
                     <div
                       key={`${item.id}-${index}`}
                       className={`p-3 border rounded-lg ${
-                        item.isNew ? "border-green-200 bg-green-50" : "border-gray-200"
+                        item.isNew
+                          ? "border-green-200 bg-green-50"
+                          : "border-gray-200"
                       } ${
                         item.isCustom ? "border-purple-200 bg-purple-50" : ""
                       }`}
@@ -455,7 +529,14 @@ export default function ModifyOrderModal({
                             )}
                           </h4>
                           <p className="text-xs text-gray-600">
-                            Bs {(item.menu_items?.price || 0).toFixed(2)} c/u
+                            Bs{" "}
+                            {(item.isNew
+                              ? item.menu_items?.price || 0
+                              : item.price_at_order ||
+                                item.menu_items?.price ||
+                                0
+                            ).toFixed(2)}{" "}
+                            c/u
                           </p>
                         </div>
                         <button
@@ -469,7 +550,9 @@ export default function ModifyOrderModal({
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => handleUpdateQuantity(index, item.quantity - 1)}
+                            onClick={() =>
+                              handleUpdateQuantity(index, item.quantity - 1)
+                            }
                             className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300"
                           >
                             <Minus size={14} />
@@ -478,20 +561,31 @@ export default function ModifyOrderModal({
                             {item.quantity}
                           </span>
                           <button
-                            onClick={() => handleUpdateQuantity(index, item.quantity + 1)}
+                            onClick={() =>
+                              handleUpdateQuantity(index, item.quantity + 1)
+                            }
                             className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
                         <span className="text-sm font-semibold text-gray-900">
-                          Bs {((item.menu_items?.price || 0) * item.quantity).toFixed(2)}
+                          Bs{" "}
+                          {(
+                            (item.isNew
+                              ? item.menu_items?.price || 0
+                              : item.price_at_order ||
+                                item.menu_items?.price ||
+                                0) * item.quantity
+                          ).toFixed(2)}
                         </span>
                       </div>
 
                       <textarea
                         value={item.notes || ""}
-                        onChange={(e) => handleUpdateNotes(index, e.target.value)}
+                        onChange={(e) =>
+                          handleUpdateNotes(index, e.target.value)
+                        }
                         placeholder="Comentarios..."
                         className="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent resize-none"
                         rows={2}
@@ -530,7 +624,7 @@ export default function ModifyOrderModal({
           </div>
         </div>
       </div>
-      
+
       {/* Modal de producto personalizado */}
       <CustomProductModal
         isOpen={isCustomProductModalOpen}

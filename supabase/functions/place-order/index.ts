@@ -200,15 +200,19 @@ Deno.serve(async (req) => {
       } else {
         // Regular menu item: fetch current cost and store snapshot
         let costAtOrder = 0
+        console.log(`🔍 Fetching cost for menu_item_id: ${item.menu_item_id}`)
         const { data: costRow, error: costError } = await supabaseClient
           .from('menu_items')
           .select('cost')
           .eq('id', item.menu_item_id)
           .single()
         if (costError) {
-          console.log('⚠️ Could not fetch cost, defaulting to 0:', costError)
+          console.log('❌ Could not fetch cost, defaulting to 0:', costError)
+          console.log('❌ Cost error details:', JSON.stringify(costError, null, 2))
         } else {
+          console.log('✅ Raw cost data:', JSON.stringify(costRow, null, 2))
           costAtOrder = Number(costRow?.cost) || 0
+          console.log(`✅ Converted cost: ${costAtOrder}`)
         }
 
         itemsToInsert.push({

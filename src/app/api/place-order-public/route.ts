@@ -112,15 +112,39 @@ export async function POST(request: NextRequest) {
     const orderId = orderData.id;
     console.log('✅ Order created with ID:', orderId);
 
-    // 4. Crear los items del pedido
-    console.log('📝 Creating order items...');
-    const orderItemsData = order_items.map(item => ({
-      order_id: orderId,
-      menu_item_id: item.menu_item_id,
-      quantity: item.quantity,
-      price_at_order: item.price_at_order,
-      notes: item.notes
-    }));
+    // 4. Crear los items del pedido (con costos)
+    console.log('📝 Creating order items with costs...');
+    const orderItemsData = [];
+    
+    for (const item of order_items) {
+      let costAtOrder = 0;
+      
+      // Fetch cost for regular menu items
+      if (item.menu_item_id !== null) {
+        console.log(`🔍 Fetching cost for menu_item_id: ${item.menu_item_id}`);
+        const { data: costRow, error: costError } = await supabaseClient
+          .from('menu_items')
+          .select('cost')
+          .eq('id', item.menu_item_id)
+          .single();
+          
+        if (costError) {
+          console.log('❌ Could not fetch cost, defaulting to 0:', costError);
+        } else {
+          costAtOrder = Number(costRow?.cost) || 0;
+          console.log(`✅ Cost fetched for item ${item.menu_item_id}: ${costAtOrder}`);
+        }
+      }
+      
+      orderItemsData.push({
+        order_id: orderId,
+        menu_item_id: item.menu_item_id,
+        quantity: item.quantity,
+        price_at_order: item.price_at_order,
+        cost_at_order: costAtOrder,
+        notes: item.notes
+      });
+    }
 
     const { error: itemsError } = await supabaseClient
       .from('order_items')
