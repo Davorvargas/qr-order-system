@@ -68,6 +68,7 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/order/confirmation') &&
       !request.nextUrl.pathname.startsWith('/admin') &&
       !request.nextUrl.pathname.startsWith('/api/') &&
+      !request.nextUrl.pathname.startsWith('/test-connection') &&
       !isSupabaseStorage) {
     return NextResponse.redirect(new URL('/login', request.url))
   }

@@ -1,9 +1,13 @@
 import SideTable from "@/components/SideTable";
+import { createClient } from "@/utils/supabase/server";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <SideTable userEmail="admin@test.com">{children}</SideTable>;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  return <SideTable userEmail={user?.email}>{children}</SideTable>;
 }

@@ -12,7 +12,7 @@ interface MenuItem {
   cost: number | null;
   category_id: number | null;
   is_available: boolean;
-  categories?: { name: string } | null;
+  menu_categories?: { name: string } | null;
 }
 
 interface CostEditorProps {
@@ -35,7 +35,7 @@ export default function CostEditor({ initialItems, restaurantId }: CostEditorPro
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.categories?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.menu_categories?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Iniciar edición
@@ -113,8 +113,43 @@ export default function CostEditor({ initialItems, restaurantId }: CostEditorPro
 
   return (
     <div className="p-6">
-      {/* Barra de búsqueda */}
+      {/* Header con estadísticas y búsqueda */}
       <div className="mb-6">
+        {/* Estadísticas rápidas */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <h4 className="text-sm font-medium text-blue-800">Total Productos</h4>
+            <p className="text-xl font-bold text-blue-900">{items.length}</p>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+            <h4 className="text-sm font-medium text-green-800">Con Costo</h4>
+            <p className="text-xl font-bold text-green-900">
+              {items.filter(item => item.cost && item.cost > 0).length}
+            </p>
+          </div>
+          <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+            <h4 className="text-sm font-medium text-red-800">Sin Costo</h4>
+            <p className="text-xl font-bold text-red-900">
+              {items.filter(item => !item.cost || item.cost <= 0).length}
+            </p>
+          </div>
+          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+            <h4 className="text-sm font-medium text-yellow-800">Margen Promedio</h4>
+            <p className="text-xl font-bold text-yellow-900">
+              {(() => {
+                const itemsWithBoth = items.filter(item => item.price && item.cost && item.cost > 0);
+                if (itemsWithBoth.length === 0) return 'N/A';
+                const avgMargin = itemsWithBoth.reduce((sum, item) => {
+                  const margin = ((item.price! - item.cost!) / item.price!) * 100;
+                  return sum + margin;
+                }, 0) / itemsWithBoth.length;
+                return `${avgMargin.toFixed(1)}%`;
+              })()}
+            </p>
+          </div>
+        </div>
+
+        {/* Barra de búsqueda */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -187,7 +222,7 @@ export default function CostEditor({ initialItems, restaurantId }: CostEditorPro
 
                   {/* Categoría */}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {item.categories?.name || 'Sin categoría'}
+                    {item.menu_categories?.name || 'Sin categoría'}
                   </td>
 
                   {/* Precio */}

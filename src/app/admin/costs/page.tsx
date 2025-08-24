@@ -1,31 +1,35 @@
-import { createClient } from '@/utils/supabase/server';
-import { redirect } from 'next/navigation';
-import CostEditor from './CostEditor';
+import { createClient } from "@/utils/supabase/server";
+import { redirect } from "next/navigation";
+import CostEditor from "./CostEditor";
 
 export default async function ManageCostsPage() {
   const supabase = await createClient();
 
   // Verificar autenticación
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) {
-    redirect('/login');
+    redirect("/login");
   }
 
-  // Verificar rol de administrador
+  // Verificar rol de administrador o staff
   const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role, restaurant_id')
-    .eq('id', user.id)
+    .from("profiles")
+    .select("role, restaurant_id")
+    .eq("id", user.id)
     .single();
 
-  if (profileError || !profile || profile.role !== 'admin') {
-    redirect('/unauthorized');
+  if (profileError || !profile || !["admin", "staff"].includes(profile.role)) {
+    redirect("/unauthorized");
   }
 
   // Obtener todos los productos del restaurante
   const { data: menuItems, error: itemsError } = await supabase
-    .from('menu_items')
-    .select(`
+    .from("menu_items")
+    .select(
+      `
       id,
       name,
       description,
@@ -33,14 +37,15 @@ export default async function ManageCostsPage() {
       cost,
       category_id,
       is_available,
-      categories(name)
-    `)
-    .eq('restaurant_id', profile.restaurant_id)
-    .order('category_id', { ascending: true })
-    .order('name', { ascending: true });
+      menu_categories(name)
+    `
+    )
+    .eq("restaurant_id", profile.restaurant_id)
+    .order("category_id", { ascending: true })
+    .order("name", { ascending: true });
 
   if (itemsError) {
-    console.error('Error fetching menu items:', itemsError);
+    console.error("Error fetching menu items:", itemsError);
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto">
@@ -68,27 +73,35 @@ export default async function ManageCostsPage() {
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Total Productos</h3>
-            <p className="text-2xl font-bold text-gray-900">{menuItems?.length || 0}</p>
+            <h3 className="text-sm font-medium text-gray-500">
+              Total Productos
+            </h3>
+            <p className="text-2xl font-bold text-gray-900">
+              {menuItems?.length || 0}
+            </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Con Costo Definido</h3>
+            <h3 className="text-sm font-medium text-gray-500">
+              Con Costo Definido
+            </h3>
             <p className="text-2xl font-bold text-green-600">
-              {menuItems?.filter(item => item.cost && item.cost > 0).length || 0}
+              {menuItems?.filter((item) => item.cost && item.cost > 0).length ||
+                0}
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500">Sin Costo</h3>
             <p className="text-2xl font-bold text-red-600">
-              {menuItems?.filter(item => !item.cost || item.cost <= 0).length || 0}
+              {menuItems?.filter((item) => !item.cost || item.cost <= 0)
+                .length || 0}
             </p>
           </div>
         </div>
 
         {/* Editor de costos */}
         <div className="bg-white rounded-lg shadow">
-          <CostEditor 
-            initialItems={menuItems || []} 
+          <CostEditor
+            initialItems={menuItems || []}
             restaurantId={profile.restaurant_id}
           />
         </div>
