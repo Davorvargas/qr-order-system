@@ -1102,6 +1102,7 @@ export default function OrderList({
       in_progress: 0,
       completed: 0,
       cancelled: 0,
+      merged: 0,
     };
     orders.forEach((order) => {
       // PRIMERA REGLA: NUNCA contar órdenes con estado "merged"
