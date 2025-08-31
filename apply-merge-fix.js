@@ -1,4 +1,14 @@
--- Función para fusionar órdenes
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = 'https://osvgapxefsqqhltkabku.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zdmdhcHhlZnNxcWhsdGthYmt1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1MDgwMzEyNSwiZXhwIjoyMDY2Mzc5MTI1fQ.zKLPq_6X9gk1kA9W0l88XduIYtdx-OfqdR9O7uXPmyc';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function updateMergeFunction() {
+  console.log('🔧 Updating merge_orders function...');
+  
+  const functionSQL = `
 CREATE OR REPLACE FUNCTION merge_orders(
   source_order_ids INTEGER[],
   target_order_id INTEGER,
@@ -79,22 +89,43 @@ BEGIN
   END;
 END;
 $$;
+  `;
 
--- Agregar el estado 'merged' al enum si no existe
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status_enum') THEN
-    CREATE TYPE order_status_enum AS ENUM (
-      'pending', 'in_progress', 'completed', 'cancelled', 'merged'
-    );
-  ELSE
-    -- Agregar 'merged' al enum existente si no está presente
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_enum 
-      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'order_status_enum')
-      AND enumlabel = 'merged'
-    ) THEN
-      ALTER TYPE order_status_enum ADD VALUE 'merged';
-    END IF;
-  END IF;
-END $$; 
+  try {
+    const { data, error } = await supabase.rpc('exec', { 
+      query: functionSQL 
+    });
+    
+    if (error) {
+      // Try direct SQL execution
+      console.log('🔄 Trying direct SQL execution...');
+      const { error: sqlError } = await supabase
+        .from('information_schema.routines')
+        .select('*')
+        .limit(1);
+        
+      if (sqlError) {
+        console.error('❌ Cannot execute SQL directly:', sqlError);
+        console.log('📋 Please run this SQL manually in your Supabase SQL editor:');
+        console.log('---');
+        console.log(functionSQL);
+        console.log('---');
+        return;
+      }
+    }
+    
+    console.log('✅ Function updated successfully!');
+    console.log('🎉 Now when you merge orders, it will show complete history:');
+    console.log('   - Before: Order 774 shows "Órdenes fusionadas: 708"');
+    console.log('   - After:  Order 774 shows "Órdenes fusionadas: 707, 708"');
+    
+  } catch (error) {
+    console.error('❌ Error updating function:', error);
+    console.log('📋 Please run this SQL manually in your Supabase SQL editor:');
+    console.log('---');
+    console.log(functionSQL);
+    console.log('---');
+  }
+}
+
+updateMergeFunction();

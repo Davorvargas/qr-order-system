@@ -53,7 +53,8 @@ type OrderWorkflowStatus =
   | "pending"
   | "in_progress"
   | "completed"
-  | "cancelled";
+  | "cancelled"
+  | "merged";
 
 const STATUS_TABS: { key: OrderWorkflowStatus; label: string }[] = [
   { key: "pending", label: "Pendientes" },
@@ -485,7 +486,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleUpdateStatus:", err);
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
 
     setUpdatingOrderId(null);
@@ -684,7 +685,11 @@ export default function OrderList({
       if (error) {
         console.error("Error fetching orders:", error);
       } else {
-        setOrders(ordersData as Order[]);
+        // Filter out orders with no items (likely still being created) and merged orders
+        const validOrders = (ordersData as Order[]).filter(order => 
+          order.order_items && order.order_items.length > 0 && order.status !== 'merged'
+        );
+        setOrders(validOrders);
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -745,7 +750,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleStartPreparing:", err);
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
 
     setUpdatingOrderId(null);
@@ -789,7 +794,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleMarkAsReady:", err);
-      alert(`Error: ${err.message}`);
+      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
 
     setUpdatingOrderId(null);
@@ -924,7 +929,7 @@ export default function OrderList({
                       <span className="text-blue-600">
                         {" "}
                         (
-                        {item.order_item_modifiers.map((mod, idx) => (
+                        {item.order_item_modifiers.map((mod: any, idx: number) => (
                           <span key={mod.id}>
                             {idx > 0 && ", "}
                             {mod.modifiers.name}
@@ -1190,7 +1195,7 @@ export default function OrderList({
         <div className="pt-20 p-2">
           {(() => {
             const columns = 4; // Máximo 4 columnas
-            const columnArrays = Array.from({ length: columns }, () => []);
+            const columnArrays: any[][] = Array.from({ length: columns }, () => []);
 
             // Distribuir las órdenes en las columnas de manera dinámica
             const ordersToDistribute = groupedOrders.ungrouped
@@ -1226,7 +1231,7 @@ export default function OrderList({
                   // ids de órdenes para SortableContext
                   const sortableIds = column.flatMap((item) =>
                     item.isGrouped
-                      ? item.tableOrders.map((order) => order.id)
+                      ? item.tableOrders.map((order: any) => order.id)
                       : [item.id]
                   );
                   return (
@@ -1240,14 +1245,14 @@ export default function OrderList({
                           if (item.isGrouped) {
                             // Renderizar grupo de mesa
                             const tableTotal = item.tableOrders.reduce(
-                              (sum, order) => sum + (order.total_price || 0),
+                              (sum: number, order: any) => sum + (order.total_price || 0),
                               0
                             );
                             const tableNumber =
                               item.tableOrders[0]?.table?.table_number ||
                               item.tableKey;
                             const hasNewOrders = item.tableOrders.some(
-                              (order) => order.status === "pending"
+                              (order: any) => order.status === "pending"
                             );
 
                             return (
@@ -1278,7 +1283,7 @@ export default function OrderList({
 
                                 {/* Lista compacta de pedidos de la mesa */}
                                 <div className="p-2 space-y-2">
-                                  {item.tableOrders.map((order, index) => {
+                                  {item.tableOrders.map((order: any, index: number) => {
                                     const isExpanded = expandedCardIds.includes(
                                       order.id
                                     );

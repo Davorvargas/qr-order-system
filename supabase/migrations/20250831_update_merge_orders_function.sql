@@ -1,4 +1,4 @@
--- Función para fusionar órdenes
+-- Update merge_orders function to preserve complete merge history
 CREATE OR REPLACE FUNCTION merge_orders(
   source_order_ids INTEGER[],
   target_order_id INTEGER,
@@ -79,22 +79,3 @@ BEGIN
   END;
 END;
 $$;
-
--- Agregar el estado 'merged' al enum si no existe
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'order_status_enum') THEN
-    CREATE TYPE order_status_enum AS ENUM (
-      'pending', 'in_progress', 'completed', 'cancelled', 'merged'
-    );
-  ELSE
-    -- Agregar 'merged' al enum existente si no está presente
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_enum 
-      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'order_status_enum')
-      AND enumlabel = 'merged'
-    ) THEN
-      ALTER TYPE order_status_enum ADD VALUE 'merged';
-    END IF;
-  END IF;
-END $$; 

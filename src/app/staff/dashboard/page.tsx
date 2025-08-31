@@ -33,6 +33,9 @@ export type Order = {
   drink_printed: boolean;
   receipt_printed: boolean;
   notes?: string;
+  is_new_order?: boolean;
+  is_preparing?: boolean;
+  is_ready?: boolean;
 };
 
 export default function StaffDashboardPage() {
