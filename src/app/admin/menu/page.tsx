@@ -1,63 +1,116 @@
 // src/app/admin/menu/page.tsx
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { Database } from "@/lib/database.types";
+"use client";
+
+import { useEffect, useState } from "react";
+import { createClient } from "@/utils/supabase/client";
 import MenuManager from "@/components/MenuManager";
 
-export const dynamic = "force-dynamic"; // <-- FUERZA A LA PÁGINA A SER DINÁMICA
+type Category = { id: number; name: string; is_available: boolean };
+type MenuItem = {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number | null;
+  category_id: number | null;
+  is_available: boolean;
+  image_url: string | null;
+};
 
-export default async function MenuPage() {
-  const supabase = createServerComponentClient<Database>({
-    cookies,
-  });
+export default function MenuPage() {
+  const supabase = createClient();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: menuItems, error: itemsError } = await supabase
-    .from("menu_items")
-    .select("*")
-    .order("display_order");
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          setError("No authenticated user found");
+          setLoading(false);
+          return;
+        }
 
-  if (itemsError) {
-    console.error(
-      "Error fetching menu items:",
-      JSON.stringify(itemsError, null, 2)
+        // Get user's restaurant
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("restaurant_id")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError || !profile?.restaurant_id) {
+          setError("No restaurant associated with this user");
+          setLoading(false);
+          return;
+        }
+
+        const restaurantId = profile.restaurant_id;
+
+        // Get menu items and categories
+        const [itemsResponse, categoriesResponse] = await Promise.all([
+          supabase
+            .from("menu_items")
+            .select("*")
+            .eq("restaurant_id", restaurantId)
+            .order("display_order"),
+          supabase
+            .from("menu_categories")
+            .select("*")
+            .eq("restaurant_id", restaurantId)
+            .order("display_order")
+        ]);
+
+        if (itemsResponse.error || categoriesResponse.error) {
+          console.error("Error fetching data:", itemsResponse.error || categoriesResponse.error);
+          setError("Error loading menu data");
+        } else {
+          setMenuItems(itemsResponse.data || []);
+          setCategories(categoriesResponse.data || []);
+        }
+      } catch (err) {
+        console.error("Error:", err);
+        setError("Error loading menu data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading menu...</p>
+      </div>
     );
   }
 
-  const { data: categories, error: categoriesError } = await supabase
-    .from("menu_categories")
-    .select("*") // <-- Limpiado para más claridad
-    .order("display_order");
-
-  if (categoriesError) {
-    console.error(
-      "Error fetching categories:",
-      JSON.stringify(categoriesError, null, 2)
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-red-600">{error}</p>
+      </div>
     );
   }
 
-  let content;
+  // Normalizar is_available para que nunca sea null
+  const safeCategories = categories.map((cat) => ({
+    ...cat,
+    is_available: cat.is_available ?? false,
+  }));
 
-  if (itemsError || categoriesError) {
-    content = (
-      <div>Error loading menu data. Check the server logs for details.</div>
-    );
-  } else {
-    // Normalizar is_available para que nunca sea null
-    const safeCategories = (categories || []).map((cat) => ({
-      ...cat,
-      is_available: cat.is_available ?? false,
-    }));
-
-    content = (
-      <>
-        <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
-        <MenuManager
-          initialItems={menuItems || []}
-          categories={safeCategories}
-        />
-      </>
-    );
-  }
-
-  return content;
+  return (
+    <>
+      <h1 className="text-2xl font-bold mb-4">Menu Management</h1>
+      <MenuManager
+        initialItems={menuItems}
+        categories={safeCategories}
+      />
+    </>
+  );
 }
