@@ -60,11 +60,12 @@ export async function middleware(request: NextRequest) {
   const isSupabaseStorage = request.nextUrl.href.includes('supabase.co/storage');
 
   // if user is not signed in and the current path is not /login, redirect the user to /login
-  // But allow access to menu and order confirmation pages for customers
+  // But allow access to menu, delivery and order confirmation pages for customers
   // Also allow access to Supabase Storage URLs
   if (!user && 
       !request.nextUrl.pathname.startsWith('/login') && 
       !request.nextUrl.pathname.startsWith('/menu') &&
+      !request.nextUrl.pathname.startsWith('/delivery') &&
       !request.nextUrl.pathname.startsWith('/order/confirmation') &&
       !request.nextUrl.pathname.startsWith('/admin') &&
       !request.nextUrl.pathname.startsWith('/api/') &&
@@ -85,11 +86,12 @@ export const config = {
      * - favicon.ico (favicon file)
      * - images (static images)
      * - menu (customer menu pages)
+     * - delivery (delivery menu pages for customers)
      * - order/confirmation (order confirmation pages for customers)
      * - api (API routes)
      * - Supabase Storage URLs (storage.v1.object.public)
      * Feel free to modify this pattern to include more paths.
      */
-    '/((?!_next/static|_next/image|favicon.ico|images|menu|order/confirmation|admin|api|storage).*)',
+    '/((?!_next/static|_next/image|favicon.ico|images|menu|delivery|order/confirmation|admin|api|storage).*)',
   ],
 }
