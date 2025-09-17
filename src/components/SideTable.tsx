@@ -16,6 +16,7 @@ import {
   QrCode,
   Menu,
   X,
+  Truck,
 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 
@@ -139,6 +140,13 @@ export default function SideTable({
             }
           >
             Menú
+          </NavLink>
+          <NavLink
+            href="/admin/delivery-setup"
+            icon={<Truck size={20} />}
+            isActive={pathname.startsWith("/admin/delivery-setup")}
+          >
+            Delivery
           </NavLink>
           <NavLink
             href="/admin/costs"

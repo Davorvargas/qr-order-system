@@ -21,6 +21,13 @@ export async function POST(req: NextRequest) {
         total_price,
         notes,
         status,
+        order_type,
+        customer_phone,
+        customer_address,
+        delivery_date,
+        delivery_time,
+        customer_nit_carnet,
+        customer_razon_social,
         table:tables(table_number),
         order_items(
           id,

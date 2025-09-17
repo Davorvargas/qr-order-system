@@ -36,6 +36,13 @@ interface OrderDetail {
   notes: string | null;
   status: string;
   source: string;
+  order_type?: string;
+  customer_phone?: string | null;
+  customer_address?: string | null;
+  delivery_date?: string | null;
+  delivery_time?: string | null;
+  customer_nit_carnet?: string | null;
+  customer_razon_social?: string | null;
   table: {
     table_number: string;
   } | null;
@@ -111,6 +118,13 @@ export default function OrderDetailModal({
           notes,
           status,
           source,
+          order_type,
+          customer_phone,
+          customer_address,
+          delivery_date,
+          delivery_time,
+          customer_nit_carnet,
+          customer_razon_social,
           table:tables(table_number),
           order_items(
             id,
@@ -309,6 +323,18 @@ export default function OrderDetailModal({
                       </div>
                     </div>
                   )}
+
+                  {orderDetail.order_type === 'delivery' && (
+                    <div className="flex items-center space-x-2">
+                      <MapPin className="h-5 w-5 text-pink-400" />
+                      <div>
+                        <p className="text-sm text-gray-600">Tipo de Orden</p>
+                        <p className="font-medium text-pink-600">
+                          📦 Pedido por Delivery
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -439,6 +465,54 @@ export default function OrderDetailModal({
                       <p className="text-sm text-yellow-700 mt-1">
                         {orderDetail.notes}
                       </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Información de delivery */}
+              {orderDetail.order_type === 'delivery' && (
+                <div className="bg-pink-50 border border-pink-200 p-4 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <MapPin className="h-5 w-5 text-pink-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-pink-800 mb-3">
+                        📦 Información de Delivery
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        {orderDetail.customer_phone && (
+                          <div>
+                            <span className="font-medium text-gray-700">📞 Teléfono:</span>
+                            <span className="text-gray-600 ml-2">{orderDetail.customer_phone}</span>
+                          </div>
+                        )}
+                        {orderDetail.customer_address && (
+                          <div className="md:col-span-2">
+                            <span className="font-medium text-gray-700">📍 Dirección:</span>
+                            <span className="text-gray-600 ml-2">{orderDetail.customer_address}</span>
+                          </div>
+                        )}
+                        {orderDetail.delivery_date && orderDetail.delivery_time && (
+                          <div className="md:col-span-2">
+                            <span className="font-medium text-gray-700">⏰ Fecha y Hora:</span>
+                            <span className="text-gray-600 ml-2">
+                              {orderDetail.delivery_date} a las {orderDetail.delivery_time}
+                            </span>
+                          </div>
+                        )}
+                        {orderDetail.customer_nit_carnet && (
+                          <div>
+                            <span className="font-medium text-gray-700">🆔 NIT/Carnet:</span>
+                            <span className="text-gray-600 ml-2">{orderDetail.customer_nit_carnet}</span>
+                          </div>
+                        )}
+                        {orderDetail.customer_razon_social && (
+                          <div>
+                            <span className="font-medium text-gray-700">🏢 Razón Social:</span>
+                            <span className="text-gray-600 ml-2">{orderDetail.customer_razon_social}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

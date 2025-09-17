@@ -65,29 +65,38 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const [selectedItemWithModifiers, setSelectedItemWithModifiers] =
     useState<MenuItem | null>(null);
   const [isModifierModalOpen, setIsModifierModalOpen] = useState(false);
-  
+
   // Estado para confirmación flotante
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [confirmationMessage, setConfirmationMessage] = useState("");
-  const [confirmationType, setConfirmationType] = useState<'success' | 'info' | 'warning'>('success');
-  
+  const [confirmationType, setConfirmationType] = useState<
+    "success" | "info" | "warning"
+  >("success");
+
   // Helper para mostrar confirmación de items agregados
-  const showItemAddedConfirmation = (itemName: string, quantity: number = 1) => {
-    const message = quantity === 1 
-      ? `✓ ${itemName} agregado al carrito`
-      : `✓ ${quantity}x ${itemName} agregado al carrito`;
+  const showItemAddedConfirmation = (
+    itemName: string,
+    quantity: number = 1
+  ) => {
+    const message =
+      quantity === 1
+        ? `✓ ${itemName} agregado al carrito`
+        : `✓ ${quantity}x ${itemName} agregado al carrito`;
     setConfirmationMessage(message);
-    setConfirmationType('success');
+    setConfirmationType("success");
     setShowConfirmation(true);
   };
-  
+
   // Helper para mostrar confirmación de orden enviada
-  const showOrderSentConfirmation = (customerName: string, tableNumber?: string) => {
-    const message = tableNumber 
+  const showOrderSentConfirmation = (
+    customerName: string,
+    tableNumber?: string
+  ) => {
+    const message = tableNumber
       ? `✅ Orden para ${customerName} (Mesa ${tableNumber}) enviada exitosamente`
       : `✅ Orden para ${customerName} enviada exitosamente`;
     setConfirmationMessage(message);
-    setConfirmationType('success');
+    setConfirmationType("success");
     setShowConfirmation(true);
   };
 
@@ -173,15 +182,17 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   const checkHasModifiers = async (item: MenuItem): Promise<boolean> => {
     try {
       const response = await fetch(`/api/modifiers?menuItemId=${item.id}`);
-      
+
       if (!response.ok) {
-        console.warn("Modifiers API not available, falling back to simple mode");
+        console.warn(
+          "Modifiers API not available, falling back to simple mode"
+        );
         return false;
       }
 
       // Verificar que la respuesta sea JSON válida
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
         console.warn("API response is not JSON, falling back to simple mode");
         return false;
       }
@@ -236,7 +247,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           isCustom: false,
         },
       }));
-      
+
       // Mostrar confirmación
       showItemAddedConfirmation(item.name);
     }
@@ -257,7 +268,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isCustom: true,
       },
     }));
-    
+
     // Mostrar confirmación
     showItemAddedConfirmation(customProduct.name);
   };
@@ -345,7 +356,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         };
       }
     });
-    
+
     // Mostrar confirmación
     showItemAddedConfirmation(item.name, quantity);
   };
@@ -367,13 +378,16 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         isCustom: false,
       },
     }));
-    
+
     // Mostrar confirmación
     showItemAddedConfirmation(item.name, quantity);
   };
 
   // Handlers para el carrito
-  const handleUpdateQuantity = (itemId: string | number, newQuantity: number) => {
+  const handleUpdateQuantity = (
+    itemId: string | number,
+    newQuantity: number
+  ) => {
     if (newQuantity <= 0) {
       handleRemoveItem(itemId);
     } else {
@@ -402,7 +416,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
   // Calcular total
   const totalPrice = useMemo(() => {
     return Object.values(orderItems)
-      .filter(item => item.quantity > 0)
+      .filter((item) => item.quantity > 0)
       .reduce((sum, item) => {
         return sum + (item.price ?? 0) * item.quantity;
       }, 0);
@@ -694,12 +708,14 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       </div>
 
       {/* Modal de detalle */}
-      <MenuItemDetailModal
-        isOpen={selectedItem !== null}
-        onClose={() => setSelectedItem(null)}
-        item={selectedItem}
-        onAddToCart={handleAddToCartFromModal}
-      />
+      {selectedItem && (
+        <MenuItemDetailModal
+          isOpen={selectedItem !== null}
+          onClose={() => setSelectedItem(null)}
+          item={selectedItem}
+          onAddToCart={handleAddToCartFromModal}
+        />
+      )}
 
       {/* Modal de producto personalizado */}
       <CustomProductModal
@@ -718,7 +734,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         item={selectedItemWithModifiers}
         onAddToCart={handleAddToCartWithModifiers}
       />
-      
+
       {/* Confirmación flotante */}
       <FloatingConfirmation
         isVisible={showConfirmation}

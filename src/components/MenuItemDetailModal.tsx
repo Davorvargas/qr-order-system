@@ -1,161 +1,152 @@
 "use client";
 
-import Image from "next/image";
+import { useState } from "react";
 import { X, Plus, Minus } from "lucide-react";
-import { useState, useEffect, useRef } from "react"; // <-- ASEGÚRATE DE QUE ESTÉN ESTOS TRES
-import type { MenuItem } from "@/types/MenuItem";
 
-// --- TYPE DEFINITIONS ---
-interface MenuItemDetailModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  item: MenuItem | null;
-  onAddToCart: (item: MenuItem, quantity: number, notes: string) => void;
+interface MenuItem {
+  id: number;
+  name: string;
+  description: string | null;
+  price: number;
+  is_available: boolean;
+  image_url?: string;
 }
 
-// --- MAIN COMPONENT ---
+interface MenuItemDetailModalProps {
+  item: MenuItem;
+  onClose: () => void;
+  onAddToCart: (item: MenuItem, quantity: number, notes: string) => void;
+  primaryColor: string;
+}
+
 export default function MenuItemDetailModal({
-  isOpen,
-  onClose,
   item,
+  onClose,
   onAddToCart,
+  primaryColor,
 }: MenuItemDetailModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState("");
-  const modalContentRef = useRef<HTMLDivElement>(null); // <-- AÑADIR ESTA LÍNEA
 
-  // Resetear el estado cuando el modal se abre
-  useEffect(() => {
-    if (isOpen) {
-      setQuantity(1);
-      setNotes("");
-    }
-  }, [isOpen]);
-
-  // Manejar clic fuera del modal para cerrarlo
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      modalContentRef.current &&
-      !modalContentRef.current.contains(e.target as Node)
-    ) {
-      onClose();
-    }
-  };
-
-  if (!isOpen || !item) return null;
-
-  const handleConfirmAddToCart = () => {
+  const handleAddToCart = () => {
     onAddToCart(item, quantity, notes);
     onClose();
   };
 
-  const totalPrice = (item.price ?? 0) * quantity;
+  const incrementQuantity = () => setQuantity((prev) => prev + 1);
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity((prev) => prev - 1);
+    }
+  };
+
+  const total = (item.price || 0) * quantity;
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-60 flex flex-col justify-end z-50"
-      onClick={handleBackdropClick}
-    >
-      <div
-        ref={modalContentRef}
-        className="bg-white w-full max-w-lg mx-auto flex flex-col relative animate-slide-up h-[100vh] overflow-hidden"
-      >
-        {/* Close Button - Positioned like ProductModalWithModifiers */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-600 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-3 z-10 shadow-md transition-all"
-          aria-label="Volver al menú"
-        >
-          <X size={24} />
-        </button>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-pink-50 rounded-xl shadow-2xl max-w-md w-full max-h-[95vh] flex flex-col overflow-hidden border border-pink-100">
+        {/* Header con botón de cerrar */}
+        <div className="flex items-center justify-end p-4 border-b border-pink-200">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-2"
+          >
+            <X size={24} />
+          </button>
+        </div>
 
-        {/* Scrollable content area - Same structure as ProductModalWithModifiers */}
-        <div className="overflow-y-auto flex-grow">
-          {/* Image at top */}
-          <div className="w-full bg-white px-6 py-6">
+        {/* Contenido principal */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          {/* Imagen del producto */}
+          <div className="mb-6">
             {item.image_url ? (
-              <Image
-                src={item.image_url}
-                alt={item.name}
-                width={500}
-                height={300}
-                className="w-full h-auto object-contain max-h-[40vh] mx-auto block rounded-lg"
-                sizes="(max-width: 768px) 100vw, 400px"
-                priority
-                style={{ backgroundColor: 'white' }}
-                unoptimized
-              />
+              <div className="w-full rounded-lg overflow-hidden bg-gray-100">
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="w-full h-auto rounded-lg"
+                />
+              </div>
             ) : (
               <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
-                <span className="text-sm text-gray-500">Sin imagen</span>
+                <span className="text-gray-500 text-lg">Sin imagen</span>
               </div>
             )}
           </div>
 
-          {/* Header dentro del área scrollable */}
-          <div className="px-6 pb-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">{item.name}</h2>
-            {/* Descripción del producto */}
-            {item.description && (
-              <p className="text-gray-600 mb-4">{item.description}</p>
-            )}
+          {/* Nombre del producto */}
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">{item.name}</h2>
 
-            {/* Precio base */}
-            <div className="mb-6">
-              <span className="text-lg font-semibold text-gray-900">
-                Precio: Bs. {item.price?.toFixed(2) || "0.00"}
-              </span>
+          {/* Descripción del producto */}
+          {item.description && (
+            <div className="mb-4">
+              <p className="text-gray-700 text-base leading-relaxed">
+                {item.description}
+              </p>
             </div>
+          )}
+
+          {/* Precio */}
+          <div className="mb-6">
+            <p className="text-lg">
+              Precio:{" "}
+              <span className="font-bold">
+                Bs. {(item.price || 0).toFixed(2)}
+              </span>
+            </p>
           </div>
 
-          {/* Content */}
-          <div className="px-6">
-
-            {/* Notes Section */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold text-gray-800 mb-3">
-                Notas para este producto
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ej. Sin cebolla, término medio, etc."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                rows={3}
-                maxLength={200}
-              />
-              <p className="mt-1 text-xs text-gray-500 text-right">
-                {notes.length}/200 caracteres
-              </p>
+          {/* Notas para el producto */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notas para este producto
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ej. Sin cebolla, término medio, etc."
+              className="w-full px-3 py-2 border border-pink-200 bg-white rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-400 resize-none placeholder-pink-400"
+              rows={3}
+              maxLength={200}
+            />
+            <div className="text-right text-xs text-gray-500 mt-1">
+              {notes.length}/200 caracteres
             </div>
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-6 bg-white border-t sticky bottom-0 flex items-center justify-between gap-4 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        {/* Footer con controles */}
+        <div className="border-t bg-gray-50 p-6">
+          {/* Contador de cantidad */}
+          <div className="flex items-center justify-center mb-6">
             <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              onClick={decrementQuantity}
               disabled={quantity <= 1}
+              className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Minus size={18} className={quantity <= 1 ? "text-gray-400" : "text-gray-700"} />
+              <Minus size={20} />
             </button>
-            <span className="font-bold text-xl w-12 text-center text-gray-900">
+
+            <span className="mx-6 text-2xl font-bold w-8 text-center">
               {quantity}
             </span>
+
             <button
-              onClick={() => setQuantity(quantity + 1)}
-              className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+              onClick={incrementQuantity}
+              className="w-10 h-10 rounded-full flex items-center justify-center hover:opacity-90 text-white"
+              style={{ backgroundColor: primaryColor }}
             >
-              <Plus size={18} className="text-gray-700" />
+              <Plus size={20} />
             </button>
           </div>
+
+          {/* Botón Agregar */}
           <button
-            onClick={handleConfirmAddToCart}
-            className="flex-grow bg-black text-white font-bold py-4 px-6 rounded-lg hover:bg-gray-800 transition-colors shadow-lg"
+            onClick={handleAddToCart}
+            className="w-full py-4 rounded-lg font-bold text-white text-lg hover:opacity-90 transition-opacity"
+            style={{ backgroundColor: primaryColor }}
           >
-            Agregar {quantity} - Bs {totalPrice.toFixed(2)}
+            Agregar {quantity} - Bs {total.toFixed(2)}
           </button>
         </div>
       </div>

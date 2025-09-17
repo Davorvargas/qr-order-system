@@ -486,7 +486,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleUpdateStatus:", err);
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
 
     setUpdatingOrderId(null);
@@ -686,8 +686,11 @@ export default function OrderList({
         console.error("Error fetching orders:", error);
       } else {
         // Filter out orders with no items (likely still being created) and merged orders
-        const validOrders = (ordersData as Order[]).filter(order => 
-          order.order_items && order.order_items.length > 0 && order.status !== 'merged'
+        const validOrders = (ordersData as Order[]).filter(
+          (order) =>
+            order.order_items &&
+            order.order_items.length > 0 &&
+            order.status !== "merged"
         );
         setOrders(validOrders);
       }
@@ -750,7 +753,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleStartPreparing:", err);
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
 
     setUpdatingOrderId(null);
@@ -794,7 +797,7 @@ export default function OrderList({
       }
     } catch (err) {
       console.error("Error en handleMarkAsReady:", err);
-      alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      alert(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
     }
 
     setUpdatingOrderId(null);
@@ -859,7 +862,12 @@ export default function OrderList({
     const groups: { [tableId: string]: Order[] } = {};
 
     filteredOrders.forEach((order) => {
-      const tableKey = order.table_id?.toString() || "sin-mesa";
+      let tableKey;
+      if (order.order_type === 'delivery') {
+        tableKey = "delivery";
+      } else {
+        tableKey = order.table_id?.toString() || "sin-mesa";
+      }
       if (!groups[tableKey]) {
         groups[tableKey] = [];
       }
@@ -929,12 +937,14 @@ export default function OrderList({
                       <span className="text-blue-600">
                         {" "}
                         (
-                        {item.order_item_modifiers.map((mod: any, idx: number) => (
-                          <span key={mod.id}>
-                            {idx > 0 && ", "}
-                            {mod.modifiers.name}
-                          </span>
-                        ))}
+                        {item.order_item_modifiers.map(
+                          (mod: any, idx: number) => (
+                            <span key={mod.id}>
+                              {idx > 0 && ", "}
+                              {mod.modifiers.name}
+                            </span>
+                          )
+                        )}
                         )
                       </span>
                     )}
@@ -974,6 +984,28 @@ export default function OrderList({
               {formatTimeAgo(order.created_at, currentTime)}
             </span>
           </div>
+
+          {/* Información de delivery si es una orden de delivery */}
+          {order.order_type === 'delivery' && (
+            <div className="mb-2 text-xs bg-pink-50 border border-pink-200 rounded p-2 space-y-1">
+              <div className="font-semibold text-pink-800">📦 Información de Delivery:</div>
+              {order.customer_phone && (
+                <div className="text-gray-700">📞 {order.customer_phone}</div>
+              )}
+              {order.customer_address && (
+                <div className="text-gray-700">📍 {order.customer_address}</div>
+              )}
+              {order.delivery_date && order.delivery_time && (
+                <div className="text-gray-700">⏰ {order.delivery_date} a las {order.delivery_time}</div>
+              )}
+              {order.customer_nit_carnet && (
+                <div className="text-gray-700">🆔 NIT/Carnet: {order.customer_nit_carnet}</div>
+              )}
+              {order.customer_razon_social && (
+                <div className="text-gray-700">🏢 {order.customer_razon_social}</div>
+              )}
+            </div>
+          )}
 
           {/* Indicador compacto de impresora si es necesario */}
           {activePrinters.length > 0 && (
@@ -1196,7 +1228,10 @@ export default function OrderList({
         <div className="pt-20 p-2">
           {(() => {
             const columns = 4; // Máximo 4 columnas
-            const columnArrays: any[][] = Array.from({ length: columns }, () => []);
+            const columnArrays: any[][] = Array.from(
+              { length: columns },
+              () => []
+            );
 
             // Distribuir las órdenes en las columnas de manera dinámica
             const ordersToDistribute = groupedOrders.ungrouped
@@ -1246,12 +1281,20 @@ export default function OrderList({
                           if (item.isGrouped) {
                             // Renderizar grupo de mesa
                             const tableTotal = item.tableOrders.reduce(
-                              (sum: number, order: any) => sum + (order.total_price || 0),
+                              (sum: number, order: any) =>
+                                sum + (order.total_price || 0),
                               0
                             );
-                            const tableNumber =
-                              item.tableOrders[0]?.table?.table_number ||
-                              item.tableKey;
+                            const getTableDisplayName = () => {
+                              if (item.tableKey === 'delivery') {
+                                return 'Pedido por Delivery';
+                              } else if (item.tableKey === 'sin-mesa') {
+                                return 'Sin Mesa';
+                              } else {
+                                return `Mesa ${item.tableOrders[0]?.table?.table_number || item.tableKey}`;
+                              }
+                            };
+                            const tableDisplayName = getTableDisplayName();
                             const hasNewOrders = item.tableOrders.some(
                               (order: any) => order.status === "pending"
                             );
@@ -1269,7 +1312,7 @@ export default function OrderList({
                                 <div className="bg-gray-800 text-white p-2">
                                   <div className="flex justify-between items-center">
                                     <h3 className="text-base font-bold text-white !text-white">
-                                      Mesa {tableNumber}
+                                      {tableDisplayName}
                                     </h3>
                                     <div className="text-right">
                                       <p className="text-xs text-white">
@@ -1284,51 +1327,52 @@ export default function OrderList({
 
                                 {/* Lista compacta de pedidos de la mesa */}
                                 <div className="p-2 space-y-2">
-                                  {item.tableOrders.map((order: any, index: number) => {
-                                    const isExpanded = expandedCardIds.includes(
-                                      order.id
-                                    );
-                                    const displayedItems = isExpanded
-                                      ? order.order_items
-                                      : order.order_items.slice(
-                                          0,
-                                          ITEMS_BEFORE_TRUNCATE
-                                        );
+                                  {item.tableOrders.map(
+                                    (order: any, index: number) => {
+                                      const isExpanded =
+                                        expandedCardIds.includes(order.id);
+                                      const displayedItems = isExpanded
+                                        ? order.order_items
+                                        : order.order_items.slice(
+                                            0,
+                                            ITEMS_BEFORE_TRUNCATE
+                                          );
 
-                                    return (
-                                      <SortableOrderCard
-                                        key={order.id}
-                                        id={order.id}
-                                        disabled={
-                                          order.status === "completed" ||
-                                          order.status === "cancelled"
-                                        }
-                                      >
-                                        <div
-                                          className={`border rounded p-1 ${
-                                            order.is_new_order &&
-                                            activeStatus === "pending"
-                                              ? "border-blue-400 bg-blue-50 animate-heartbeat"
-                                              : order.is_new_order &&
-                                                activeStatus === "in_progress"
-                                              ? "border-orange-400 bg-orange-50 animate-heartbeat"
-                                              : order.status === "pending" ||
-                                                order.status === "in_progress"
-                                              ? "border-purple-300 bg-purple-50"
-                                              : "border-gray-200 bg-gray-50"
-                                          }`}
+                                      return (
+                                        <SortableOrderCard
+                                          key={order.id}
+                                          id={order.id}
+                                          disabled={
+                                            order.status === "completed" ||
+                                            order.status === "cancelled"
+                                          }
                                         >
-                                          {/* Contenido individual del pedido sin wrapper adicional */}
-                                          {renderOrderContent(
-                                            order,
-                                            isExpanded,
-                                            displayedItems,
-                                            true
-                                          )}
-                                        </div>
-                                      </SortableOrderCard>
-                                    );
-                                  })}
+                                          <div
+                                            className={`border rounded p-1 ${
+                                              order.is_new_order &&
+                                              activeStatus === "pending"
+                                                ? "border-blue-400 bg-blue-50 animate-heartbeat"
+                                                : order.is_new_order &&
+                                                  activeStatus === "in_progress"
+                                                ? "border-orange-400 bg-orange-50 animate-heartbeat"
+                                                : order.status === "pending" ||
+                                                  order.status === "in_progress"
+                                                ? "border-purple-300 bg-purple-50"
+                                                : "border-gray-200 bg-gray-50"
+                                            }`}
+                                          >
+                                            {/* Contenido individual del pedido sin wrapper adicional */}
+                                            {renderOrderContent(
+                                              order,
+                                              isExpanded,
+                                              displayedItems,
+                                              true
+                                            )}
+                                          </div>
+                                        </SortableOrderCard>
+                                      );
+                                    }
+                                  )}
                                 </div>
                               </div>
                             );

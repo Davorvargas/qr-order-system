@@ -1,42 +1,51 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { Database } from "@/lib/database.types";
+import { createClient } from "@/utils/supabase/server";
 import CashRegisterManager from "@/components/CashRegisterManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient<Database>({
-    cookies: () => cookieStore,
-  });
+  const supabase = await createClient();
 
-  let restaurantId: string | null = null;
+  // Get the current authenticated user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Obtener restaurant_id de las tablas
-  const { data: tables } = await supabase
-    .from("tables")
-    .select("restaurant_id")
-    .limit(1);
-
-  if (tables && tables.length > 0) {
-    restaurantId = tables[0].restaurant_id;
-  } else {
-    // Fallback a restaurants si no hay tablas
-    const { data: restaurants, error: restaurantsError } = await supabase
-      .from("restaurants")
-      .select("id")
-      .limit(1);
-
-    if (restaurantsError) {
-      console.error("Error fetching restaurants:", restaurantsError);
-      return <div>Error loading restaurant data.</div>;
-    }
-
-    if (restaurants && restaurants.length > 0) {
-      restaurantId = restaurants[0].id;
-    }
+  if (!user) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Acceso no autorizado
+        </h2>
+        <p className="text-gray-600">
+          Debes iniciar sesión para acceder a esta página.
+        </p>
+      </div>
+    );
   }
+
+  // Get restaurant_id from user's profile
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("restaurant_id")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError) {
+    console.error("Error fetching profile:", profileError);
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Error al cargar perfil
+        </h2>
+        <p className="text-gray-600">
+          No se pudo cargar la información del usuario.
+        </p>
+      </div>
+    );
+  }
+
+  const restaurantId = profile?.restaurant_id;
 
   if (!restaurantId) {
     return (
