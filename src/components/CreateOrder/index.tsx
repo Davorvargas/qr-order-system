@@ -242,7 +242,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         [item.id.toString()]: {
           quantity: (prev[item.id.toString()]?.quantity || 0) + 1,
           name: item.name,
-          price: item.price,
+          price: item.price || 0,
           notes: prev[item.id.toString()]?.notes || "",
           isCustom: false,
         },
@@ -371,7 +371,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       [item.id.toString()]: {
         quantity: (prev[item.id.toString()]?.quantity || 0) + quantity,
         name: item.name,
-        price: item.price,
+        price: item.price || 0,
         notes: prev[item.id.toString()]?.notes
           ? `${prev[item.id.toString()].notes}; ${notes}`
           : notes,
@@ -471,24 +471,51 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
           notes: details.notes,
         });
 
+        // Enhanced validation for custom products
+        const isCustomProduct = details.isCustom === true;
+        const hasModifiers = details.selectedModifiers && Object.keys(details.selectedModifiers).length > 0;
+
+        let notes = null;
+        let menu_item_id = null;
+
+        if (isCustomProduct) {
+          // Custom product: always null menu_item_id with proper JSON notes
+          menu_item_id = null;
+          notes = JSON.stringify({
+            type: "custom_product",
+            name: details.name || "Producto Especial",
+            original_notes: details.notes?.trim() || "",
+          });
+          console.log(`✅ Custom product: ${details.name} with proper JSON notes`);
+        } else {
+          // Regular product
+          menu_item_id = details.originalItemId || parseInt(itemId, 10);
+
+          if (hasModifiers) {
+            notes = JSON.stringify({
+              selectedModifiers: details.selectedModifiers,
+              original_notes: details.notes?.trim() || "",
+            });
+          } else {
+            notes = details.notes?.trim() || null;
+          }
+        }
+
+        // Final validation: if menu_item_id is null, ensure we have proper custom product notes
+        if (menu_item_id === null && (!notes || !notes.includes('"type":"custom_product"'))) {
+          console.warn(`⚠️ CRITICAL: Item ${itemId} has null menu_item_id but no custom product notes! Fixing...`);
+          notes = JSON.stringify({
+            type: "custom_product",
+            name: details.name || "Producto Especial",
+            original_notes: details.notes?.trim() || "Producto sin nombre definido",
+          });
+        }
+
         return {
-          menu_item_id: details.isCustom
-            ? null
-            : details.originalItemId || parseInt(itemId, 10),
+          menu_item_id,
           quantity: details.quantity,
           price_at_order: details.price,
-          notes: details.isCustom
-            ? JSON.stringify({
-                type: "custom_product",
-                name: details.name,
-                original_notes: details.notes.trim() || "",
-              })
-            : details.selectedModifiers
-            ? JSON.stringify({
-                selectedModifiers: details.selectedModifiers,
-                original_notes: details.notes.trim() || "",
-              })
-            : details.notes.trim() || null,
+          notes,
         };
       }),
     };
