@@ -41,7 +41,7 @@ export default function MenuPage() {
   const [isHeaderScrolled, setIsHeaderScrolled] = useState(false);
   const [featuredImages, setFeaturedImages] = useState<string[]>([]);
   const [restaurantLogo, setRestaurantLogo] = useState<string>("");
-  const [primaryColor, setPrimaryColor] = useState<string>("#1e40af");
+  const [primaryColor, setPrimaryColor] = useState<string>("#1e3a8a");
   const [secondaryColor, setSecondaryColor] = useState<string>("#fbbf24");
 
   // Debug log para ver cuando cambia el estado
@@ -92,7 +92,7 @@ export default function MenuPage() {
         if (tableData.restaurants) {
           setRestaurantName(tableData.restaurants.name || "SENDEROS");
           setRestaurantLogo(tableData.restaurants.logo_url || "");
-          setPrimaryColor(tableData.restaurants.primary_color || "#1e40af");
+          setPrimaryColor(tableData.restaurants.primary_color || "#1e3a8a");
           setSecondaryColor(tableData.restaurants.secondary_color || "#fbbf24");
 
           // Use restaurant background images if available, otherwise use featured images from menu items
@@ -203,7 +203,7 @@ export default function MenuPage() {
         let currentActiveId = activeCategoryId;
         // Mejorar detección considerando el CategoryNav en el top
         const navHeight = isHeaderScrolled ? 64 + 56 : 160 + 56; // header + nav height
-        
+
         for (const el of categoryElements) {
           if (el) {
             const rect = el.getBoundingClientRect();
@@ -325,8 +325,9 @@ export default function MenuPage() {
             categories={availableCategories}
             items={allMenuItems}
             tableId={tableId}
+            primaryColor={primaryColor}
           />
-          
+
           {/* Footer promocional */}
           <div className="mt-12 mb-8 w-full max-w-md mx-auto">
             <div className="bg-white rounded-lg p-6 text-center border border-gray-200 shadow-sm">
@@ -334,13 +335,14 @@ export default function MenuPage() {
                 ¿Te gusta este sistema?
               </h3>
               <p className="text-sm text-gray-600 mb-4">
-                Lleva tu restaurante al siguiente nivel con nuestro sistema de pedidos QR
+                Lleva tu restaurante al siguiente nivel con nuestro sistema de
+                pedidos QR
               </p>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-gray-700">
-                  Contacto: 
-                  <a 
-                    href="tel:+61449173840" 
+                  Contacto:
+                  <a
+                    href="tel:+61449173840"
                     className="text-black hover:text-gray-700 ml-1 font-semibold underline decoration-1 underline-offset-2"
                   >
                     +61 449 173 840

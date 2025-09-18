@@ -2,33 +2,26 @@
 
 import { useState } from "react";
 import { X, Plus, Minus } from "lucide-react";
+import type { MenuItem } from "@/types/MenuItem";
 
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string | null;
-  price: number;
-  is_available: boolean;
-  image_url?: string;
-}
-
-interface MenuItemDetailModalProps {
+interface MenuItemDetailModalWithNotesProps {
   item: MenuItem;
   onClose: () => void;
-  onAddToCart: (item: MenuItem, quantity: number) => void;
-  primaryColor: string;
+  onAddToCart: (item: MenuItem, quantity: number, notes: string) => void;
+  primaryColor?: string;
 }
 
-export default function MenuItemDetailModal({
+export default function MenuItemDetailModalWithNotes({
   item,
   onClose,
   onAddToCart,
-  primaryColor,
-}: MenuItemDetailModalProps) {
+  primaryColor = "#1e40af",
+}: MenuItemDetailModalWithNotesProps) {
   const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState("");
 
   const handleAddToCart = () => {
-    onAddToCart(item, quantity);
+    onAddToCart(item, quantity, notes);
     onClose();
   };
 
@@ -43,7 +36,7 @@ export default function MenuItemDetailModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-pink-50 rounded-xl shadow-2xl max-w-md w-full max-h-[95vh] flex flex-col overflow-hidden border border-pink-100 relative">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[95vh] flex flex-col overflow-hidden relative">
         {/* Contenido principal */}
         <div className="flex-1 p-6 overflow-y-auto">
           {/* Imagen del producto */}
@@ -92,6 +85,24 @@ export default function MenuItemDetailModal({
               </span>
             </p>
           </div>
+
+          {/* Notas para el producto */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notas para este producto
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ej. Sin cebolla, término medio, etc."
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={3}
+              maxLength={200}
+            />
+            <div className="text-right text-xs text-gray-500 mt-1">
+              {notes.length}/200 caracteres
+            </div>
+          </div>
         </div>
 
         {/* Footer con controles */}
@@ -112,8 +123,7 @@ export default function MenuItemDetailModal({
 
             <button
               onClick={incrementQuantity}
-              className="w-10 h-10 rounded-full flex items-center justify-center hover:opacity-90 text-white"
-              style={{ backgroundColor: primaryColor }}
+              className="w-10 h-10 rounded-full flex items-center justify-center hover:opacity-90 text-white bg-gray-900"
             >
               <Plus size={20} />
             </button>
@@ -122,8 +132,7 @@ export default function MenuItemDetailModal({
           {/* Botón Agregar */}
           <button
             onClick={handleAddToCart}
-            className="w-full py-4 rounded-lg font-bold text-white text-lg hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: primaryColor }}
+            className="w-full py-4 rounded-lg font-bold text-white text-lg hover:opacity-90 transition-opacity bg-gray-900"
           >
             Agregar {quantity} - Bs {total.toFixed(2)}
           </button>

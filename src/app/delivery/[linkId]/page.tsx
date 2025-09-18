@@ -30,7 +30,6 @@ interface MenuItem {
 
 interface CartItem extends MenuItem {
   quantity: number;
-  notes: string;
 }
 
 interface DeliverySettings {
@@ -68,7 +67,6 @@ export default function DeliveryMenuPage() {
     customer_razon_social: "",
   });
 
-  const [generalNotes, setGeneralNotes] = useState("");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [checkoutStep, setCheckoutStep] = useState<
     "cart" | "details" | "confirmation"
@@ -171,7 +169,7 @@ export default function DeliveryMenuPage() {
             : cartItem
         );
       }
-      return [...prev, { ...item, quantity: 1, notes: "" }];
+      return [...prev, { ...item, quantity: 1 }];
     });
   };
 
@@ -190,7 +188,10 @@ export default function DeliveryMenuPage() {
   };
 
   const getCartTotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
+    return cart.reduce(
+      (total, item) => total + (item.price || 0) * item.quantity,
+      0
+    );
   };
 
   const handleReceiptClose = () => {
@@ -198,7 +199,6 @@ export default function DeliveryMenuPage() {
     setCompletedOrder(null);
     // Reset form
     setCart([]);
-    setGeneralNotes("");
     setCustomerInfo({
       customer_name: "",
       customer_phone: "",
@@ -212,14 +212,6 @@ export default function DeliveryMenuPage() {
 
   const getCartQuantity = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
-  };
-
-  const updateItemNotes = (itemId: number, notes: string) => {
-    setCart((prev) =>
-      prev.map((cartItem) =>
-        cartItem.id === itemId ? { ...cartItem, notes } : cartItem
-      )
-    );
   };
 
   const updateItemQuantity = (itemId: number, newQuantity: number) => {
@@ -240,11 +232,7 @@ export default function DeliveryMenuPage() {
     setSelectedItem(item);
   };
 
-  const handleAddFromModal = (
-    item: MenuItem,
-    quantity: number,
-    notes: string
-  ) => {
+  const handleAddFromModal = (item: MenuItem, quantity: number) => {
     setCart((prev) => {
       const existingItem = prev.find((cartItem) => cartItem.id === item.id);
       if (existingItem) {
@@ -253,12 +241,11 @@ export default function DeliveryMenuPage() {
             ? {
                 ...cartItem,
                 quantity: cartItem.quantity + quantity,
-                notes: notes || cartItem.notes,
               }
             : cartItem
         );
       }
-      return [...prev, { ...item, quantity, notes: notes || "" }];
+      return [...prev, { ...item, quantity }];
     });
   };
 
@@ -293,7 +280,7 @@ export default function DeliveryMenuPage() {
         customer_nit_carnet: customerInfo.customer_nit_carnet || null,
         customer_razon_social: customerInfo.customer_razon_social || null,
         total_price: getCartTotal(),
-        notes: generalNotes.trim() || null,
+        notes: null,
         status: "pending",
       };
 
@@ -310,8 +297,8 @@ export default function DeliveryMenuPage() {
         order_id: order.id,
         menu_item_id: item.id,
         quantity: item.quantity,
-        price_at_order: item.price,
-        notes: item.notes.trim() || null,
+        price_at_order: item.price || 0,
+        notes: null,
       }));
 
       const { error: itemsError } = await supabase
@@ -337,7 +324,7 @@ export default function DeliveryMenuPage() {
       const orderItemsData = cart.map((item) => ({
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: item.price || 0,
         quantity: item.quantity,
       }));
 
@@ -716,44 +703,18 @@ export default function DeliveryMenuPage() {
                               {item.name}
                             </h3>
                             <p className="text-sm text-gray-600">
-                              Bs. {item.price.toFixed(2)} c/u
+                              Bs. {(item.price || 0).toFixed(2)} c/u
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-lg">
-                            Bs. {(item.price * item.quantity).toFixed(2)}
+                            Bs. {((item.price || 0) * item.quantity).toFixed(2)}
                           </p>
                         </div>
                       </div>
-
-                      {/* Item notes */}
-                      <div className="mt-3">
-                        <input
-                          type="text"
-                          value={item.notes}
-                          onChange={(e) =>
-                            updateItemNotes(item.id, e.target.value)
-                          }
-                          placeholder="Comentarios para este producto..."
-                          className="w-full px-3 py-2 text-sm border border-pink-200 bg-pink-50 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-400 placeholder-pink-400"
-                        />
-                      </div>
                     </div>
                   ))}
-                </div>
-
-                {/* General Notes */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Comentarios generales del pedido
-                  </label>
-                  <textarea
-                    value={generalNotes}
-                    onChange={(e) => setGeneralNotes(e.target.value)}
-                    placeholder="Comentarios adicionales para todo el pedido..."
-                    className="w-full px-3 py-2 text-sm border border-pink-200 bg-pink-50 rounded-lg focus:ring-2 focus:ring-pink-300 focus:border-pink-400 placeholder-pink-400 h-20"
-                  />
                 </div>
 
                 {/* Total */}
@@ -955,7 +916,7 @@ export default function DeliveryMenuPage() {
                             {item.quantity}x {item.name}
                           </span>
                           <span>
-                            Bs. {(item.price * item.quantity).toFixed(2)}
+                            Bs. {((item.price || 0) * item.quantity).toFixed(2)}
                           </span>
                         </div>
                       ))}
@@ -1027,31 +988,16 @@ export default function DeliveryMenuPage() {
                                   {item.quantity}x {item.name}
                                 </span>
                                 <p className="text-sm text-gray-600">
-                                  Bs. {item.price.toFixed(2)} c/u
+                                  Bs. {(item.price || 0).toFixed(2)} c/u
                                 </p>
                               </div>
                               <span className="font-semibold">
-                                Bs. {(item.price * item.quantity).toFixed(2)}
+                                Bs.{" "}
+                                {((item.price || 0) * item.quantity).toFixed(2)}
                               </span>
                             </div>
-                            {item.notes && (
-                              <p className="text-xs text-gray-600 italic">
-                                Nota: {item.notes}
-                              </p>
-                            )}
                           </div>
                         ))}
-
-                        {generalNotes && (
-                          <div className="pt-3 border-t border-gray-200">
-                            <p className="text-sm font-medium text-gray-700">
-                              Comentarios generales:
-                            </p>
-                            <p className="text-sm text-gray-600 italic">
-                              {generalNotes}
-                            </p>
-                          </div>
-                        )}
 
                         <div className="border-t border-gray-300 pt-3 mt-3">
                           <div className="flex justify-between font-bold text-lg">

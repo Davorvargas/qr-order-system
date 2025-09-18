@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/client";
 import SearchBar from "./SearchBar";
 import ProductGrid from "./ProductGrid";
 import OrderPanel from "./OrderPanel";
-import MenuItemDetailModal from "../MenuItemDetailModal";
+import MenuItemDetailModalWithNotes from "../MenuItemDetailModalWithNotes";
 import CustomProductModal from "../CustomProductModal";
 import ProductModalWithModifiers from "../ProductModalWithModifiers";
 import FloatingConfirmation from "../FloatingConfirmation";
@@ -223,13 +223,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       if (foundItemId) {
         // Si existe, abrir el modal con los datos existentes para editar
         const existingItem = orderItems[parseInt(foundItemId)];
-        setSelectedItemWithModifiers({
-          ...item,
-          existingItemId: parseInt(foundItemId),
-          existingQuantity: existingItem.quantity,
-          existingNotes: existingItem.notes,
-          existingModifiers: existingItem.selectedModifiers || {},
-        });
+        setSelectedItemWithModifiers(item);
+        // Store existing item data separately if needed
+        // TODO: Handle existing item data properly
       } else {
         // Si no existe, abrir modal para crear nuevo
         setSelectedItemWithModifiers(item);
@@ -263,7 +259,7 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
       [customId]: {
         quantity: 1,
         name: customProduct.name,
-        price: customProduct.price,
+        price: customProduct.price || 0,
         notes: customProduct.notes || "",
         isCustom: true,
       },
@@ -473,7 +469,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
 
         // Enhanced validation for custom products
         const isCustomProduct = details.isCustom === true;
-        const hasModifiers = details.selectedModifiers && Object.keys(details.selectedModifiers).length > 0;
+        const hasModifiers =
+          details.selectedModifiers &&
+          Object.keys(details.selectedModifiers).length > 0;
 
         let notes = null;
         let menu_item_id = null;
@@ -486,7 +484,9 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
             name: details.name || "Producto Especial",
             original_notes: details.notes?.trim() || "",
           });
-          console.log(`✅ Custom product: ${details.name} with proper JSON notes`);
+          console.log(
+            `✅ Custom product: ${details.name} with proper JSON notes`
+          );
         } else {
           // Regular product
           menu_item_id = details.originalItemId || parseInt(itemId, 10);
@@ -502,12 +502,18 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         }
 
         // Final validation: if menu_item_id is null, ensure we have proper custom product notes
-        if (menu_item_id === null && (!notes || !notes.includes('"type":"custom_product"'))) {
-          console.warn(`⚠️ CRITICAL: Item ${itemId} has null menu_item_id but no custom product notes! Fixing...`);
+        if (
+          menu_item_id === null &&
+          (!notes || !notes.includes('"type":"custom_product"'))
+        ) {
+          console.warn(
+            `⚠️ CRITICAL: Item ${itemId} has null menu_item_id but no custom product notes! Fixing...`
+          );
           notes = JSON.stringify({
             type: "custom_product",
             name: details.name || "Producto Especial",
-            original_notes: details.notes?.trim() || "Producto sin nombre definido",
+            original_notes:
+              details.notes?.trim() || "Producto sin nombre definido",
           });
         }
 
@@ -565,12 +571,13 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
         console.error("Function invoke failed:", invokeError);
 
         // Try to get the actual response if available
-        if (invokeError.response) {
+        const error = invokeError as any;
+        if (error.response) {
           try {
-            const errorText = await invokeError.response.text();
+            const errorText = await error.response.text();
             console.error("Error response body:", errorText);
             const errorData = JSON.parse(errorText);
-            const errorMessage = errorData.error || invokeError.message;
+            const errorMessage = errorData.error || error.message;
             console.error("Parsed error message:", errorMessage);
             setSubmitError(`Error del servidor: ${errorMessage}`);
             if (errorData.details) {
@@ -578,14 +585,14 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
             }
           } catch (parseError) {
             console.error("Could not parse error response:", parseError);
-            setSubmitError(`Error del servidor: ${invokeError.message}`);
+            setSubmitError(`Error del servidor: ${error.message}`);
           }
         } else {
           // Try to extract error message from the FunctionsHttpError
-          let errorMessage = invokeError.message;
-          if (invokeError.context) {
+          let errorMessage = error.message;
+          if (error.context) {
             try {
-              const context = JSON.parse(invokeError.context);
+              const context = JSON.parse(error.context);
               if (context.error) {
                 errorMessage = context.error;
               }
@@ -736,11 +743,11 @@ export default function CreateOrder({ categories, items }: CreateOrderProps) {
 
       {/* Modal de detalle */}
       {selectedItem && (
-        <MenuItemDetailModal
-          isOpen={selectedItem !== null}
-          onClose={() => setSelectedItem(null)}
+        <MenuItemDetailModalWithNotes
           item={selectedItem}
+          onClose={() => setSelectedItem(null)}
           onAddToCart={handleAddToCartFromModal}
+          primaryColor="#1e3a8a"
         />
       )}
 

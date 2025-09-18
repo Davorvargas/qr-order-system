@@ -63,7 +63,7 @@ export default function CreateOrderModal({
 
   const totalPrice = useMemo(() => {
     return Object.values(orderItems).reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) => sum + (item.price || 0) * item.quantity,
       0
     );
   }, [orderItems]);
@@ -148,7 +148,7 @@ export default function CreateOrderModal({
       order_items: Object.values(orderItems).map((item) => ({
         menu_item_id: item.menu_item_id,
         quantity: item.quantity,
-        price_at_order: item.price,
+        price_at_order: item.price || 0,
         notes: item.notes, // <-- INCLUIR LAS NOTAS
       })),
     };
@@ -325,7 +325,7 @@ export default function CreateOrderModal({
               <span className="font-bold">{item.quantity}x</span>
               <span className="flex-grow">{item.name}</span>
               <span className="font-mono">
-                Bs {(item.price * item.quantity).toFixed(2)}
+                Bs {((item.price || 0) * item.quantity).toFixed(2)}
               </span>
             </div>
           ))}

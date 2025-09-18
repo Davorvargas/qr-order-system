@@ -114,7 +114,7 @@ export default function DeliveryReceiptModal({
 
     orderItems.forEach((item) => {
       const itemText = `• ${item.quantity}x ${item.name} - $${(
-        item.price * item.quantity
+        (item.price || 0) * item.quantity
       ).toFixed(2)}`;
       doc.text(itemText, 20, yPos);
       yPos += 8;
@@ -218,7 +218,7 @@ export default function DeliveryReceiptModal({
                     {item.quantity} x {item.name}
                   </span>
                   <span className="font-semibold">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ${((item.price || 0) * item.quantity).toFixed(2)}
                   </span>
                 </div>
               ))}

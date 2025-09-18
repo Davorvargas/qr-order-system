@@ -211,7 +211,7 @@ export default function ModifyOrderModal({
         menu_items: {
           name: menuItem.name,
           description: menuItem.description,
-          price: menuItem.price,
+          price: menuItem.price || 0,
         },
         notes: "",
         isNew: true,
@@ -271,7 +271,7 @@ export default function ModifyOrderModal({
       menu_items: {
         name: customProduct.name,
         description: null,
-        price: customProduct.price,
+        price: customProduct.price || 0,
       },
       notes: customProduct.notes || "",
       isNew: true,
