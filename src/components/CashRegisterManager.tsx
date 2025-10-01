@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Database } from "@/lib/database.types";
 import { User } from "@supabase/supabase-js";
+import { formatDateBolivia } from "@/utils/timezone";
 import {
   Plus,
   X,
@@ -460,7 +461,7 @@ export default function CashRegisterManager({
 
       const formatCurrency = (amount: number) => `Bs. ${amount.toFixed(2)}`;
       const formatDate = (dateString: string) =>
-        new Date(dateString).toLocaleString("es-BO");
+        formatDateBolivia(dateString);
 
       tempDiv.innerHTML = `
         <div style="text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px;">
@@ -793,7 +794,7 @@ export default function CashRegisterManager({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-BO", {
+    return formatDateBolivia(dateString, {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -1126,17 +1127,13 @@ export default function CashRegisterManager({
                   <div className="flex justify-between">
                     <span>Apertura:</span>
                     <span>
-                      {new Date(closingReport.openingTime).toLocaleString(
-                        "es-BO"
-                      )}
+                      {formatDateBolivia(closingReport.openingTime)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Cierre:</span>
                     <span>
-                      {new Date(closingReport.closingTime).toLocaleString(
-                        "es-BO"
-                      )}
+                      {formatDateBolivia(closingReport.closingTime)}
                     </span>
                   </div>
                 </div>
@@ -1418,17 +1415,13 @@ export default function CashRegisterManager({
                     <div className="flex justify-between">
                       <span>Apertura:</span>
                       <span>
-                        {new Date(closingReport.openingTime).toLocaleString(
-                          "es-BO"
-                        )}
+                        {formatDateBolivia(closingReport.openingTime)}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Cierre:</span>
                       <span>
-                        {new Date(closingReport.closingTime).toLocaleString(
-                          "es-BO"
-                        )}
+                        {formatDateBolivia(closingReport.closingTime)}
                       </span>
                     </div>
                   </div>

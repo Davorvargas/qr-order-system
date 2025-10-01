@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { formatModifierNotes } from "../utils/formatModifiers";
 import { getItemName } from "../utils/getItemName";
+import { toBoliviaTime } from "../utils/timezone";
 
 // Nota: Audio notification hook movido a GlobalNotificationService
 
