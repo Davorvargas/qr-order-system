@@ -115,6 +115,33 @@ export default function CashRegisterManager({
       return;
     }
 
+    // Check if there's already an open cash register
+    if (activeCashRegister) {
+      alert("Ya hay una caja abierta. Por favor cierra la caja actual antes de abrir una nueva.");
+      return;
+    }
+
+    // Double-check by querying the database to prevent race conditions
+    const { data: existingOpen, error: checkError } = await supabase
+      .from("cash_registers")
+      .select("id")
+      .eq("restaurant_id", restaurantId)
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (checkError) {
+      console.error("Error checking for open cash register:", checkError);
+      alert("Error al verificar el estado de la caja");
+      return;
+    }
+
+    if (existingOpen) {
+      alert("Ya hay una caja abierta. Por favor cierra la caja actual antes de abrir una nueva.");
+      // Refresh the cash registers list to update the UI
+      await fetchCashRegisters();
+      return;
+    }
+
     try {
       // Por ahora guardamos el balance bancario en el campo notes hasta que se agregue a la base
       const bankBalanceNote = `Balance bancario inicial: ${openingBankBalance}`;

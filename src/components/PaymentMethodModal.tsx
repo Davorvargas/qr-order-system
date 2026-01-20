@@ -49,6 +49,11 @@ export default function PaymentMethodModal({
   };
 
   const fetchActiveCashRegister = async () => {
+    if (!restaurantId) {
+      setActiveCashRegister(null);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("cash_registers")
@@ -64,6 +69,7 @@ export default function PaymentMethodModal({
       setActiveCashRegister(data);
     } catch (error) {
       console.error("Error fetching active cash register:", error);
+      setActiveCashRegister(null);
     }
   };
 
