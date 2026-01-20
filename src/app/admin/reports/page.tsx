@@ -1,15 +1,10 @@
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
-import { Database } from "@/lib/database.types";
+import { createClient } from "@/utils/supabase/server";
 import CashRegisterManager from "@/components/CashRegisterManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
-  const cookieStore = cookies();
-  const supabase = createServerComponentClient<Database>({
-    cookies: () => cookieStore,
-  });
+  const supabase = await createClient();
 
   // Verificar autenticación
   const {
